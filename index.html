@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISC Site-Tracker — MRF Vapocure Paints</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #C8102E; --red-dark: #9e0c24; --red-light: #f5e6e9;
+    --gold: #F5A623; --dark: #1a1a2e; --dark2: #16213e;
+    --gray: #6b7280; --gray-light: #f3f4f6; --white: #ffffff;
+    --success: #10b981; --warning: #f59e0b; --border: #e5e7eb;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #f8f9fc; color: #1f2937; min-height: 100vh; font-size: 14px; }
+
+  /* HEADER */
+  .header { background: linear-gradient(135deg, var(--dark) 0%, var(--dark2) 100%); color: white; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .header-brand { display: flex; align-items: center; gap: 10px; }
+  .header-logo { width: 32px; height: 32px; background: var(--red); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; color: white; }
+  .header-title { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+  .header-title span { color: var(--gold); }
+  .header-subtitle { font-size: 10px; color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .user-badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .btn-signout { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .btn-signout:hover { background: rgba(255,255,255,0.1); color: white; }
+
+  /* SCREENS */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* AUTH */
+  .auth-wrap { min-height: 100vh; background: linear-gradient(135deg, var(--dark) 0%, #0f3460 50%, var(--dark2) 100%); display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+  .auth-card { background: white; border-radius: 20px; padding: 36px 28px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .auth-logo-wrap { text-align: center; margin-bottom: 24px; }
+  .auth-logo { width: 56px; height: 56px; background: linear-gradient(135deg, var(--red), var(--red-dark)); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 20px; color: white; margin-bottom: 12px; box-shadow: 0 8px 20px rgba(200,16,46,0.3); }
+  .auth-brand { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: var(--dark); }
+  .auth-brand span { color: var(--red); }
+  .auth-tagline { font-size: 12px; color: var(--gray); margin-top: 4px; }
+  .auth-title { font-size: 18px; font-weight: 600; color: var(--dark); margin-bottom: 6px; }
+  .auth-desc { font-size: 13px; color: var(--gray); margin-bottom: 24px; line-height: 1.5; }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; letter-spacing: 0.3px; text-transform: uppercase; }
+  .form-input, .form-select { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--dark); background: white; transition: border-color 0.2s, box-shadow 0.2s; outline: none; -webkit-appearance: none; }
+  .form-input:focus, .form-select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(200,16,46,0.1); }
+  .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+  .btn-primary { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--red), var(--red-dark)); color: white; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(200,16,46,0.3); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,16,46,0.4); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn-secondary { padding: 10px 16px; background: white; color: var(--red); border: 1.5px solid var(--red); border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-secondary:hover { background: var(--red-light); }
+  .btn-sm { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .btn-confirm { background: #d1fae5; color: #065f46; }
+  .divider { text-align: center; color: var(--gray); font-size: 12px; margin: 16px 0; position: relative; }
+  .divider::before, .divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--border); }
+  .divider::before { left: 0; } .divider::after { right: 0; }
+  .link-text { text-align: center; font-size: 13px; color: var(--gray); }
+  .link-text a { color: var(--red); text-decoration: none; font-weight: 600; cursor: pointer; }
+
+  /* ASM INFO BOX */
+  .asm-info-box { background: var(--gray-light); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-top: 8px; display: none; }
+  .asm-info-box.show { display: block; }
+  .asm-info-row { font-size: 12px; color: var(--gray); margin-bottom: 4px; }
+  .asm-info-row strong { color: var(--dark); }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); display: flex; z-index: 99; box-shadow: 0 -4px 16px rgba(0,0,0,0.08); }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; cursor: pointer; transition: all 0.2s; border: none; background: none; font-family: 'DM Sans', sans-serif; color: var(--gray); font-size: 10px; gap: 3px; }
+  .nav-item.active { color: var(--red); }
+  .nav-item .nav-icon { font-size: 20px; }
+  .nav-item span { font-weight: 500; }
+
+  /* MAIN */
+  .main-content { padding: 16px; padding-bottom: 80px; }
+  .page-header { margin-bottom: 20px; }
+  .page-title { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: var(--dark); }
+  .page-subtitle { font-size: 12px; color: var(--gray); margin-top: 2px; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 14px; padding: 14px 12px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .stat-value { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; color: var(--dark); line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--gray); margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
+  .stat-card.green .stat-value { color: var(--success); }
+  .stat-card.gold .stat-value { color: var(--gold); }
+
+  /* CARDS */
+  .section-card { background: white; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
+  .section-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-weight: 600; font-size: 14px; color: var(--dark); }
+  .section-body { padding: 16px; }
+
+  /* ENTRY CARDS */
+  .entry-card { border: 1.5px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; background: white; transition: all 0.2s; cursor: pointer; }
+  .entry-card:hover { border-color: var(--red); box-shadow: 0 4px 12px rgba(200,16,46,0.08); }
+  .entry-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .entry-ref { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; color: var(--red); }
+  .entry-customer { font-size: 15px; font-weight: 600; color: var(--dark); margin-bottom: 2px; }
+  .entry-address { font-size: 12px; color: var(--gray); }
+  .entry-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .meta-tag { background: var(--gray-light); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--gray); font-weight: 500; }
+  .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .status-pending { background: #fef3c7; color: #92400e; }
+  .status-confirmed { background: #d1fae5; color: #065f46; }
+
+  /* FAB */
+  .fab { position: fixed; bottom: 74px; right: 20px; width: 52px; height: 52px; background: linear-gradient(135deg, var(--red), var(--red-dark)); color: white; border: none; border-radius: 16px; font-size: 24px; cursor: pointer; box-shadow: 0 6px 20px rgba(200,16,46,0.4); display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 98; }
+  .fab:hover { transform: translateY(-2px) scale(1.05); }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(2px); }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 24px 24px 0 0; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; padding: 24px 20px 32px; animation: slideUp 0.3s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+  .modal-title { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+  .modal-subtitle { font-size: 12px; color: var(--gray); margin-bottom: 20px; }
+
+  /* ORDER SECTION */
+  .order-section { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 14px; margin-top: 8px; display: none; }
+  .order-section.show { display: block; }
+  .order-section-title { font-size: 12px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+  /* PROFILE */
+  .profile-card { background: linear-gradient(135deg, var(--dark), var(--dark2)); border-radius: 16px; padding: 20px; color: white; margin-bottom: 16px; }
+  .profile-avatar { width: 52px; height: 52px; background: var(--red); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+  .profile-name { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; }
+  .profile-role { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .profile-row { display: flex; gap: 6px; align-items: center; font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 6px; }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-text { font-size: 14px; font-weight: 500; }
+  .empty-sub { font-size: 12px; margin-top: 4px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--dark); color: white; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* FILTER */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; color: var(--gray); }
+  .filter-btn.active { background: var(--red); color: white; border-color: var(--red); }
+
+  /* ISC GROUP */
+  .isc-group-header { background: var(--gray-light); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; margin-top: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .isc-group-name { font-weight: 600; font-size: 13px; color: var(--dark); }
+  .isc-group-count { font-size: 11px; color: var(--gray); }
+
+  /* DETAIL */
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { font-size: 12px; color: var(--gray); font-weight: 500; }
+  .detail-value { font-size: 13px; font-weight: 600; color: var(--dark); text-align: right; max-width: 60%; }
+
+  /* BANNERS & ALERTS */
+  .setup-banner { background: linear-gradient(135deg, #fff7ed, #fef3c7); border: 1.5px solid #fde68a; border-radius: 12px; padding: 14px; margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
+  .setup-banner-icon { font-size: 20px; flex-shrink: 0; }
+  .setup-banner-title { font-size: 13px; font-weight: 600; color: #92400e; }
+  .setup-banner-text { font-size: 12px; color: #78350f; margin-top: 2px; line-height: 1.5; }
+  .alert { padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
+  .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+  /* ONEDRIVE STATUS */
+  .od-status { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 10px 14px; border-radius: 10px; margin-top: 12px; }
+  .od-status.connected { background: #d1fae5; color: #065f46; }
+  .od-status.disconnected { background: #fee2e2; color: #991b1b; }
+  .od-status.pending { background: #eff6ff; color: #1e40af; }
+  .od-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 500; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; backdrop-filter: blur(2px); }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--red-light); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--gray); font-weight: 500; }
+
+  /* CONFIG */
+  .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 360px) { .config-row { grid-template-columns: 1fr; } }
+
+  /* ONEDRIVE SETUP STEPS */
+  .step-list { counter-reset: steps; }
+  .step-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .step-item:last-child { border-bottom: none; }
+  .step-num { width: 24px; height: 24px; background: var(--red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .step-content { flex: 1; }
+  .step-title { font-size: 13px; font-weight: 600; color: var(--dark); }
+  .step-desc { font-size: 12px; color: var(--gray); margin-top: 3px; line-height: 1.4; }
+  .step-code { background: var(--gray-light); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: monospace; color: var(--dark); margin-top: 4px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<!-- ══════ LOGIN ══════ -->
+<div id="screen-login" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
+        <div class="auth-tagline">ISC Site-Tracker · Independent Sales Consultant</div>
+      </div>
+      <div id="alert-login"></div>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-desc">Sign in with your ISC credentials to continue.</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="login-username" placeholder="Enter your username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-password" placeholder="Enter your password">
+      </div>
+      <button class="btn-primary" id="btn-login" onclick="doLogin()">Sign In</button>
+      <div class="divider">or</div>
+      <div class="link-text">New ISC? <a onclick="showScreen('screen-register')">Create your account</a></div>
+      <div class="link-text" style="margin-top:8px">Admin / ASM? <a onclick="showScreen('screen-admin-login')">Admin Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ REGISTER ══════ -->
+<div id="screen-register" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">ISC <span>Registration</span></div>
+        <div class="auth-tagline">One-time setup · Saved permanently to OneDrive</div>
+      </div>
+      <div id="alert-register"></div>
+      <div class="auth-title">Create your account</div>
+      <div class="auth-desc">Fill in your details once — we'll remember everything. 😊</div>
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" class="form-input" id="reg-name" placeholder="Your full name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email ID *</label>
+        <input type="email" class="form-input" id="reg-email" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number *</label>
+        <input type="tel" class="form-input" id="reg-phone" placeholder="10-digit mobile number">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your ASM *</label>
+        <select class="form-select" id="reg-asm" onchange="fillAsmInfo()">
+          <option value="">— Select your Area Sales Manager —</option>
+        </select>
+        <div class="asm-info-box" id="asm-info-box">
+          <div class="asm-info-row">📧 Email: <strong id="asm-info-email">—</strong></div>
+          <div class="asm-info-row">📞 Phone: <strong id="asm-info-phone">—</strong></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username *</label>
+        <input type="text" class="form-input" id="reg-username" placeholder="Choose a username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input type="password" class="form-input" id="reg-password" placeholder="Choose a password">
+      </div>
+      <button class="btn-primary" id="btn-register" onclick="doRegister()">Create Account & Sign In</button>
+      <div class="divider">or</div>
+      <div class="link-text">Already have an account? <a onclick="showScreen('screen-login')">Sign In</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ ADMIN LOGIN ══════ -->
+<div id="screen-admin-login" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">Admin / <span>ASM Login</span></div>
+        <div class="auth-tagline">Restricted Access</div>
+      </div>
+      <div id="alert-admin-login"></div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="admin-login-user" placeholder="Admin / ASM username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="admin-login-pass" placeholder="Password">
+      </div>
+      <button class="btn-primary" id="btn-admin-login" onclick="doAdminLogin()">Sign In</button>
+      <div class="divider">or</div>
+      <div class="link-text"><a onclick="showScreen('screen-login')">← Back to ISC Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ MAIN APP ══════ -->
+<div id="screen-app" class="screen">
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-logo">MRF</div>
+      <div>
+        <div class="header-title">ISC <span>Site-Tracker</span></div>
+        <div class="header-subtitle">MRF Vapocure Paints</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="user-badge" id="header-user-badge">ISC</div>
+      <button class="btn-signout" onclick="doSignOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- MY SITES TAB -->
+  <div id="tab-mysites" class="main-content">
+    <div class="page-header">
+      <div class="page-title">My Sites</div>
+      <div class="page-subtitle" id="mysites-subtitle">Your site visits</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="stat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterEntries('Pending',this)">Pending</button>
+      <button class="filter-btn" onclick="filterEntries('Confirmed',this)">Confirmed</button>
+    </div>
+    <div id="entries-list"></div>
+  </div>
+
+  <!-- ALL SITES TAB -->
+  <div id="tab-allsites" class="main-content" style="display:none">
+    <div class="page-header">
+      <div class="page-title" id="allsites-title">All Sites</div>
+      <div class="page-subtitle" id="allsites-subtitle">All ISC activity</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="astat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="astat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="astat-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterAllEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterAllEntries('Pending',this)">Pending</button>
+      <button class="filter-btn" onclick="filterAllEntries('Confirmed',this)">Confirmed</button>
+    </div>
+    <div id="all-entries-list"></div>
+  </div>
+
+  <!-- PROFILE TAB -->
+  <div id="tab-profile" class="main-content" style="display:none">
+    <div class="page-header">
+      <div class="page-title">My Profile</div>
+      <div class="page-subtitle">Your saved details</div>
+    </div>
+    <div class="profile-card" id="profile-card-content"></div>
+    <div class="section-card" id="asm-profile-section">
+      <div class="section-header"><div class="section-title">ASM Details</div></div>
+      <div class="section-body" id="asm-profile-content"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN TAB -->
+  <div id="tab-admin" class="main-content" style="display:none">
+    <div class="page-header">
+      <div class="page-title">Admin Panel</div>
+      <div class="page-subtitle">OneDrive configuration & user management</div>
+    </div>
+
+    <div class="setup-banner">
+      <div class="setup-banner-icon">📊</div>
+      <div>
+        <div class="setup-banner-title">OneDrive + Excel Setup Required</div>
+        <div class="setup-banner-text">IT admin: configure Azure credentials and OneDrive file path below. All data saves to <strong>ISC-Tracker-Data.xlsx</strong> on your company OneDrive.</div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header"><div class="section-title">🔌 Azure & OneDrive Configuration</div></div>
+      <div class="section-body">
+        <div class="alert alert-info" style="margin-bottom:16px">
+          🔐 <strong>How this works:</strong> Enter your Azure App details below. When you click <em>Test Connection</em>, a Microsoft login popup will open — sign in with your MRF admin account. No Client Secret needed in the browser!
+        </div>
+        <div class="config-row">
+          <div class="form-group">
+            <label class="form-label">Azure Tenant ID</label>
+            <input type="text" class="form-input" id="cfg-tenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Azure Client ID</label>
+            <input type="text" class="form-input" id="cfg-client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Excel File Name on OneDrive</label>
+          <input type="text" class="form-input" id="cfg-filename" placeholder="ISC-Tracker-Data.xlsx">
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="saveConfig()">💾 Save Configuration</button>
+          <button class="btn-secondary" onclick="testConnection()">🔌 Test Connection</button>
+          <button class="btn-secondary" onclick="debugExcel()" style="border-color:var(--gray);color:var(--gray)">🔍 Debug Excel</button>
+        </div>
+        <div id="od-status-msg"></div>
+      </div>
+    </div>
+
+    <!-- MANAGE ASMs -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">👥 Manage ASMs</div>
+        <button class="btn-sm btn-confirm" onclick="openModal('modal-asm')">+ Add ASM</button>
+      </div>
+      <div class="section-body"><div id="asm-list"></div></div>
+    </div>
+
+    <!-- IT SETUP STEPS -->
+    <div class="section-card">
+      <div class="section-header"><div class="section-title">📋 IT Admin Setup Guide</div></div>
+      <div class="section-body">
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <div class="step-title">Open Azure Portal</div>
+              <div class="step-desc">Go to portal.azure.com and sign in with MRF admin account.</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <div class="step-title">Create App Registration</div>
+              <div class="step-desc">App Registrations → New Registration → Name: "ISC Tracker" → Register.</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <div class="step-title">Add Redirect URI</div>
+              <div class="step-desc">Authentication → Add platform → Single-page application (SPA) → paste the URL of this app → Save.</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <div class="step-title">Add API Permissions</div>
+              <div class="step-desc">API Permissions → Add → Microsoft Graph → Delegated permissions → add:</div>
+              <div class="step-code">Files.ReadWrite.All &nbsp; User.Read</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <div class="step-title">Create Excel File on OneDrive</div>
+              <div class="step-desc">Create ISC-Tracker-Data.xlsx on the admin's OneDrive root with 3 sheets: Users, ASMs, Entries (with headers in Row 1).</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">6</div>
+            <div class="step-content">
+              <div class="step-title">Paste Tenant ID & Client ID above → Test</div>
+              <div class="step-desc">Click Save Configuration → click Test Connection → sign in with MRF admin account in the popup → green = connected! ✅</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" id="bottom-nav"></div>
+  <button class="fab" id="fab-btn" onclick="showNewEntryModal()" style="display:none">+</button>
+</div>
+
+<!-- ══════ MODALS ══════ -->
+
+<!-- New/Edit Entry Modal -->
+<div class="modal-overlay" id="modal-entry">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-entry-title">Log Site Visit</div>
+    <div class="modal-subtitle">Fill in the site details below</div>
+    <input type="hidden" id="entry-edit-id">
+    <div class="form-group">
+      <label class="form-label">Customer Name / Site Supervisor *</label>
+      <input type="text" class="form-input" id="entry-customer" placeholder="e.g. Mr. Ramesh Kumar">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Site Address *</label>
+      <input type="text" class="form-input" id="entry-address" placeholder="Full site address">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Customer Type *</label>
+      <select class="form-select" id="entry-custtype">
+        <option value="">— Select —</option>
+        <option>Individual Home Owner</option>
+        <option>Builder / Developer</option>
+        <option>Contractor</option>
+        <option>Architect / Interior Designer</option>
+        <option>Commercial / Industrial</option>
+        <option>Government / Institution</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Referral Type *</label>
+      <select class="form-select" id="entry-reftype">
+        <option value="">— Select —</option>
+        <option>Self Prospecting</option>
+        <option>Dealer Referral</option>
+        <option>Existing Customer Referral</option>
+        <option>ASM / RSM Referral</option>
+        <option>Digital / Social Media Lead</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Order Status</label>
+      <select class="form-select" id="entry-status" onchange="toggleOrderSection()">
+        <option value="Pending">Pending</option>
+        <option value="Confirmed">Order Confirmed ✅</option>
+      </select>
+    </div>
+    <div class="order-section" id="order-section">
+      <div class="order-section-title">✅ Order Details</div>
+      <div class="form-group">
+        <label class="form-label">Dealer Code *</label>
+        <input type="text" class="form-input" id="entry-dealercode" placeholder="e.g. DLR-2045">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dealer Name *</label>
+        <input type="text" class="form-input" id="entry-dealername" placeholder="Dealer / distributor name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contractor Name *</label>
+        <input type="text" class="form-input" id="entry-contractor" placeholder="Contractor name">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-entry')">Cancel</button>
+      <button class="btn-primary" style="flex:2" id="btn-save-entry" onclick="saveEntry()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Site Details</div>
+    <div id="modal-detail-body"></div>
+    <div style="display:flex;gap:10px;margin-top:16px" id="modal-detail-actions"></div>
+  </div>
+</div>
+
+<!-- Add ASM Modal -->
+<div class="modal-overlay" id="modal-asm">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add ASM</div>
+    <div class="modal-subtitle">Add a new Area Sales Manager</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="asm-name" placeholder="Full name"></div>
+    <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="asm-email" placeholder="asm@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="asm-phone" placeholder="10-digit number"></div>
+    <div class="form-group"><label class="form-label">Username *</label><input type="text" class="form-input" id="asm-username" placeholder="Login username"></div>
+    <div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" id="asm-password" placeholder="Login password"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-asm')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveAsm()">Save ASM</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Syncing with OneDrive...</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// Global error handler — catches silent JS crashes
+window.onerror = function(msg, src, line) {
+  console.error('JS Error:', msg, 'Line:', line);
+  return false;
+};
+// ══════════════════════════════════════════════
+//  CONFIG & MSAL / ONEDRIVE API
+// ══════════════════════════════════════════════
+const CFG_KEY = 'isc_od_config';
+let _msalApp = null;
+let _msalToken = null;
+
+function getConfig() {
+  return JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
+}
+function saveConfigToLocal(cfg) {
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+}
+
+// Lazy-load MSAL only when needed (never on page load)
+function loadMSALScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof msal !== 'undefined') { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Could not load MSAL library. Check your internet connection.'));
+    document.head.appendChild(script);
+  });
+}
+
+// Build and initialize MSAL instance
+async function buildMSAL() {
+  await loadMSALScript();
+  const cfg = getConfig();
+  if (!cfg.tenantId || !cfg.clientId) return null;
+  const config = {
+    auth: {
+      clientId: cfg.clientId,
+      authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+  };
+  let app;
+  try {
+    if (msal.PublicClientApplication.createPublicClientApplication) {
+      app = await msal.PublicClientApplication.createPublicClientApplication(config);
+    } else {
+      app = new msal.PublicClientApplication(config);
+      if (app.initialize) await app.initialize();
+      if (app.handleRedirectPromise) await app.handleRedirectPromise().catch(() => {});
+    }
+  } catch(e) {
+    throw new Error('MSAL init failed: ' + e.message);
+  }
+  return app;
+}
+
+// Get token via MSAL
+async function getAccessToken() {
+  const cfg = getConfig();
+  if (!cfg.tenantId || !cfg.clientId) throw new Error('NOT_CONFIGURED');
+  if (!_msalApp) _msalApp = await buildMSAL();
+  if (!_msalApp) throw new Error('Could not initialize MSAL.');
+  const scopes = ['https://graph.microsoft.com/Files.ReadWrite.All', 'User.Read'];
+  const accounts = _msalApp.getAllAccounts();
+  if (accounts.length > 0) {
+    try {
+      const result = await _msalApp.acquireTokenSilent({ scopes, account: accounts[0] });
+      _msalToken = result.accessToken;
+      return _msalToken;
+    } catch(e) { /* fall through to popup */ }
+  }
+  const result = await _msalApp.loginPopup({ scopes });
+  _msalToken = result.accessToken;
+  return _msalToken;
+}
+
+async function graphGet(path) {
+  const token = await getAccessToken();
+  const resp = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!resp.ok) throw new Error(`Graph error: ${resp.status}`);
+  return resp.json();
+}
+
+// Auto-create the Excel file with correct sheets if it doesn't exist
+async function ensureWorkbookExists() {
+  const cfg = getConfig();
+  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
+  const token = await getAccessToken();
+
+  // Check if file already exists
+  const listResp = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const listData = await listResp.json();
+  const exists = listData.value?.find(f => f.name === filename);
+  if (exists) return; // already exists, nothing to do
+
+  // Create a blank Excel file via Graph API
+  const createResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filename}:/content`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    },
+    body: new Blob([''], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  });
+  if (!createResp.ok) throw new Error('Could not create Excel file on OneDrive');
+
+  // Wait a moment for file to be ready
+  await new Promise(r => setTimeout(r, 2000));
+
+  // Get the new file's workbook base
+  const listResp2 = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const listData2 = await listResp2.json();
+  const newFile = listData2.value?.find(f => f.name === filename);
+  if (!newFile) throw new Error('File created but could not be found');
+
+  const base = `/me/drive/items/${newFile.id}/workbook`;
+
+  // Add sheets with headers
+  const sheets = [
+    { name: 'ASMs',    headers: ['id','name','email','phone','username','password'] },
+    { name: 'Users',   headers: ['id','name','email','phone','asmId','asmName','asmEmail','asmPhone','username','password','role','createdAt'] },
+    { name: 'Entries', headers: ['id','iscId','iscName','asmId','asmName','customer','address','custType','refType','status','dealerCode','dealerName','contractor','createdAt','updatedAt'] },
+  ];
+
+  for (const sheet of sheets) {
+    // Add sheet
+    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/add`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: sheet.name })
+    });
+    // Write headers to Row 1
+    const endCol = String.fromCharCode(64 + sheet.headers.length);
+    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheet.name}/range(address='A1:${endCol}1')`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [sheet.headers] })
+    });
+  }
+}
+
+async function getWorkbookBase() {
+  const cfg = getConfig();
+  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
+  const files = await graphGet(`/me/drive/root/children`);
+  const file = files.value?.find(f => f.name === filename);
+  if (!file) throw new Error(`FILE_NOT_FOUND: Could not find "${filename}" in your OneDrive root folder.`);
+  return `/me/drive/items/${file.id}/workbook`;
+}
+
+async function readSheet(sheetName) {
+  try {
+    const base = await getWorkbookBase();
+    const token = _msalToken || await getAccessToken();
+    const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) {
+      console.warn(`readSheet(${sheetName}) failed: ${resp.status}`);
+      return [];
+    }
+    const data = await resp.json();
+    const rows = data.values || [];
+    if (rows.length < 2) return [];
+    const headers = rows[0];
+    return rows.slice(1).filter(r => r.some(c => c !== '' && c !== null)).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = row[i] ?? '');
+      return obj;
+    });
+  } catch(e) {
+    console.warn(`readSheet(${sheetName}) error:`, e.message);
+    return [];
+  }
+}
+
+async function appendRow(sheetName, rowObj) {
+  const token = _msalToken || await getAccessToken();
+  const base = await getWorkbookBase();
+  // Read existing rows to find headers and next row number
+  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!resp.ok) throw new Error(`Cannot read sheet "${sheetName}": ${resp.status}`);
+  const data = await resp.json();
+  const rows = data.values || [[]];
+  const headers = rows[0];
+  if (!headers || headers.length === 0) throw new Error(`Sheet "${sheetName}" has no headers in Row 1`);
+  const newRow = headers.map(h => String(rowObj[h] ?? ''));
+  const nextRow = rows.length + 1;
+  const endCol = String.fromCharCode(64 + headers.length);
+  const range = `A${nextRow}:${endCol}${nextRow}`;
+  const writeResp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='${range}')`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [newRow] })
+  });
+  if (!writeResp.ok) {
+    const errData = await writeResp.json();
+    throw new Error(`Write failed: ${writeResp.status} — ${errData?.error?.message || 'unknown'}`);
+  }
+}
+
+async function updateRow(sheetName, matchField, matchVal, updates) {
+  const base = await getWorkbookBase();
+  const token = _msalToken || await getAccessToken();
+  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await resp.json();
+  const rows = data.values || [[]];
+  const headers = rows[0];
+  const colIdx = headers.indexOf(matchField);
+  const rowIdx = rows.findIndex((r, i) => i > 0 && r[colIdx] == matchVal);
+  if (rowIdx === -1) return;
+  const updatedRow = rows[rowIdx].map((val, i) => updates[headers[i]] !== undefined ? updates[headers[i]] : val);
+  const endCol = String.fromCharCode(64 + headers.length);
+  const excelRow = rowIdx + 1;
+  const range = `A${excelRow}:${endCol}${excelRow}`;
+  await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='${range}')`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [updatedRow] })
+  });
+}
+
+// ══════════════════════════════════════════════
+//  LOCAL FALLBACK (demo mode when not configured)
+// ══════════════════════════════════════════════
+function isConfigured() {
+  const c = getConfig();
+  return !!(c.tenantId && c.clientId);
+}
+
+// Local cache for demo mode
+function localDB() { return { get: k => JSON.parse(localStorage.getItem('isc_local_'+k)||'null'), set: (k,v) => localStorage.setItem('isc_local_'+k,JSON.stringify(v)), arr: k => JSON.parse(localStorage.getItem('isc_local_'+k)||'[]'), push: (k,v) => { const a=JSON.parse(localStorage.getItem('isc_local_'+k)||'[]'); a.push(v); localStorage.setItem('isc_local_'+k,JSON.stringify(a)); } }; }
+const LDB = localDB();
+
+function seedLocal() {
+  if (LDB.get('seeded')) return;
+  LDB.set('asms', [
+    { id:'asm1', name:'Vikram Desai', email:'vikram.desai@mrfpaint.com', phone:'9876543210', username:'vikram', password:'asm123' },
+    { id:'asm2', name:'Rahul Mehta', email:'rahul.mehta@mrfpaint.com', phone:'9876543211', username:'rahul', password:'asm123' },
+    { id:'asm3', name:'Sanjay Gupta', email:'sanjay.gupta@mrfpaint.com', phone:'9876543212', username:'sanjay', password:'asm123' },
+  ]);
+  LDB.set('admins', [{ username:'admin', password:'admin123', name:'System Admin', role:'admin' }]);
+  LDB.set('iscs', []);
+  LDB.set('entries', []);
+  LDB.set('seeded', true);
+}
+seedLocal();
+
+// ══════════════════════════════════════════════
+//  DATA LAYER — routes to OneDrive OR local
+// ══════════════════════════════════════════════
+async function DATA_getASMs() {
+  if (isConfigured()) return await readSheet('ASMs');
+  return LDB.arr('asms');
+}
+async function DATA_getISCs() {
+  if (isConfigured()) return await readSheet('Users');
+  return LDB.arr('iscs');
+}
+async function DATA_getEntries() {
+  if (isConfigured()) return await readSheet('Entries');
+  return LDB.arr('entries');
+}
+async function DATA_addISC(isc) {
+  if (isConfigured()) await appendRow('Users', isc);
+  else LDB.push('iscs', isc);
+}
+async function DATA_addEntry(entry) {
+  if (isConfigured()) await appendRow('Entries', entry);
+  else LDB.push('entries', entry);
+}
+async function DATA_updateEntry(id, updates) {
+  if (isConfigured()) await updateRow('Entries', 'id', id, updates);
+  else {
+    const arr = LDB.arr('entries');
+    const i = arr.findIndex(e=>e.id===id);
+    if (i>-1) { arr[i]={...arr[i],...updates}; LDB.set('entries',arr); }
+  }
+}
+async function DATA_addASM(asm) {
+  if (isConfigured()) await appendRow('ASMs', asm);
+  else LDB.push('asms', asm);
+}
+
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+let currentUser = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screen-register') {
+    // populate async but don't block screen switch
+    setTimeout(() => populateAsmDropdown(), 100);
+  }
+}
+
+async function doLogin() {
+  const u=gv('login-username').trim(), p=gv('login-password').trim();
+  if (!u||!p) return showAlert('alert-login','Please enter username and password.','error');
+  setLoading(true,'Checking credentials...');
+  try {
+    // Try local cache first (fast, no network)
+    const localIscs = LDB.arr('iscs');
+    const localIsc = localIscs.find(i=>i.username===u&&i.password===p);
+    if (localIsc) { currentUser={...localIsc,role:'isc'}; launchApp(); return; }
+    // Try OneDrive only if token already available (no popup during login screen)
+    if (isConfigured() && _msalToken) {
+      const iscs = await DATA_getISCs();
+      const isc = iscs.find(i=>i.username===u&&i.password===p);
+      if (isc) { currentUser={...isc,role:'isc'}; launchApp(); return; }
+    }
+    showAlert('alert-login','Invalid username or password.','error');
+  } catch(e) {
+    showAlert('alert-login','Error checking credentials. Try again.','error');
+  } finally { setLoading(false); }
+}
+
+async function doAdminLogin() {
+  const u=gv('admin-login-user').trim(), p=gv('admin-login-pass').trim();
+  if (!u||!p) return showAlert('alert-admin-login','Please enter credentials.','error');
+  setLoading(true,'Checking credentials...');
+  try {
+    // Admin always checked locally
+    const admins = LDB.arr('admins');
+    const admin = admins.find(a=>a.username===u&&a.password===p);
+    if (admin) { currentUser={...admin}; launchApp(); return; }
+    // ASM checked locally first, then OneDrive if configured
+    const localAsms = LDB.arr('asms');
+    const localAsm = localAsms.find(a=>a.username===u&&a.password===p);
+    if (localAsm) { currentUser={...localAsm,role:'asm'}; launchApp(); return; }
+    // Try OneDrive ASMs only if configured and token already available (no popup during login)
+    if (isConfigured() && _msalToken) {
+      const asms = await DATA_getASMs();
+      const asm = asms.find(a=>a.username===u&&a.password===p);
+      if (asm) { currentUser={...asm,role:'asm'}; launchApp(); return; }
+    }
+    showAlert('alert-admin-login','Invalid credentials.','error');
+  } catch(e) {
+    showAlert('alert-admin-login','Error checking credentials. Try again.','error');
+  } finally { setLoading(false); }
+}
+
+async function doRegister() {
+  const name=gv('reg-name').trim(), email=gv('reg-email').trim(),
+        phone=gv('reg-phone').trim(), asmId=gv('reg-asm'),
+        username=gv('reg-username').trim(), password=gv('reg-password').trim();
+  if (!name||!email||!phone||!asmId||!username||!password)
+    return showAlert('alert-register','All fields are required.','error');
+  setLoading(true,'Creating your account...');
+  try {
+    const iscs = await DATA_getISCs();
+    if (iscs.find(i=>i.username===username)) { showAlert('alert-register','Username already taken.','error'); return; }
+    const asms = await DATA_getASMs();
+    const asm = asms.find(a=>a.id===asmId);
+    const isc = { id:'isc_'+Date.now(), name, email, phone, asmId, asmName:asm?.name||'', asmEmail:asm?.email||'', asmPhone:asm?.phone||'', username, password, role:'isc', createdAt:new Date().toISOString() };
+    await DATA_addISC(isc);
+    currentUser = isc;
+    launchApp();
+  } catch(e) {
+    showAlert('alert-register','Error creating account. Try again.','error');
+  } finally { setLoading(false); }
+}
+
+function doSignOut() { currentUser=null; showScreen('screen-login'); sv('login-username',''); sv('login-password',''); }
+
+// ══════════════════════════════════════════════
+//  APP LAUNCH & NAVIGATION
+// ══════════════════════════════════════════════
+function launchApp() {
+  showScreen('screen-app');
+  document.getElementById('header-user-badge').textContent = currentUser.name||currentUser.username;
+  buildNav();
+  if (currentUser.role==='isc') { showTab('mysites'); document.getElementById('fab-btn').style.display='flex'; }
+  else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
+}
+
+function buildNav() {
+  const nav = document.getElementById('bottom-nav');
+  if (currentUser.role==='isc') {
+    nav.innerHTML = `
+      <button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button>
+      <button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else if (currentUser.role==='asm') {
+    nav.innerHTML = `
+      <button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button>
+      <button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else {
+    nav.innerHTML = `
+      <button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button>
+      <button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+  }
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  showTab(tab);
+}
+
+function showTab(tab) {
+  ['tab-mysites','tab-allsites','tab-profile','tab-admin'].forEach(t=>document.getElementById(t).style.display='none');
+  document.getElementById('tab-'+tab).style.display='block';
+  if (tab==='mysites') renderMyEntries();
+  if (tab==='allsites') renderAllEntries();
+  if (tab==='profile') renderProfile();
+  if (tab==='admin') renderAdminPanel();
+}
+
+// ══════════════════════════════════════════════
+//  ENTRIES
+// ══════════════════════════════════════════════
+let _myEntriesCache=[], _allEntriesCache=[];
+
+async function renderMyEntries(filter='all') {
+  setLoading(true, isConfigured()?'Loading from OneDrive...':'Loading...');
+  try {
+    const all = await DATA_getEntries();
+    _myEntriesCache = all.filter(e=>e.iscId===currentUser.id);
+    document.getElementById('stat-total').textContent = _myEntriesCache.length;
+    document.getElementById('stat-confirmed').textContent = _myEntriesCache.filter(e=>e.status==='Confirmed').length;
+    document.getElementById('stat-pending').textContent = _myEntriesCache.filter(e=>e.status==='Pending').length;
+    document.getElementById('mysites-subtitle').textContent = `Welcome, ${currentUser.name} 👋 ${isConfigured()?'🟢 OneDrive':'🟡 Demo Mode'}`;
+    const shown = filter==='all' ? _myEntriesCache : _myEntriesCache.filter(e=>e.status===filter);
+    renderEntryList('entries-list', shown, true);
+  } catch(e) { showToast('⚠️ Could not load entries'); }
+  finally { setLoading(false); }
+}
+
+async function renderAllEntries(filter='all') {
+  setLoading(true, isConfigured()?'Loading from OneDrive...':'Loading...');
+  try {
+    let all = await DATA_getEntries();
+    if (currentUser.role==='asm') all=all.filter(e=>e.asmId===currentUser.id);
+    _allEntriesCache = all;
+    document.getElementById('astat-total').textContent = all.length;
+    document.getElementById('astat-confirmed').textContent = all.filter(e=>e.status==='Confirmed').length;
+    document.getElementById('astat-pending').textContent = all.filter(e=>e.status==='Pending').length;
+    document.getElementById('allsites-title').textContent = currentUser.role==='asm'?'My Team\'s Sites':'All ISC Sites';
+    document.getElementById('allsites-subtitle').textContent = `${currentUser.role==='asm'?'ASM: '+currentUser.name:'Admin — All Regions'} ${isConfigured()?'🟢 OneDrive':'🟡 Demo Mode'}`;
+    const shown = filter==='all' ? all : all.filter(e=>e.status===filter);
+    // Group by ISC
+    const el = document.getElementById('all-entries-list');
+    if (!shown.length) { el.innerHTML=emptyState('📋','No entries found'); return; }
+    const byISC={};
+    shown.forEach(e=>{ if(!byISC[e.iscId]) byISC[e.iscId]={name:e.iscName,entries:[]}; byISC[e.iscId].entries.push(e); });
+    el.innerHTML = Object.values(byISC).map(g=>`
+      <div class="isc-group-header"><div class="isc-group-name">👤 ${g.name}</div><div class="isc-group-count">${g.entries.length} site${g.entries.length>1?'s':''}</div></div>
+      ${g.entries.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('')}
+    `).join('');
+  } catch(e) { showToast('⚠️ Could not load entries'); }
+  finally { setLoading(false); }
+}
+
+function renderEntryList(containerId, entries, editable) {
+  const el=document.getElementById(containerId);
+  if (!entries.length) { el.innerHTML=emptyState('🏗️','No entries yet','Tap + to log your first site visit'); return; }
+  el.innerHTML = entries.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('');
+}
+
+function entryCard(e) {
+  const badge = e.status==='Confirmed'
+    ? `<span class="status-badge status-confirmed">✅ Confirmed</span>`
+    : `<span class="status-badge status-pending">⏳ Pending</span>`;
+  return `<div class="entry-card" onclick="showDetail('${e.id}')">
+    <div class="entry-card-top">
+      <div>
+        <div class="entry-ref">${String(e.id).slice(-6).toUpperCase()}</div>
+        <div class="entry-customer">${e.customer}</div>
+        <div class="entry-address">📍 ${e.address}</div>
+      </div>${badge}
+    </div>
+    <div class="entry-meta">
+      <span class="meta-tag">👤 ${e.custType}</span>
+      <span class="meta-tag">🔗 ${e.refType}</span>
+      <span class="meta-tag">📅 ${fmtDate(e.createdAt)}</span>
+    </div>
+  </div>`;
+}
+
+function filterEntries(f,el) {
+  document.querySelectorAll('#tab-mysites .filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderMyEntries(f);
+}
+
+function filterAllEntries(f,el) {
+  document.querySelectorAll('#tab-allsites .filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderAllEntries(f);
+}
+
+// ══════════════════════════════════════════════
+//  NEW / EDIT ENTRY
+// ══════════════════════════════════════════════
+function showNewEntryModal() {
+  sv('entry-edit-id',''); sv('entry-customer',''); sv('entry-address','');
+  sv('entry-custtype',''); sv('entry-reftype',''); sv('entry-status','Pending');
+  sv('entry-dealercode',''); sv('entry-dealername',''); sv('entry-contractor','');
+  document.getElementById('order-section').classList.remove('show');
+  document.getElementById('modal-entry-title').textContent='Log Site Visit';
+  openModal('modal-entry');
+}
+
+function showEditModal(id) {
+  const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
+  if (!e) return;
+  sv('entry-edit-id',id); sv('entry-customer',e.customer); sv('entry-address',e.address);
+  sv('entry-custtype',e.custType); sv('entry-reftype',e.refType); sv('entry-status',e.status);
+  sv('entry-dealercode',e.dealerCode||''); sv('entry-dealername',e.dealerName||''); sv('entry-contractor',e.contractor||'');
+  document.getElementById('order-section').classList.toggle('show',e.status==='Confirmed');
+  document.getElementById('modal-entry-title').textContent='Update Entry';
+  closeModal('modal-detail');
+  openModal('modal-entry');
+}
+
+function toggleOrderSection() {
+  document.getElementById('order-section').classList.toggle('show', gv('entry-status')==='Confirmed');
+}
+
+async function saveEntry() {
+  const customer=gv('entry-customer').trim(), address=gv('entry-address').trim(),
+        custType=gv('entry-custtype'), refType=gv('entry-reftype'), status=gv('entry-status');
+  if (!customer||!address||!custType||!refType) return showToast('⚠️ Please fill all required fields');
+  if (status==='Confirmed' && (!gv('entry-dealercode').trim()||!gv('entry-dealername').trim()||!gv('entry-contractor').trim()))
+    return showToast('⚠️ Dealer code, dealer name & contractor required');
+  const editId=gv('entry-edit-id');
+  setLoading(true, isConfigured()?'Saving to OneDrive...':'Saving...');
+  try {
+    if (editId) {
+      const updates = { customer, address, custType, refType, status, dealerCode:gv('entry-dealercode').trim(), dealerName:gv('entry-dealername').trim(), contractor:gv('entry-contractor').trim(), updatedAt:new Date().toISOString() };
+      await DATA_updateEntry(editId, updates);
+      showToast('✅ Entry updated!');
+    } else {
+      const entry = { id:'E'+Date.now(), iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, customer, address, custType, refType, status, dealerCode:gv('entry-dealercode').trim(), dealerName:gv('entry-dealername').trim(), contractor:gv('entry-contractor').trim(), createdAt:new Date().toISOString() };
+      await DATA_addEntry(entry);
+      showToast('✅ Site entry saved!');
+    }
+    closeModal('modal-entry');
+    renderMyEntries();
+  } catch(e) { showToast('⚠️ Could not save. Check connection.'); }
+  finally { setLoading(false); }
+}
+
+// ══════════════════════════════════════════════
+//  DETAIL VIEW
+// ══════════════════════════════════════════════
+function showDetail(id) {
+  const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
+  if (!e) return;
+  const confirmed=e.status==='Confirmed';
+  document.getElementById('modal-detail-body').innerHTML=`
+    <div class="detail-row"><div class="detail-label">Ref #</div><div class="detail-value" style="color:var(--red);font-family:'Rajdhani',sans-serif">${String(e.id).slice(-6).toUpperCase()}</div></div>
+    <div class="detail-row"><div class="detail-label">Customer / Supervisor</div><div class="detail-value">${e.customer}</div></div>
+    <div class="detail-row"><div class="detail-label">Site Address</div><div class="detail-value">${e.address}</div></div>
+    <div class="detail-row"><div class="detail-label">Customer Type</div><div class="detail-value">${e.custType}</div></div>
+    <div class="detail-row"><div class="detail-label">Referral Type</div><div class="detail-value">${e.refType}</div></div>
+    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${confirmed?'✅ Confirmed':'⏳ Pending'}</div></div>
+    <div class="detail-row"><div class="detail-label">Logged By</div><div class="detail-value">${e.iscName}</div></div>
+    <div class="detail-row"><div class="detail-label">ASM</div><div class="detail-value">${e.asmName||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
+    ${confirmed?`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px;margin-top:12px">
+      <div style="font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✅ Order Details</div>
+      <div class="detail-row"><div class="detail-label">Dealer Code</div><div class="detail-value">${e.dealerCode}</div></div>
+      <div class="detail-row"><div class="detail-label">Dealer Name</div><div class="detail-value">${e.dealerName}</div></div>
+      <div class="detail-row"><div class="detail-label">Contractor</div><div class="detail-value">${e.contractor}</div></div>
+    </div>`:''}`;
+  const actions=document.getElementById('modal-detail-actions');
+  if (currentUser.role==='isc') {
+    actions.innerHTML=`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`;
+  } else {
+    actions.innerHTML=`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
+  }
+  openModal('modal-detail');
+}
+
+// ══════════════════════════════════════════════
+//  PROFILE
+// ══════════════════════════════════════════════
+function renderProfile() {
+  const u=currentUser;
+  const initials=(u.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('profile-card-content').innerHTML=`
+    <div class="profile-avatar">${initials}</div>
+    <div class="profile-name">${u.name||u.username}</div>
+    <div class="profile-role">${u.role==='isc'?'Independent Sales Consultant':u.role==='asm'?'Area Sales Manager':'System Admin'}</div>
+    ${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''}
+    ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}
+    <div class="profile-row">👤 @${u.username}</div>
+    <div class="profile-row" style="margin-top:8px;font-size:11px;opacity:0.6">${isConfigured()?'🟢 Connected to OneDrive':'🟡 Demo Mode (localStorage)'}</div>`;
+  const asmSec=document.getElementById('asm-profile-section');
+  if (u.role==='isc') {
+    document.getElementById('asm-profile-content').innerHTML=`
+      <div class="detail-row"><div class="detail-label">ASM Name</div><div class="detail-value">${u.asmName||'—'}</div></div>
+      <div class="detail-row"><div class="detail-label">ASM Email</div><div class="detail-value">${u.asmEmail||'—'}</div></div>
+      <div class="detail-row"><div class="detail-label">ASM Phone</div><div class="detail-value">${u.asmPhone||'—'}</div></div>`;
+    asmSec.style.display='block';
+  } else { asmSec.style.display='none'; }
+}
+
+// ══════════════════════════════════════════════
+//  ADMIN
+// ══════════════════════════════════════════════
+function renderAdminPanel() {
+  const cfg = getConfig();
+  if (cfg.tenantId) sv('cfg-tenant', cfg.tenantId);
+  if (cfg.clientId) sv('cfg-client', cfg.clientId);
+  if (cfg.filename) sv('cfg-filename', cfg.filename);
+  renderAsmList();
+}
+
+function saveConfig() {
+  saveConfigToLocal({
+    tenantId: gv('cfg-tenant').trim(),
+    clientId: gv('cfg-client').trim(),
+    filename: gv('cfg-filename').trim() || 'ISC-Tracker-Data.xlsx',
+  });
+  _msalApp = null; // reset so it rebuilds with new credentials on next use
+  showToast('✅ Configuration saved!');
+}
+
+async function testConnection() {
+  const cfg = getConfig();
+  const el = document.getElementById('od-status-msg');
+  if (!cfg.tenantId || !cfg.clientId) {
+    el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Not configured — fill in Tenant ID and Client ID first, then click Save.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Initializing Microsoft login... please wait.</div>`;
+  try {
+    _msalApp = null; // force fresh init
+    _msalApp = await buildMSAL();
+    el.innerHTML = `<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>🔐 A Microsoft login popup will open. Sign in with your MRF admin account...</div>`;
+    const token = await getAccessToken();
+    // Test drive access
+    const resp = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) throw new Error(`Graph API error: ${resp.status}`);
+    const me = await resp.json();
+    // Auto-setup Excel file if it doesn't exist yet
+    try {
+      setLoading(true, 'Setting up Excel file on OneDrive...');
+      await ensureWorkbookExists();
+      setLoading(false);
+    } catch(e) { setLoading(false); }
+    el.innerHTML = `<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected! Signed in as: <strong>${me.displayName || me.userPrincipalName}</strong>. Excel file is ready on OneDrive!</div>`;
+  } catch (e) {
+    const code = e.errorCode || '';
+    const msg = e.message || '';
+    let reason = '';
+    if (msg === 'NOT_CONFIGURED') reason = 'Fill in Tenant ID and Client ID first.';
+    else if (code === 'popup_window_error' || code === 'popup_blocked') reason = 'Popup was blocked by your browser. Allow popups for this site and try again.';
+    else if (code === 'user_cancelled') reason = 'Login was cancelled. Try again and complete the Microsoft sign-in.';
+    else if (code === 'invalid_client' || code === 'unauthorized_client') reason = 'Invalid Client ID. Double-check the Client ID from Azure Portal.';
+    else if (code === 'invalid_tenant') reason = 'Invalid Tenant ID. Double-check the Tenant ID from Azure Portal.';
+    else if (code.includes('redirect_uri')) reason = 'Redirect URI mismatch. Make sure you added https://mrfpaint.github.io/isc-tracker/ as a SPA redirect URI in Azure.';
+    else reason = `${code ? code + ': ' : ''}${msg || 'Unknown error'}`;
+    el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${reason}</div>`;
+  }
+}
+
+async function debugExcel() {
+  const el = document.getElementById('od-status-msg');
+  el.innerHTML = `<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Reading Excel file...</div>`;
+  try {
+    const token = _msalToken || await getAccessToken();
+    // List all files in OneDrive root
+    const filesResp = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const filesData = await filesResp.json();
+    const cfg = getConfig();
+    const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
+    const file = filesData.value?.find(f => f.name === filename);
+    if (!file) {
+      el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ File "${filename}" NOT found in OneDrive root. Files found: ${filesData.value?.map(f=>f.name).join(', ') || 'none'}</div>`;
+      return;
+    }
+    // List worksheets
+    const wsResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${file.id}/workbook/worksheets`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const wsData = await wsResp.json();
+    const sheetNames = wsData.value?.map(s => s.name).join(', ') || 'none';
+    // Check ASMs sheet content
+    const asmResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${file.id}/workbook/worksheets/ASMs/usedRange`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const asmData = await asmResp.json();
+    const rowCount = (asmData.values?.length || 1) - 1;
+    el.innerHTML = `<div class="od-status connected" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div><span class="od-dot" style="background:var(--success)"></span>✅ File found: <strong>${filename}</strong></div>
+      <div>📋 Sheets: <strong>${sheetNames}</strong></div>
+      <div>👥 ASMs sheet rows: <strong>${rowCount}</strong></div>
+      <div>📊 ASMs raw data: <code style="font-size:11px">${JSON.stringify(asmData.values).slice(0,200)}</code></div>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Debug error: ${e.message}</div>`;
+  }
+}
+  const el = document.getElementById('asm-list');
+  el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--gray);font-size:13px">⏳ Loading ASMs from OneDrive...</div>`;
+  try {
+    const asms = await DATA_getASMs();
+    if (!asms.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-text">No ASMs yet</div><div class="empty-sub">Click + Add ASM to add your first ASM</div></div>`;
+      return;
+    }
+    el.innerHTML = asms.map(a => `
+      <div class="entry-card" style="cursor:default">
+        <div class="entry-customer">${a.name}</div>
+        <div class="entry-address">📧 ${a.email} · 📞 ${a.phone}</div>
+        <div class="entry-address" style="margin-top:4px">👤 @${a.username}</div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-error">Could not load ASMs: ${e.message}</div>`;
+  }
+}
+
+async function saveAsm() {
+  const name=gv('asm-name').trim(),email=gv('asm-email').trim(),phone=gv('asm-phone').trim(),username=gv('asm-username').trim(),password=gv('asm-password').trim();
+  if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
+  setLoading(true,'Setting up Excel file on OneDrive...');
+  try {
+    await ensureWorkbookExists();
+    setLoading(true,'Saving ASM...');
+    const asms=await DATA_getASMs();
+    if (asms.find(a=>a.username===username)) { showToast('⚠️ Username already taken'); return; }
+    await DATA_addASM({id:'asm'+Date.now(),name,email,phone,username,password});
+    showToast('✅ ASM added!');
+    closeModal('modal-asm');
+    renderAsmList();
+  } catch(e) {
+    showToast('⚠️ ' + (e.message || 'Error saving ASM. Make sure you are signed in.'));
+    console.error('saveAsm error:', e);
+  } finally { setLoading(false); }
+}
+
+async function populateAsmDropdown() {
+  const sel=document.getElementById('reg-asm');
+  const asms=await DATA_getASMs();
+  sel.innerHTML='<option value="">— Select your Area Sales Manager —</option>'+asms.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+}
+
+async function fillAsmInfo() {
+  const asmId=gv('reg-asm');
+  const box=document.getElementById('asm-info-box');
+  if (!asmId) { box.classList.remove('show'); return; }
+  const asms=await DATA_getASMs();
+  const asm=asms.find(a=>a.id===asmId);
+  if (!asm) { box.classList.remove('show'); return; }
+  document.getElementById('asm-info-email').textContent=asm.email;
+  document.getElementById('asm-info-phone').textContent=asm.phone;
+  box.classList.add('show');
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+function gv(id) { return document.getElementById(id)?.value??''; }
+function sv(id,val) { const el=document.getElementById(id); if(el) el.value=val; }
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function fmtDate(iso) { if(!iso) return '—'; return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function emptyState(icon,text,sub='') { return `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-text">${text}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`; }
+function setLoading(show,msg='Loading...') { document.getElementById('loading-overlay').classList.toggle('show',show); document.getElementById('loading-text').textContent=msg; }
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function showAlert(id,msg,type) {
+  const el=document.getElementById(id);
+  el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(()=>el.innerHTML='',4000);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('show'); });
+});
+</script>
+</body>
+</html>
