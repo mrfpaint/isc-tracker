@@ -197,7 +197,7 @@
   .step-desc { font-size: 12px; color: var(--gray); margin-top: 3px; line-height: 1.4; }
   .step-code { background: var(--gray-light); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: monospace; color: var(--dark); margin-top: 4px; display: inline-block; }
 </style>
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js"></script>
 </head>
 <body>
 
@@ -605,16 +605,24 @@ function saveConfigToLocal(cfg) {
 async function buildMSAL() {
   const cfg = getConfig();
   if (!cfg.tenantId || !cfg.clientId) return null;
-  const app = new msal.PublicClientApplication({
+  const config = {
     auth: {
       clientId: cfg.clientId,
       authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
       redirectUri: window.location.origin + window.location.pathname
     },
     cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
-  });
-  await app.initialize();
-  await app.handleRedirectPromise(); // required by MSAL v2+
+  };
+  // MSAL v3 uses createPublicClientApplication (async factory)
+  let app;
+  if (msal.PublicClientApplication.createPublicClientApplication) {
+    app = await msal.PublicClientApplication.createPublicClientApplication(config);
+  } else {
+    // MSAL v2 fallback
+    app = new msal.PublicClientApplication(config);
+    if (app.initialize) await app.initialize();
+    if (app.handleRedirectPromise) await app.handleRedirectPromise();
+  }
   return app;
 }
 
