@@ -197,6 +197,7 @@
   .step-desc { font-size: 12px; color: var(--gray); margin-top: 3px; line-height: 1.4; }
   .step-code { background: var(--gray-light); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: monospace; color: var(--dark); margin-top: 4px; display: inline-block; }
 </style>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 </head>
 <body>
 
@@ -384,10 +385,12 @@
       </div>
     </div>
 
-    <!-- AZURE CONFIG -->
     <div class="section-card">
       <div class="section-header"><div class="section-title">🔌 Azure & OneDrive Configuration</div></div>
       <div class="section-body">
+        <div class="alert alert-info" style="margin-bottom:16px">
+          🔐 <strong>How this works:</strong> Enter your Azure App details below. When you click <em>Test Connection</em>, a Microsoft login popup will open — sign in with your MRF admin account. No Client Secret needed in the browser!
+        </div>
         <div class="config-row">
           <div class="form-group">
             <label class="form-label">Azure Tenant ID</label>
@@ -397,14 +400,6 @@
             <label class="form-label">Azure Client ID</label>
             <input type="text" class="form-input" id="cfg-client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Azure Client Secret</label>
-          <input type="password" class="form-input" id="cfg-secret" placeholder="Your app client secret">
-        </div>
-        <div class="form-group">
-          <label class="form-label">OneDrive User Email (where file is stored)</label>
-          <input type="text" class="form-input" id="cfg-email" placeholder="admin@mrfpaint.com">
         </div>
         <div class="form-group">
           <label class="form-label">Excel File Name on OneDrive</label>
@@ -443,37 +438,36 @@
             <div class="step-num">2</div>
             <div class="step-content">
               <div class="step-title">Create App Registration</div>
-              <div class="step-desc">Search "App Registrations" → New Registration → Name it "ISC Tracker".</div>
+              <div class="step-desc">App Registrations → New Registration → Name: "ISC Tracker" → Register.</div>
             </div>
           </div>
           <div class="step-item">
             <div class="step-num">3</div>
             <div class="step-content">
-              <div class="step-title">Add API Permissions</div>
-              <div class="step-desc">API Permissions → Add → Microsoft Graph → Application permissions.</div>
-              <div class="step-code">Files.ReadWrite.All &nbsp; User.Read.All</div>
+              <div class="step-title">Add Redirect URI</div>
+              <div class="step-desc">Authentication → Add platform → Single-page application (SPA) → paste the URL of this app → Save.</div>
             </div>
           </div>
           <div class="step-item">
             <div class="step-num">4</div>
             <div class="step-content">
-              <div class="step-title">Create Client Secret</div>
-              <div class="step-desc">Certificates & Secrets → New Client Secret → Copy the value immediately.</div>
+              <div class="step-title">Add API Permissions</div>
+              <div class="step-desc">API Permissions → Add → Microsoft Graph → Delegated permissions → add:</div>
+              <div class="step-code">Files.ReadWrite.All &nbsp; User.Read</div>
             </div>
           </div>
           <div class="step-item">
             <div class="step-num">5</div>
             <div class="step-content">
               <div class="step-title">Create Excel File on OneDrive</div>
-              <div class="step-desc">Create ISC-Tracker-Data.xlsx on the admin's OneDrive with 3 sheets:</div>
-              <div class="step-code">Sheet1: Users &nbsp; Sheet2: ASMs &nbsp; Sheet3: Entries</div>
+              <div class="step-desc">Create ISC-Tracker-Data.xlsx on the admin's OneDrive root with 3 sheets: Users, ASMs, Entries (with headers in Row 1).</div>
             </div>
           </div>
           <div class="step-item">
             <div class="step-num">6</div>
             <div class="step-content">
-              <div class="step-title">Fill in Admin Panel above & Test</div>
-              <div class="step-desc">Paste Tenant ID, Client ID, Secret, and OneDrive email. Hit Test Connection. ✅</div>
+              <div class="step-title">Paste Tenant ID & Client ID above → Test</div>
+              <div class="step-desc">Click Save Configuration → click Test Connection → sign in with MRF admin account in the popup → green = connected! ✅</div>
             </div>
           </div>
         </div>
@@ -594,9 +588,11 @@
 
 <script>
 // ══════════════════════════════════════════════
-//  CONFIG & ONEDRIVE API
+//  CONFIG & MSAL / ONEDRIVE API
 // ══════════════════════════════════════════════
 const CFG_KEY = 'isc_od_config';
+let _msalApp = null;
+let _msalToken = null;
 
 function getConfig() {
   return JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
@@ -605,24 +601,42 @@ function saveConfigToLocal(cfg) {
   localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 }
 
-// Microsoft Graph API via MSAL-style token (client credentials flow)
-// In production: token exchange should happen server-side for security
-// Here we use the Graph API directly with the stored credentials
+// Build and initialize MSAL instance
+async function buildMSAL() {
+  const cfg = getConfig();
+  if (!cfg.tenantId || !cfg.clientId) return null;
+  const app = new msal.PublicClientApplication({
+    auth: {
+      clientId: cfg.clientId,
+      authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+  });
+  await app.initialize();
+  await app.handleRedirectPromise(); // required by MSAL v2+
+  return app;
+}
 
+// Get token via MSAL — tries silent first, falls back to popup
 async function getAccessToken() {
   const cfg = getConfig();
-  if (!cfg.tenantId || !cfg.clientId || !cfg.clientSecret) throw new Error('NOT_CONFIGURED');
-  const url = `https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/token`;
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: cfg.clientId,
-    client_secret: cfg.clientSecret,
-    scope: 'https://graph.microsoft.com/.default'
-  });
-  const resp = await fetch(url, { method: 'POST', body });
-  if (!resp.ok) throw new Error('TOKEN_FAILED');
-  const data = await resp.json();
-  return data.access_token;
+  if (!cfg.tenantId || !cfg.clientId) throw new Error('NOT_CONFIGURED');
+  if (!_msalApp) _msalApp = await buildMSAL();
+  const scopes = ['https://graph.microsoft.com/Files.ReadWrite.All', 'User.Read'];
+  // Try silent first
+  const accounts = _msalApp.getAllAccounts();
+  if (accounts.length > 0) {
+    try {
+      const result = await _msalApp.acquireTokenSilent({ scopes, account: accounts[0] });
+      _msalToken = result.accessToken;
+      return _msalToken;
+    } catch (e) { /* fall through to popup */ }
+  }
+  // Popup login
+  const result = await _msalApp.loginPopup({ scopes });
+  _msalToken = result.accessToken;
+  return _msalToken;
 }
 
 async function graphGet(path) {
@@ -637,11 +651,11 @@ async function graphGet(path) {
 async function getWorkbookBase() {
   const cfg = getConfig();
   const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
-  // Find the file
-  const files = await graphGet(`/users/${cfg.oneDriveEmail}/drive/root/children`);
+  // Search in the signed-in user's OneDrive
+  const files = await graphGet(`/me/drive/root/children`);
   const file = files.value?.find(f => f.name === filename);
-  if (!file) throw new Error('FILE_NOT_FOUND');
-  return `/users/${cfg.oneDriveEmail}/drive/items/${file.id}/workbook`;
+  if (!file) throw new Error(`FILE_NOT_FOUND: Could not find "${filename}" in your OneDrive root folder.`);
+  return `/me/drive/items/${file.id}/workbook`;
 }
 
 async function readSheet(sheetName) {
@@ -713,7 +727,7 @@ async function updateRow(sheetName, matchField, matchVal, updates) {
 // ══════════════════════════════════════════════
 function isConfigured() {
   const c = getConfig();
-  return !!(c.tenantId && c.clientId && c.clientSecret && c.oneDriveEmail);
+  return !!(c.tenantId && c.clientId);
 }
 
 // Local cache for demo mode
@@ -1073,12 +1087,10 @@ function renderProfile() {
 //  ADMIN
 // ══════════════════════════════════════════════
 function renderAdminPanel() {
-  const cfg=getConfig();
-  if (cfg.tenantId) sv('cfg-tenant',cfg.tenantId);
-  if (cfg.clientId) sv('cfg-client',cfg.clientId);
-  if (cfg.clientSecret) sv('cfg-secret',cfg.clientSecret);
-  if (cfg.oneDriveEmail) sv('cfg-email',cfg.oneDriveEmail);
-  if (cfg.filename) sv('cfg-filename',cfg.filename);
+  const cfg = getConfig();
+  if (cfg.tenantId) sv('cfg-tenant', cfg.tenantId);
+  if (cfg.clientId) sv('cfg-client', cfg.clientId);
+  if (cfg.filename) sv('cfg-filename', cfg.filename);
   renderAsmList();
 }
 
@@ -1086,26 +1098,44 @@ function saveConfig() {
   saveConfigToLocal({
     tenantId: gv('cfg-tenant').trim(),
     clientId: gv('cfg-client').trim(),
-    clientSecret: gv('cfg-secret').trim(),
-    oneDriveEmail: gv('cfg-email').trim(),
-    filename: gv('cfg-filename').trim()||'ISC-Tracker-Data.xlsx',
+    filename: gv('cfg-filename').trim() || 'ISC-Tracker-Data.xlsx',
   });
+  _msalApp = null; // reset so it rebuilds with new credentials on next use
   showToast('✅ Configuration saved!');
 }
 
 async function testConnection() {
-  const cfg=getConfig();
-  const el=document.getElementById('od-status-msg');
-  if (!cfg.tenantId||!cfg.clientId||!cfg.clientSecret||!cfg.oneDriveEmail) {
-    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Not configured — fill in all fields first.</div>`;
+  const cfg = getConfig();
+  const el = document.getElementById('od-status-msg');
+  if (!cfg.tenantId || !cfg.clientId) {
+    el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Not configured — fill in Tenant ID and Client ID first, then click Save.</div>`;
     return;
   }
-  el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6;animation:spin 1s linear infinite"></span>Testing connection...</div>`;
+  el.innerHTML = `<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Initializing Microsoft login... please wait.</div>`;
   try {
-    await getAccessToken();
-    el.innerHTML=`<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected to Microsoft 365 successfully! OneDrive is ready.</div>`;
-  } catch(e) {
-    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Connection failed — check Tenant ID, Client ID and Secret.</div>`;
+    _msalApp = null; // force fresh init
+    _msalApp = await buildMSAL();
+    el.innerHTML = `<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>🔐 A Microsoft login popup will open. Sign in with your MRF admin account...</div>`;
+    const token = await getAccessToken();
+    // Test drive access
+    const resp = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) throw new Error(`Graph API error: ${resp.status}`);
+    const me = await resp.json();
+    el.innerHTML = `<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected! Signed in as: <strong>${me.displayName || me.userPrincipalName}</strong>. OneDrive is ready.</div>`;
+  } catch (e) {
+    const code = e.errorCode || '';
+    const msg = e.message || '';
+    let reason = '';
+    if (msg === 'NOT_CONFIGURED') reason = 'Fill in Tenant ID and Client ID first.';
+    else if (code === 'popup_window_error' || code === 'popup_blocked') reason = 'Popup was blocked by your browser. Allow popups for this site and try again.';
+    else if (code === 'user_cancelled') reason = 'Login was cancelled. Try again and complete the Microsoft sign-in.';
+    else if (code === 'invalid_client' || code === 'unauthorized_client') reason = 'Invalid Client ID. Double-check the Client ID from Azure Portal.';
+    else if (code === 'invalid_tenant') reason = 'Invalid Tenant ID. Double-check the Tenant ID from Azure Portal.';
+    else if (code.includes('redirect_uri')) reason = 'Redirect URI mismatch. Make sure you added https://mrfpaint.github.io/isc-tracker/ as a SPA redirect URI in Azure.';
+    else reason = `${code ? code + ': ' : ''}${msg || 'Unknown error'}`;
+    el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${reason}</div>`;
   }
 }
 
