@@ -656,7 +656,67 @@ async function graphGet(path) {
   return resp.json();
 }
 
-async function getWorkbookBase() {
+// Auto-create the Excel file with correct sheets if it doesn't exist
+async function ensureWorkbookExists() {
+  const cfg = getConfig();
+  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
+  const token = await getAccessToken();
+
+  // Check if file already exists
+  const listResp = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const listData = await listResp.json();
+  const exists = listData.value?.find(f => f.name === filename);
+  if (exists) return; // already exists, nothing to do
+
+  // Create a blank Excel file via Graph API
+  const createResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filename}:/content`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    },
+    body: new Blob([''], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  });
+  if (!createResp.ok) throw new Error('Could not create Excel file on OneDrive');
+
+  // Wait a moment for file to be ready
+  await new Promise(r => setTimeout(r, 2000));
+
+  // Get the new file's workbook base
+  const listResp2 = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const listData2 = await listResp2.json();
+  const newFile = listData2.value?.find(f => f.name === filename);
+  if (!newFile) throw new Error('File created but could not be found');
+
+  const base = `/me/drive/items/${newFile.id}/workbook`;
+
+  // Add sheets with headers
+  const sheets = [
+    { name: 'ASMs',    headers: ['id','name','email','phone','username','password'] },
+    { name: 'Users',   headers: ['id','name','email','phone','asmId','asmName','asmEmail','asmPhone','username','password','role','createdAt'] },
+    { name: 'Entries', headers: ['id','iscId','iscName','asmId','asmName','customer','address','custType','refType','status','dealerCode','dealerName','contractor','createdAt','updatedAt'] },
+  ];
+
+  for (const sheet of sheets) {
+    // Add sheet
+    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/add`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: sheet.name })
+    });
+    // Write headers to Row 1
+    const endCol = String.fromCharCode(64 + sheet.headers.length);
+    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheet.name}/range(address='A1:${endCol}1')`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [sheet.headers] })
+    });
+  }
+}
   const cfg = getConfig();
   const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
   // Search in the signed-in user's OneDrive
@@ -1131,7 +1191,13 @@ async function testConnection() {
     });
     if (!resp.ok) throw new Error(`Graph API error: ${resp.status}`);
     const me = await resp.json();
-    el.innerHTML = `<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected! Signed in as: <strong>${me.displayName || me.userPrincipalName}</strong>. OneDrive is ready.</div>`;
+    // Auto-setup Excel file if it doesn't exist yet
+    try {
+      setLoading(true, 'Setting up Excel file on OneDrive...');
+      await ensureWorkbookExists();
+      setLoading(false);
+    } catch(e) { setLoading(false); }
+    el.innerHTML = `<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected! Signed in as: <strong>${me.displayName || me.userPrincipalName}</strong>. Excel file is ready on OneDrive!</div>`;
   } catch (e) {
     const code = e.errorCode || '';
     const msg = e.message || '';
@@ -1162,16 +1228,19 @@ async function renderAsmList() {
 async function saveAsm() {
   const name=gv('asm-name').trim(),email=gv('asm-email').trim(),phone=gv('asm-phone').trim(),username=gv('asm-username').trim(),password=gv('asm-password').trim();
   if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
-  setLoading(true,'Saving ASM...');
+  setLoading(true,'Setting up Excel file on OneDrive...');
   try {
+    await ensureWorkbookExists();
+    setLoading(true,'Saving ASM...');
     const asms=await DATA_getASMs();
     if (asms.find(a=>a.username===username)) { showToast('⚠️ Username already taken'); return; }
     await DATA_addASM({id:'asm'+Date.now(),name,email,phone,username,password});
     showToast('✅ ASM added!');
     closeModal('modal-asm');
     renderAsmList();
-  } catch(e) { showToast('⚠️ Error saving ASM'); }
-  finally { setLoading(false); }
+  } catch(e) {
+    showToast('⚠️ ' + (e.message || 'Error saving ASM. Make sure you are signed in.'));
+  } finally { setLoading(false); }
 }
 
 async function populateAsmDropdown() {
