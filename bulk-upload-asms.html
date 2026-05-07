@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASM Bulk Upload — MRF ISC Tracker</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f8f9fc; padding: 24px; color: #1f2937; }
+  .card { background: white; border-radius: 16px; padding: 24px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  h2 { color: #C8102E; margin-bottom: 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #374151; margin-bottom: 6px; }
+  input { width: 100%; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+  input:focus { outline: none; border-color: #C8102E; }
+  .btn { width: 100%; padding: 12px; background: #C8102E; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-clear { background: white; color: #C8102E; border: 1.5px solid #C8102E; margin-top: 8px; }
+  #log { margin-top: 20px; background: #1a1a2e; border-radius: 10px; padding: 16px; color: #a3e635; font-family: monospace; font-size: 12px; max-height: 320px; overflow-y: auto; display: none; }
+  .log-ok { color: #a3e635; }
+  .log-err { color: #f87171; }
+  .log-info { color: #93c5fd; }
+  .progress { background: #e5e7eb; border-radius: 10px; height: 8px; margin-top: 12px; display: none; }
+  .progress-bar { background: #C8102E; height: 8px; border-radius: 10px; width: 0%; transition: width 0.3s; }
+  .badge { display: inline-block; background: #d1fae5; color: #065f46; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🚀 ASM Bulk Upload</h2>
+  <p class="sub">Uploads all 38 ASMs directly to your OneDrive Excel file. Run this once!</p>
+
+  <div class="form-group">
+    <label>Azure Tenant ID</label>
+    <input type="text" id="tenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+  </div>
+  <div class="form-group">
+    <label>Azure Client ID</label>
+    <input type="text" id="clientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+  </div>
+  <div class="form-group">
+    <label>Excel File Name on OneDrive</label>
+    <input type="text" id="filename" value="ISC-Tracker-Data.xlsx">
+  </div>
+
+  <button class="btn" onclick="startUpload()">🔐 Sign in & Upload All 38 ASMs</button>
+  <button class="btn btn-clear" onclick="clearSheet()">🗑️ Clear ASMs Sheet First, Then Upload</button>
+
+  <div class="progress" id="progress"><div class="progress-bar" id="progress-bar"></div></div>
+  <div id="log"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js"></script>
+<script>
+const ASMS = [
+  {
+    "id": "asm_sandeep_6029",
+    "name": "Sandeep Khawas",
+    "email": "sandeep.khawas@mrfpaint.com",
+    "phone": "9342946029",
+    "username": "sandeep",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_atanu_6028",
+    "name": "Atanu Das",
+    "email": "atanu.das@mrfpaint.com",
+    "phone": "9342946028",
+    "username": "atanu",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_arabinda_3122",
+    "name": "Arabinda Lenka",
+    "email": "arabinda.lenka@mrfpaint.com",
+    "phone": "9360923122",
+    "username": "arabinda",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_diwakar_1050",
+    "name": "Diwakar Pandey",
+    "email": "diwakar.pandey@mrfpaint.com",
+    "phone": "7550221050",
+    "username": "diwakar",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_vishal_6033",
+    "name": "Vishal Sharma",
+    "email": "vishal.sharma@mrfpaint.com",
+    "phone": "7558146033",
+    "username": "vishal",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_hansraj_6034",
+    "name": "Hansraj Singh Dhaked",
+    "email": "hansrajsingh.dhaked@mrfpaint.com",
+    "phone": "7558146034",
+    "username": "hansraj",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_ratnish_6422",
+    "name": "Ratnish Kumar Jaiswa",
+    "email": "ratnish.Jaiswal@mrfpaint.com",
+    "phone": "9384046422",
+    "username": "ratnish",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_shashank_3263",
+    "name": "Shashank Jain",
+    "email": "shashank.jain@mrfpaint.com",
+    "phone": "9384003263",
+    "username": "shashank",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_divya_0046",
+    "name": "Divya Kumar Srivasta",
+    "email": "divyakumar.srivastava@mrfpaint.com",
+    "phone": "9384850046",
+    "username": "divya",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_dinesh_6042",
+    "name": "Dinesh Kumar Singla",
+    "email": "dinesh.singla@mrfpaint.com",
+    "phone": "7558146042",
+    "username": "dinesh",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_satish_9994",
+    "name": "Satish Singh Pathani",
+    "email": "satish.pathania@mrfpaint.com",
+    "phone": "7006859994",
+    "username": "satish",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_jitendra_6037",
+    "name": "Jitendra Dhanadia",
+    "email": "jitendra.dhanadia@mrfpaint.com",
+    "phone": "7558146037",
+    "username": "jitendra",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_paul_7572",
+    "name": "A Paul Raj",
+    "email": "paulraj.a@mrfpaint.com",
+    "phone": "7338737572",
+    "username": "paul",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_ranganath_7999",
+    "name": "Ranganath P T",
+    "email": "ranganath.pt@mrfpaint.com",
+    "phone": "7305037999",
+    "username": "ranganath",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_manuprasad_0300",
+    "name": "Manuprasad S",
+    "email": "manuprasad.s@mrfpaint.com",
+    "phone": "9360920300",
+    "username": "manuprasad",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_sandeep2_7583",
+    "name": "S K Sandeep",
+    "email": "sandeep.sk@mrfpaint.com",
+    "phone": "7338737583",
+    "username": "sandeep2",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_balaji_4695",
+    "name": "M Balaji Kodeeswaran",
+    "email": "balaji.kodeeswaran@mrfpaint.com",
+    "phone": "9080604695",
+    "username": "balaji",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_nithin_2062",
+    "name": "Nithin S",
+    "email": "nithin.s@mrfpaint.com",
+    "phone": "7397742062",
+    "username": "nithin",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_joseph_7586",
+    "name": "Joseph Beski James S",
+    "email": "joseph.beski@mrfpaint.com",
+    "phone": "7338737586",
+    "username": "joseph",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_manikandan_7581",
+    "name": "Manikandan Nagamuthu",
+    "email": "manikandan.nagamuthu@mrfpaint.com",
+    "phone": "7338737581",
+    "username": "manikandan",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_karthikeyan_7579",
+    "name": "R Karthikeyan",
+    "email": "karthikeyan@mrfpaint.com",
+    "phone": "7338737579",
+    "username": "karthikeyan",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_sabareesh_6142",
+    "name": "T Sabareesh",
+    "email": "sabareesh.t@mrfpaint.com",
+    "phone": "6369246142",
+    "username": "sabareesh",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_vangure_2088",
+    "name": "Vangure Mahendra Red",
+    "email": "mahendra.vanguri@mrfpaint.com",
+    "phone": "7397222088",
+    "username": "vangure",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_kiran_2892",
+    "name": "A V G Kiran Kishore",
+    "email": "kiran.kishore@mrfpaint.com",
+    "phone": "9384082892",
+    "username": "kiran",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_elamaran_7582",
+    "name": "S Elamaran",
+    "email": "elamaran.s@mrfpaint.com",
+    "phone": "7338797582",
+    "username": "elamaran",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_rizwan_1864",
+    "name": "Rizwan Ahmed Chikkum",
+    "email": "rizwan.ahmed@mrfpaint.com",
+    "phone": "7603911864",
+    "username": "rizwan",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_unnikuttan_6023",
+    "name": "Unnikuttan T G",
+    "email": "unnikuttan.tg@mrfpaint.com",
+    "phone": "9342946023",
+    "username": "unnikuttan",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_ravikumar_4577",
+    "name": "M N Ravikumar",
+    "email": "mn.ravikumar@mrfpaint.com",
+    "phone": "9080604577",
+    "username": "ravikumar",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_rupesh_1393",
+    "name": "Rupesh Rohidas Poke",
+    "email": "rupesh.poke@mrfpaint.com",
+    "phone": "9823581393",
+    "username": "rupesh",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_murali_7584",
+    "name": "S Murali",
+    "email": "murali.ss@mrfpaint.com",
+    "phone": "7338737584",
+    "username": "murali",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_antony_2064",
+    "name": "Antony V James",
+    "email": "antonyv.james@mrfpaint.com",
+    "phone": "7397742064",
+    "username": "antony",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_amit_2347",
+    "name": "Amit Umashankar Varm",
+    "email": "amit.verma@mrfpaint.com",
+    "phone": "7397292347",
+    "username": "amit",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_kagazi_3739",
+    "name": "Kagazi Mohmedsazid M",
+    "email": "mohmedsazid@mrfpaint.com",
+    "phone": "7530093739",
+    "username": "kagazi",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_vishal2_3750",
+    "name": "Vishal Kalbhor",
+    "email": "vishal.kalbhor@mrfpaint.com",
+    "phone": "7530093750",
+    "username": "vishal2",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_devendra_3751",
+    "name": "Devendra Jaysukhbhai",
+    "email": "devendra.dhagat@mrfpaint.com",
+    "phone": "7530093751",
+    "username": "devendra",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_sunil_3748",
+    "name": "Sunil Sharma",
+    "email": "sunil.sharma@mrfpaint.com",
+    "phone": "7530093748",
+    "username": "sunil",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_pulkit_2374",
+    "name": "Pulkit Vyas",
+    "email": "pulkit.vyas@mrfpaint.com",
+    "phone": "9360422374",
+    "username": "pulkit",
+    "password": "Paints@2026"
+  },
+  {
+    "id": "asm_neeraj_2111",
+    "name": "Neeraj Singh Thakur",
+    "email": "neeraj.thakur@mrfpaint.com",
+    "phone": "8719912111",
+    "username": "neeraj",
+    "password": "Paints@2026"
+  }
+];
+
+let msalApp = null;
+let token = null;
+
+function log(msg, type='info') {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  const cls = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : 'log-info';
+  el.innerHTML += '<div class="' + cls + '">' + msg + '</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+function setProgress(pct) {
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+async function getToken() {
+  const tenantId = document.getElementById('tenantId').value.trim();
+  const clientId = document.getElementById('clientId').value.trim();
+  if (!tenantId || !clientId) throw new Error('Please fill in Tenant ID and Client ID');
+  
+  if (!msalApp) {
+    msalApp = await msal.PublicClientApplication.createPublicClientApplication({
+      auth: {
+        clientId,
+        authority: 'https://login.microsoftonline.com/' + tenantId,
+        redirectUri: window.location.href
+      },
+      cache: { cacheLocation: 'localStorage' }
+    });
+  }
+
+  const scopes = ['https://graph.microsoft.com/Files.ReadWrite.All', 'User.Read'];
+  const accounts = msalApp.getAllAccounts();
+  if (accounts.length > 0) {
+    try {
+      const r = await msalApp.acquireTokenSilent({ scopes, account: accounts[0] });
+      return r.accessToken;
+    } catch(e) {}
+  }
+  const r = await msalApp.loginPopup({ scopes });
+  return r.accessToken;
+}
+
+async function findFile() {
+  const filename = document.getElementById('filename').value.trim();
+  const resp = await fetch(
+    'https://graph.microsoft.com/v1.0/me/drive/root/search(q=' + encodeURIComponent(JSON.stringify(filename)) + ')',
+    { headers: { Authorization: 'Bearer ' + token } }
+  );
+  const data = await resp.json();
+  const file = data.value?.find(f => f.name === filename);
+  if (!file) throw new Error('File "' + filename + '" not found in OneDrive. Make sure you ran Test Connection first in the ISC Tracker app.');
+  return file.id;
+}
+
+async function clearASMSheet(fileId) {
+  log('🗑️ Clearing existing ASMs sheet...');
+  // Read current sheet to get dimensions
+  const resp = await fetch(
+    'https://graph.microsoft.com/v1.0/me/drive/items/' + fileId + '/workbook/worksheets/ASMs/usedRange',
+    { headers: { Authorization: 'Bearer ' + token } }
+  );
+  const data = await resp.json();
+  const rows = data.values || [[]];
+  if (rows.length <= 1) { log('✅ Sheet already empty (only headers)', 'ok'); return; }
+  
+  // Clear all rows except header (row 1)
+  const endCol = String.fromCharCode(64 + rows[0].length);
+  const range = 'A2:' + endCol + rows.length;
+  const clearResp = await fetch(
+    'https://graph.microsoft.com/v1.0/me/drive/items/' + fileId + '/workbook/worksheets/ASMs/range(address=\'' + range + '\')/clear',
+    { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ applyTo: 'Contents' }) }
+  );
+  if (!clearResp.ok) {
+    log('⚠️ Clear failed, will overwrite anyway', 'err');
+  } else {
+    log('✅ Existing data cleared', 'ok');
+  }
+}
+
+async function uploadASMs(fileId, doClear) {
+  if (doClear) await clearASMSheet(fileId);
+
+  log('📝 Writing ' + ASMS.length + ' ASMs to Excel...');
+  
+  // Write all rows at once as a batch
+  const headers = ['id','name','email','phone','username','password'];
+  const values = ASMS.map(a => [a.id, a.name, a.email, a.phone, a.username, a.password]);
+  const allRows = [headers, ...values];
+  const endCol = String.fromCharCode(64 + headers.length);
+  const range = 'A1:' + endCol + allRows.length;
+
+  setProgress(50);
+  const writeResp = await fetch(
+    'https://graph.microsoft.com/v1.0/me/drive/items/' + fileId + '/workbook/worksheets/ASMs/range(address=\'' + range + '\')',
+    {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: allRows })
+    }
+  );
+  
+  if (!writeResp.ok) {
+    const err = await writeResp.json();
+    throw new Error('Write failed: ' + (err?.error?.message || writeResp.status));
+  }
+  
+  setProgress(100);
+  log('✅ All ' + ASMS.length + ' ASMs written successfully!', 'ok');
+  log('', 'info');
+  log('🎉 Done! Go back to your ISC Tracker app and refresh the Admin Panel.', 'ok');
+}
+
+async function startUpload(doClear = false) {
+  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+  document.getElementById('log').innerHTML = '';
+  try {
+    log('🔐 Opening Microsoft login...');
+    token = await getToken();
+    log('✅ Signed in successfully!', 'ok');
+    setProgress(20);
+    log('🔍 Finding Excel file on OneDrive...');
+    const fileId = await findFile();
+    log('✅ File found!', 'ok');
+    setProgress(30);
+    await uploadASMs(fileId, doClear);
+  } catch(e) {
+    log('❌ Error: ' + e.message, 'err');
+  } finally {
+    document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+  }
+}
+
+async function clearSheet() {
+  await startUpload(true);
+}
+
+// Pre-fill from localStorage if available
+window.onload = () => {
+  const cfg = JSON.parse(localStorage.getItem('isc_od_config') || '{}');
+  if (cfg.tenantId) document.getElementById('tenantId').value = cfg.tenantId;
+  if (cfg.clientId) document.getElementById('clientId').value = cfg.clientId;
+  if (cfg.filename) document.getElementById('filename').value = cfg.filename;
+};
+</script>
+</body>
+</html>
