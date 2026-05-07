@@ -197,11 +197,6 @@
   .step-desc { font-size: 12px; color: var(--gray); margin-top: 3px; line-height: 1.4; }
   .step-code { background: var(--gray-light); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: monospace; color: var(--dark); margin-top: 4px; display: inline-block; }
 </style>
-<script>
-// Safe MSAL loader — if CDN fails or MSAL crashes, app still works in demo mode
-window.msalLoadError = null;
-</script>
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js" onerror="window.msalLoadError='CDN failed to load'"></script>
 </head>
 <body>
  
@@ -591,10 +586,10 @@ window.msalLoadError = null;
 <div class="toast" id="toast"></div>
  
 <script>
-// Global error handler — catches silent JS crashes and shows them
+// Global error handler — catches silent JS crashes
 window.onerror = function(msg, src, line) {
   console.error('JS Error:', msg, 'Line:', line);
-  return false; // don't suppress
+  return false;
 };
 // ══════════════════════════════════════════════
 //  CONFIG & MSAL / ONEDRIVE API
@@ -610,43 +605,52 @@ function saveConfigToLocal(cfg) {
   localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 }
  
-// Build and initialize MSAL instance — completely safe, never crashes page
+// Lazy-load MSAL only when needed (never on page load)
+function loadMSALScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof msal !== 'undefined') { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Could not load MSAL library. Check your internet connection.'));
+    document.head.appendChild(script);
+  });
+}
+ 
+// Build and initialize MSAL instance
 async function buildMSAL() {
+  await loadMSALScript();
+  const cfg = getConfig();
+  if (!cfg.tenantId || !cfg.clientId) return null;
+  const config = {
+    auth: {
+      clientId: cfg.clientId,
+      authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+  };
+  let app;
   try {
-    if (window.msalLoadError) throw new Error('MSAL CDN failed: ' + window.msalLoadError);
-    if (typeof msal === 'undefined') throw new Error('MSAL library not loaded');
-    const cfg = getConfig();
-    if (!cfg.tenantId || !cfg.clientId) return null;
-    const config = {
-      auth: {
-        clientId: cfg.clientId,
-        authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
-        redirectUri: window.location.origin + window.location.pathname
-      },
-      cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
-    };
-    let app;
     if (msal.PublicClientApplication.createPublicClientApplication) {
       app = await msal.PublicClientApplication.createPublicClientApplication(config);
     } else {
       app = new msal.PublicClientApplication(config);
       if (app.initialize) await app.initialize();
-      if (app.handleRedirectPromise) await app.handleRedirectPromise().catch(()=>{});
+      if (app.handleRedirectPromise) await app.handleRedirectPromise().catch(() => {});
     }
-    return app;
   } catch(e) {
-    console.warn('MSAL buildMSAL error:', e.message);
-    return null;
+    throw new Error('MSAL init failed: ' + e.message);
   }
+  return app;
 }
  
-// Get token via MSAL — tries silent first, falls back to popup
+// Get token via MSAL
 async function getAccessToken() {
   const cfg = getConfig();
   if (!cfg.tenantId || !cfg.clientId) throw new Error('NOT_CONFIGURED');
-  if (typeof msal === 'undefined') throw new Error('MSAL library not loaded. Check internet connection.');
   if (!_msalApp) _msalApp = await buildMSAL();
-  if (!_msalApp) throw new Error('Could not initialize MSAL. Check Tenant ID and Client ID.');
+  if (!_msalApp) throw new Error('Could not initialize MSAL.');
   const scopes = ['https://graph.microsoft.com/Files.ReadWrite.All', 'User.Read'];
   const accounts = _msalApp.getAllAccounts();
   if (accounts.length > 0) {
@@ -654,7 +658,7 @@ async function getAccessToken() {
       const result = await _msalApp.acquireTokenSilent({ scopes, account: accounts[0] });
       _msalToken = result.accessToken;
       return _msalToken;
-    } catch (e) { /* fall through to popup */ }
+    } catch(e) { /* fall through to popup */ }
   }
   const result = await _msalApp.loginPopup({ scopes });
   _msalToken = result.accessToken;
@@ -1321,4 +1325,3 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
 </script>
 </body>
 </html>
- 
