@@ -15,7 +15,7 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: #f8f9fc; color: #1f2937; min-height: 100vh; font-size: 14px; }
-
+ 
   /* HEADER */
   .header { background: linear-gradient(135deg, var(--dark) 0%, var(--dark2) 100%); color: white; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
   .header-brand { display: flex; align-items: center; gap: 10px; }
@@ -27,11 +27,11 @@
   .user-badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: rgba(255,255,255,0.85); }
   .btn-signout { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
   .btn-signout:hover { background: rgba(255,255,255,0.1); color: white; }
-
+ 
   /* SCREENS */
   .screen { display: none; }
   .screen.active { display: block; }
-
+ 
   /* AUTH */
   .auth-wrap { min-height: 100vh; background: linear-gradient(135deg, var(--dark) 0%, #0f3460 50%, var(--dark2) 100%); display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
   .auth-card { background: white; border-radius: 20px; padding: 36px 28px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -42,7 +42,7 @@
   .auth-tagline { font-size: 12px; color: var(--gray); margin-top: 4px; }
   .auth-title { font-size: 18px; font-weight: 600; color: var(--dark); margin-bottom: 6px; }
   .auth-desc { font-size: 13px; color: var(--gray); margin-bottom: 24px; line-height: 1.5; }
-
+ 
   /* FORMS */
   .form-group { margin-bottom: 16px; }
   .form-label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; letter-spacing: 0.3px; text-transform: uppercase; }
@@ -61,26 +61,26 @@
   .divider::before { left: 0; } .divider::after { right: 0; }
   .link-text { text-align: center; font-size: 13px; color: var(--gray); }
   .link-text a { color: var(--red); text-decoration: none; font-weight: 600; cursor: pointer; }
-
+ 
   /* ASM INFO BOX */
   .asm-info-box { background: var(--gray-light); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-top: 8px; display: none; }
   .asm-info-box.show { display: block; }
   .asm-info-row { font-size: 12px; color: var(--gray); margin-bottom: 4px; }
   .asm-info-row strong { color: var(--dark); }
-
+ 
   /* BOTTOM NAV */
   .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); display: flex; z-index: 99; box-shadow: 0 -4px 16px rgba(0,0,0,0.08); }
   .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; cursor: pointer; transition: all 0.2s; border: none; background: none; font-family: 'DM Sans', sans-serif; color: var(--gray); font-size: 10px; gap: 3px; }
   .nav-item.active { color: var(--red); }
   .nav-item .nav-icon { font-size: 20px; }
   .nav-item span { font-weight: 500; }
-
+ 
   /* MAIN */
   .main-content { padding: 16px; padding-bottom: 80px; }
   .page-header { margin-bottom: 20px; }
   .page-title { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: var(--dark); }
   .page-subtitle { font-size: 12px; color: var(--gray); margin-top: 2px; }
-
+ 
   /* STATS */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
   .stat-card { background: white; border-radius: 14px; padding: 14px 12px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); }
@@ -88,13 +88,13 @@
   .stat-label { font-size: 10px; color: var(--gray); margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
   .stat-card.green .stat-value { color: var(--success); }
   .stat-card.gold .stat-value { color: var(--gold); }
-
+ 
   /* CARDS */
   .section-card { background: white; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
   .section-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .section-title { font-weight: 600; font-size: 14px; color: var(--dark); }
   .section-body { padding: 16px; }
-
+ 
   /* ENTRY CARDS */
   .entry-card { border: 1.5px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; background: white; transition: all 0.2s; cursor: pointer; }
   .entry-card:hover { border-color: var(--red); box-shadow: 0 4px 12px rgba(200,16,46,0.08); }
@@ -107,11 +107,11 @@
   .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .status-pending { background: #fef3c7; color: #92400e; }
   .status-confirmed { background: #d1fae5; color: #065f46; }
-
+ 
   /* FAB */
   .fab { position: fixed; bottom: 74px; right: 20px; width: 52px; height: 52px; background: linear-gradient(135deg, var(--red), var(--red-dark)); color: white; border: none; border-radius: 16px; font-size: 24px; cursor: pointer; box-shadow: 0 6px 20px rgba(200,16,46,0.4); display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 98; }
   .fab:hover { transform: translateY(-2px) scale(1.05); }
-
+ 
   /* MODAL */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(2px); }
   .modal-overlay.show { display: flex; }
@@ -120,45 +120,45 @@
   .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
   .modal-title { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
   .modal-subtitle { font-size: 12px; color: var(--gray); margin-bottom: 20px; }
-
+ 
   /* ORDER SECTION */
   .order-section { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 14px; margin-top: 8px; display: none; }
   .order-section.show { display: block; }
   .order-section-title { font-size: 12px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-
+ 
   /* PROFILE */
   .profile-card { background: linear-gradient(135deg, var(--dark), var(--dark2)); border-radius: 16px; padding: 20px; color: white; margin-bottom: 16px; }
   .profile-avatar { width: 52px; height: 52px; background: var(--red); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
   .profile-name { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; }
   .profile-role { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
   .profile-row { display: flex; gap: 6px; align-items: center; font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 6px; }
-
+ 
   /* EMPTY */
   .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
   .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
   .empty-text { font-size: 14px; font-weight: 500; }
   .empty-sub { font-size: 12px; margin-top: 4px; }
-
+ 
   /* TOAST */
   .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--dark); color: white; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
+ 
   /* FILTER */
   .filter-row { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
   .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; color: var(--gray); }
   .filter-btn.active { background: var(--red); color: white; border-color: var(--red); }
-
+ 
   /* ISC GROUP */
   .isc-group-header { background: var(--gray-light); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; margin-top: 16px; display: flex; align-items: center; justify-content: space-between; }
   .isc-group-name { font-weight: 600; font-size: 13px; color: var(--dark); }
   .isc-group-count { font-size: 11px; color: var(--gray); }
-
+ 
   /* DETAIL */
   .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .detail-row:last-child { border-bottom: none; }
   .detail-label { font-size: 12px; color: var(--gray); font-weight: 500; }
   .detail-value { font-size: 13px; font-weight: 600; color: var(--dark); text-align: right; max-width: 60%; }
-
+ 
   /* BANNERS & ALERTS */
   .setup-banner { background: linear-gradient(135deg, #fff7ed, #fef3c7); border: 1.5px solid #fde68a; border-radius: 12px; padding: 14px; margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
   .setup-banner-icon { font-size: 20px; flex-shrink: 0; }
@@ -168,25 +168,25 @@
   .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
   .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
   .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-
+ 
   /* ONEDRIVE STATUS */
   .od-status { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 10px 14px; border-radius: 10px; margin-top: 12px; }
   .od-status.connected { background: #d1fae5; color: #065f46; }
   .od-status.disconnected { background: #fee2e2; color: #991b1b; }
   .od-status.pending { background: #eff6ff; color: #1e40af; }
   .od-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
+ 
   /* LOADING OVERLAY */
   .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 500; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; backdrop-filter: blur(2px); }
   .loading-overlay.show { display: flex; }
   .spinner { width: 40px; height: 40px; border: 3px solid var(--red-light); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-text { font-size: 14px; color: var(--gray); font-weight: 500; }
-
+ 
   /* CONFIG */
   .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 360px) { .config-row { grid-template-columns: 1fr; } }
-
+ 
   /* ONEDRIVE SETUP STEPS */
   .step-list { counter-reset: steps; }
   .step-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
@@ -200,7 +200,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js"></script>
 </head>
 <body>
-
+ 
 <!-- ══════ LOGIN ══════ -->
 <div id="screen-login" class="screen active">
   <div class="auth-wrap">
@@ -228,7 +228,7 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══════ REGISTER ══════ -->
 <div id="screen-register" class="screen">
   <div class="auth-wrap">
@@ -277,7 +277,7 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══════ ADMIN LOGIN ══════ -->
 <div id="screen-admin-login" class="screen">
   <div class="auth-wrap">
@@ -302,7 +302,7 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══════ MAIN APP ══════ -->
 <div id="screen-app" class="screen">
   <div class="header">
@@ -318,7 +318,7 @@
       <button class="btn-signout" onclick="doSignOut()">Sign Out</button>
     </div>
   </div>
-
+ 
   <!-- MY SITES TAB -->
   <div id="tab-mysites" class="main-content">
     <div class="page-header">
@@ -337,7 +337,7 @@
     </div>
     <div id="entries-list"></div>
   </div>
-
+ 
   <!-- ALL SITES TAB -->
   <div id="tab-allsites" class="main-content" style="display:none">
     <div class="page-header">
@@ -356,7 +356,7 @@
     </div>
     <div id="all-entries-list"></div>
   </div>
-
+ 
   <!-- PROFILE TAB -->
   <div id="tab-profile" class="main-content" style="display:none">
     <div class="page-header">
@@ -369,14 +369,14 @@
       <div class="section-body" id="asm-profile-content"></div>
     </div>
   </div>
-
+ 
   <!-- ADMIN TAB -->
   <div id="tab-admin" class="main-content" style="display:none">
     <div class="page-header">
       <div class="page-title">Admin Panel</div>
       <div class="page-subtitle">OneDrive configuration & user management</div>
     </div>
-
+ 
     <div class="setup-banner">
       <div class="setup-banner-icon">📊</div>
       <div>
@@ -384,7 +384,7 @@
         <div class="setup-banner-text">IT admin: configure Azure credentials and OneDrive file path below. All data saves to <strong>ISC-Tracker-Data.xlsx</strong> on your company OneDrive.</div>
       </div>
     </div>
-
+ 
     <div class="section-card">
       <div class="section-header"><div class="section-title">🔌 Azure & OneDrive Configuration</div></div>
       <div class="section-body">
@@ -412,7 +412,7 @@
         <div id="od-status-msg"></div>
       </div>
     </div>
-
+ 
     <!-- MANAGE ASMs -->
     <div class="section-card">
       <div class="section-header">
@@ -421,7 +421,7 @@
       </div>
       <div class="section-body"><div id="asm-list"></div></div>
     </div>
-
+ 
     <!-- IT SETUP STEPS -->
     <div class="section-card">
       <div class="section-header"><div class="section-title">📋 IT Admin Setup Guide</div></div>
@@ -474,13 +474,13 @@
       </div>
     </div>
   </div>
-
+ 
   <div class="bottom-nav" id="bottom-nav"></div>
   <button class="fab" id="fab-btn" onclick="showNewEntryModal()" style="display:none">+</button>
 </div>
-
+ 
 <!-- ══════ MODALS ══════ -->
-
+ 
 <!-- New/Edit Entry Modal -->
 <div class="modal-overlay" id="modal-entry">
   <div class="modal">
@@ -548,7 +548,7 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- Detail Modal -->
 <div class="modal-overlay" id="modal-detail">
   <div class="modal">
@@ -558,7 +558,7 @@
     <div style="display:flex;gap:10px;margin-top:16px" id="modal-detail-actions"></div>
   </div>
 </div>
-
+ 
 <!-- Add ASM Modal -->
 <div class="modal-overlay" id="modal-asm">
   <div class="modal">
@@ -576,16 +576,16 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loading-overlay">
   <div class="spinner"></div>
   <div class="loading-text" id="loading-text">Syncing with OneDrive...</div>
 </div>
-
+ 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
-
+ 
 <script>
 // ══════════════════════════════════════════════
 //  CONFIG & MSAL / ONEDRIVE API
@@ -593,14 +593,14 @@
 const CFG_KEY = 'isc_od_config';
 let _msalApp = null;
 let _msalToken = null;
-
+ 
 function getConfig() {
   return JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
 }
 function saveConfigToLocal(cfg) {
   localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 }
-
+ 
 // Build and initialize MSAL instance
 async function buildMSAL() {
   const cfg = getConfig();
@@ -625,7 +625,7 @@ async function buildMSAL() {
   }
   return app;
 }
-
+ 
 // Get token via MSAL — tries silent first, falls back to popup
 async function getAccessToken() {
   const cfg = getConfig();
@@ -646,7 +646,7 @@ async function getAccessToken() {
   _msalToken = result.accessToken;
   return _msalToken;
 }
-
+ 
 async function graphGet(path) {
   const token = await getAccessToken();
   const resp = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
@@ -655,13 +655,13 @@ async function graphGet(path) {
   if (!resp.ok) throw new Error(`Graph error: ${resp.status}`);
   return resp.json();
 }
-
+ 
 // Auto-create the Excel file with correct sheets if it doesn't exist
 async function ensureWorkbookExists() {
   const cfg = getConfig();
   const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
   const token = await getAccessToken();
-
+ 
   // Check if file already exists
   const listResp = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
     headers: { Authorization: `Bearer ${token}` }
@@ -669,7 +669,7 @@ async function ensureWorkbookExists() {
   const listData = await listResp.json();
   const exists = listData.value?.find(f => f.name === filename);
   if (exists) return; // already exists, nothing to do
-
+ 
   // Create a blank Excel file via Graph API
   const createResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filename}:/content`, {
     method: 'PUT',
@@ -680,10 +680,10 @@ async function ensureWorkbookExists() {
     body: new Blob([''], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   });
   if (!createResp.ok) throw new Error('Could not create Excel file on OneDrive');
-
+ 
   // Wait a moment for file to be ready
   await new Promise(r => setTimeout(r, 2000));
-
+ 
   // Get the new file's workbook base
   const listResp2 = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
     headers: { Authorization: `Bearer ${token}` }
@@ -691,16 +691,16 @@ async function ensureWorkbookExists() {
   const listData2 = await listResp2.json();
   const newFile = listData2.value?.find(f => f.name === filename);
   if (!newFile) throw new Error('File created but could not be found');
-
+ 
   const base = `/me/drive/items/${newFile.id}/workbook`;
-
+ 
   // Add sheets with headers
   const sheets = [
     { name: 'ASMs',    headers: ['id','name','email','phone','username','password'] },
     { name: 'Users',   headers: ['id','name','email','phone','asmId','asmName','asmEmail','asmPhone','username','password','role','createdAt'] },
     { name: 'Entries', headers: ['id','iscId','iscName','asmId','asmName','customer','address','custType','refType','status','dealerCode','dealerName','contractor','createdAt','updatedAt'] },
   ];
-
+ 
   for (const sheet of sheets) {
     // Add sheet
     await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/add`, {
@@ -725,7 +725,7 @@ async function ensureWorkbookExists() {
   if (!file) throw new Error(`FILE_NOT_FOUND: Could not find "${filename}" in your OneDrive root folder.`);
   return `/me/drive/items/${file.id}/workbook`;
 }
-
+ 
 async function readSheet(sheetName) {
   try {
     const base = await getWorkbookBase();
@@ -745,7 +745,7 @@ async function readSheet(sheetName) {
     });
   } catch { return []; }
 }
-
+ 
 async function appendRow(sheetName, rowObj) {
   const base = await getWorkbookBase();
   const token = await getAccessToken();
@@ -766,7 +766,7 @@ async function appendRow(sheetName, rowObj) {
     body: JSON.stringify({ values: [newRow] })
   });
 }
-
+ 
 async function updateRow(sheetName, matchField, matchVal, updates) {
   const base = await getWorkbookBase();
   const token = await getAccessToken();
@@ -789,7 +789,7 @@ async function updateRow(sheetName, matchField, matchVal, updates) {
     body: JSON.stringify({ values: [updatedRow] })
   });
 }
-
+ 
 // ══════════════════════════════════════════════
 //  LOCAL FALLBACK (demo mode when not configured)
 // ══════════════════════════════════════════════
@@ -797,11 +797,11 @@ function isConfigured() {
   const c = getConfig();
   return !!(c.tenantId && c.clientId);
 }
-
+ 
 // Local cache for demo mode
 function localDB() { return { get: k => JSON.parse(localStorage.getItem('isc_local_'+k)||'null'), set: (k,v) => localStorage.setItem('isc_local_'+k,JSON.stringify(v)), arr: k => JSON.parse(localStorage.getItem('isc_local_'+k)||'[]'), push: (k,v) => { const a=JSON.parse(localStorage.getItem('isc_local_'+k)||'[]'); a.push(v); localStorage.setItem('isc_local_'+k,JSON.stringify(a)); } }; }
 const LDB = localDB();
-
+ 
 function seedLocal() {
   if (LDB.get('seeded')) return;
   LDB.set('asms', [
@@ -815,7 +815,7 @@ function seedLocal() {
   LDB.set('seeded', true);
 }
 seedLocal();
-
+ 
 // ══════════════════════════════════════════════
 //  DATA LAYER — routes to OneDrive OR local
 // ══════════════════════════════════════════════
@@ -851,12 +851,12 @@ async function DATA_addASM(asm) {
   if (isConfigured()) await appendRow('ASMs', asm);
   else LDB.push('asms', asm);
 }
-
+ 
 // ══════════════════════════════════════════════
 //  AUTH
 // ══════════════════════════════════════════════
 let currentUser = null;
-
+ 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -865,7 +865,7 @@ function showScreen(id) {
     setTimeout(() => populateAsmDropdown(), 100);
   }
 }
-
+ 
 async function doLogin() {
   const u=gv('login-username').trim(), p=gv('login-password').trim();
   if (!u||!p) return showAlert('alert-login','Please enter username and password.','error');
@@ -886,7 +886,7 @@ async function doLogin() {
     showAlert('alert-login','Error checking credentials. Try again.','error');
   } finally { setLoading(false); }
 }
-
+ 
 async function doAdminLogin() {
   const u=gv('admin-login-user').trim(), p=gv('admin-login-pass').trim();
   if (!u||!p) return showAlert('alert-admin-login','Please enter credentials.','error');
@@ -911,7 +911,7 @@ async function doAdminLogin() {
     showAlert('alert-admin-login','Error checking credentials. Try again.','error');
   } finally { setLoading(false); }
 }
-
+ 
 async function doRegister() {
   const name=gv('reg-name').trim(), email=gv('reg-email').trim(),
         phone=gv('reg-phone').trim(), asmId=gv('reg-asm'),
@@ -932,9 +932,9 @@ async function doRegister() {
     showAlert('alert-register','Error creating account. Try again.','error');
   } finally { setLoading(false); }
 }
-
+ 
 function doSignOut() { currentUser=null; showScreen('screen-login'); sv('login-username',''); sv('login-password',''); }
-
+ 
 // ══════════════════════════════════════════════
 //  APP LAUNCH & NAVIGATION
 // ══════════════════════════════════════════════
@@ -945,7 +945,7 @@ function launchApp() {
   if (currentUser.role==='isc') { showTab('mysites'); document.getElementById('fab-btn').style.display='flex'; }
   else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
 }
-
+ 
 function buildNav() {
   const nav = document.getElementById('bottom-nav');
   if (currentUser.role==='isc') {
@@ -962,13 +962,13 @@ function buildNav() {
       <button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
 }
-
+ 
 function switchTab(tab, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   el.classList.add('active');
   showTab(tab);
 }
-
+ 
 function showTab(tab) {
   ['tab-mysites','tab-allsites','tab-profile','tab-admin'].forEach(t=>document.getElementById(t).style.display='none');
   document.getElementById('tab-'+tab).style.display='block';
@@ -977,12 +977,12 @@ function showTab(tab) {
   if (tab==='profile') renderProfile();
   if (tab==='admin') renderAdminPanel();
 }
-
+ 
 // ══════════════════════════════════════════════
 //  ENTRIES
 // ══════════════════════════════════════════════
 let _myEntriesCache=[], _allEntriesCache=[];
-
+ 
 async function renderMyEntries(filter='all') {
   setLoading(true, isConfigured()?'Loading from OneDrive...':'Loading...');
   try {
@@ -997,7 +997,7 @@ async function renderMyEntries(filter='all') {
   } catch(e) { showToast('⚠️ Could not load entries'); }
   finally { setLoading(false); }
 }
-
+ 
 async function renderAllEntries(filter='all') {
   setLoading(true, isConfigured()?'Loading from OneDrive...':'Loading...');
   try {
@@ -1022,13 +1022,13 @@ async function renderAllEntries(filter='all') {
   } catch(e) { showToast('⚠️ Could not load entries'); }
   finally { setLoading(false); }
 }
-
+ 
 function renderEntryList(containerId, entries, editable) {
   const el=document.getElementById(containerId);
   if (!entries.length) { el.innerHTML=emptyState('🏗️','No entries yet','Tap + to log your first site visit'); return; }
   el.innerHTML = entries.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('');
 }
-
+ 
 function entryCard(e) {
   const badge = e.status==='Confirmed'
     ? `<span class="status-badge status-confirmed">✅ Confirmed</span>`
@@ -1048,19 +1048,19 @@ function entryCard(e) {
     </div>
   </div>`;
 }
-
+ 
 function filterEntries(f,el) {
   document.querySelectorAll('#tab-mysites .filter-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   renderMyEntries(f);
 }
-
+ 
 function filterAllEntries(f,el) {
   document.querySelectorAll('#tab-allsites .filter-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   renderAllEntries(f);
 }
-
+ 
 // ══════════════════════════════════════════════
 //  NEW / EDIT ENTRY
 // ══════════════════════════════════════════════
@@ -1072,7 +1072,7 @@ function showNewEntryModal() {
   document.getElementById('modal-entry-title').textContent='Log Site Visit';
   openModal('modal-entry');
 }
-
+ 
 function showEditModal(id) {
   const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
   if (!e) return;
@@ -1084,11 +1084,11 @@ function showEditModal(id) {
   closeModal('modal-detail');
   openModal('modal-entry');
 }
-
+ 
 function toggleOrderSection() {
   document.getElementById('order-section').classList.toggle('show', gv('entry-status')==='Confirmed');
 }
-
+ 
 async function saveEntry() {
   const customer=gv('entry-customer').trim(), address=gv('entry-address').trim(),
         custType=gv('entry-custtype'), refType=gv('entry-reftype'), status=gv('entry-status');
@@ -1112,7 +1112,7 @@ async function saveEntry() {
   } catch(e) { showToast('⚠️ Could not save. Check connection.'); }
   finally { setLoading(false); }
 }
-
+ 
 // ══════════════════════════════════════════════
 //  DETAIL VIEW
 // ══════════════════════════════════════════════
@@ -1144,7 +1144,7 @@ function showDetail(id) {
   }
   openModal('modal-detail');
 }
-
+ 
 // ══════════════════════════════════════════════
 //  PROFILE
 // ══════════════════════════════════════════════
@@ -1168,7 +1168,7 @@ function renderProfile() {
     asmSec.style.display='block';
   } else { asmSec.style.display='none'; }
 }
-
+ 
 // ══════════════════════════════════════════════
 //  ADMIN
 // ══════════════════════════════════════════════
@@ -1179,7 +1179,7 @@ function renderAdminPanel() {
   if (cfg.filename) sv('cfg-filename', cfg.filename);
   renderAsmList();
 }
-
+ 
 function saveConfig() {
   saveConfigToLocal({
     tenantId: gv('cfg-tenant').trim(),
@@ -1189,7 +1189,7 @@ function saveConfig() {
   _msalApp = null; // reset so it rebuilds with new credentials on next use
   showToast('✅ Configuration saved!');
 }
-
+ 
 async function testConnection() {
   const cfg = getConfig();
   const el = document.getElementById('od-status-msg');
@@ -1230,7 +1230,7 @@ async function testConnection() {
     el.innerHTML = `<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${reason}</div>`;
   }
 }
-
+ 
 async function renderAsmList() {
   const asms=await DATA_getASMs();
   const el=document.getElementById('asm-list');
@@ -1242,7 +1242,7 @@ async function renderAsmList() {
       <div class="entry-address" style="margin-top:4px">👤 @${a.username}</div>
     </div>`).join('');
 }
-
+ 
 async function saveAsm() {
   const name=gv('asm-name').trim(),email=gv('asm-email').trim(),phone=gv('asm-phone').trim(),username=gv('asm-username').trim(),password=gv('asm-password').trim();
   if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
@@ -1260,13 +1260,13 @@ async function saveAsm() {
     showToast('⚠️ ' + (e.message || 'Error saving ASM. Make sure you are signed in.'));
   } finally { setLoading(false); }
 }
-
+ 
 async function populateAsmDropdown() {
   const sel=document.getElementById('reg-asm');
   const asms=await DATA_getASMs();
   sel.innerHTML='<option value="">— Select your Area Sales Manager —</option>'+asms.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
 }
-
+ 
 async function fillAsmInfo() {
   const asmId=gv('reg-asm');
   const box=document.getElementById('asm-info-box');
@@ -1278,7 +1278,7 @@ async function fillAsmInfo() {
   document.getElementById('asm-info-phone').textContent=asm.phone;
   box.classList.add('show');
 }
-
+ 
 // ══════════════════════════════════════════════
 //  UTILS
 // ══════════════════════════════════════════════
@@ -1289,7 +1289,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 function fmtDate(iso) { if(!iso) return '—'; return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
 function emptyState(icon,text,sub='') { return `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-text">${text}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`; }
 function setLoading(show,msg='Loading...') { document.getElementById('loading-overlay').classList.toggle('show',show); document.getElementById('loading-text').textContent=msg; }
-
+ 
 function showToast(msg) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
@@ -1300,10 +1300,11 @@ function showAlert(id,msg,type) {
   el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
   setTimeout(()=>el.innerHTML='',4000);
 }
-
+ 
 document.querySelectorAll('.modal-overlay').forEach(o=>{
   o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('show'); });
 });
 </script>
 </body>
 </html>
+ 
