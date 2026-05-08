@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISC Site-Tracker — MRF Vapocure Paints</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red:#C8102E;--red-dark:#9e0c24;--red-light:#f5e6e9;
+    --gold:#F5A623;--dark:#1a1a2e;--dark2:#16213e;
+    --gray:#6b7280;--gray-light:#f3f4f6;--white:#ffffff;
+    --success:#10b981;--warning:#f59e0b;--border:#e5e7eb;
+    --shadow:0 2px 12px rgba(0,0,0,0.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:#f8f9fc;color:#1f2937;min-height:100vh;font-size:14px;}
+  .screen{display:none;}.screen.active{display:block;}
+  /* HEADER */
+  .header{background:linear-gradient(135deg,var(--dark),var(--dark2));color:white;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.3);}
+  .hb{display:flex;align-items:center;gap:10px;}
+  .hl{width:32px;height:32px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:white;}
+  .ht{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:.5px;}
+  .ht span{color:var(--gold);}
+  .hs{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:1px;text-transform:uppercase;}
+  .hr{display:flex;align-items:center;gap:12px;}
+  .ubadge{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:12px;color:rgba(255,255,255,.85);}
+  .bso{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
+  /* AUTH */
+  .auth-wrap{min-height:100vh;background:linear-gradient(135deg,var(--dark),#0f3460,var(--dark2));display:flex;align-items:center;justify-content:center;padding:24px 16px;}
+  .auth-card{background:white;border-radius:20px;padding:36px 28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .auth-logo-wrap{text-align:center;margin-bottom:24px;}
+  .auth-logo{width:56px;height:56px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;color:white;margin-bottom:12px;box-shadow:0 8px 20px rgba(200,16,46,.3);}
+  .auth-brand{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--dark);}
+  .auth-brand span{color:var(--red);}
+  .auth-tagline{font-size:12px;color:var(--gray);margin-top:4px;}
+  .auth-title{font-size:18px;font-weight:600;color:var(--dark);margin-bottom:6px;}
+  .auth-desc{font-size:13px;color:var(--gray);margin-bottom:24px;line-height:1.5;}
+  /* FORMS */
+  .form-group{margin-bottom:16px;}
+  .form-label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;letter-spacing:.3px;text-transform:uppercase;}
+  .form-input,.form-select{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--dark);background:white;outline:none;-webkit-appearance:none;transition:border-color .2s;}
+  .form-input:focus,.form-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1);}
+  .form-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+  .btn-primary{width:100%;padding:12px;background:linear-gradient(135deg,var(--red),var(--red-dark));color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 4px 12px rgba(200,16,46,.3);}
+  .btn-primary:hover{transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+  .btn-secondary{padding:10px 16px;background:white;color:var(--red);border:1.5px solid var(--red);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn-sm{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;}
+  .btn-green{background:#d1fae5;color:#065f46;}
+  .btn-red{background:#fee2e2;color:#991b1b;}
+  .btn-blue{background:#dbeafe;color:#1d4ed8;}
+  .btn-gray{background:var(--gray-light);color:var(--gray);}
+  .link-text{text-align:center;font-size:13px;color:var(--gray);}
+  .link-text a{color:var(--red);text-decoration:none;font-weight:600;cursor:pointer;}
+  .divider{text-align:center;color:var(--gray);font-size:12px;margin:16px 0;position:relative;}
+  .divider::before,.divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border);}
+  .divider::before{left:0;}.divider::after{right:0;}
+  /* BOTTOM NAV */
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:flex;z-index:99;box-shadow:0 -4px 16px rgba(0,0,0,.08);}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;cursor:pointer;border:none;background:none;font-family:'DM Sans',sans-serif;color:var(--gray);font-size:10px;gap:3px;}
+  .nav-item.active{color:var(--red);}
+  .nav-icon{font-size:20px;}
+  /* MAIN */
+  .main-content{padding:16px;padding-bottom:80px;}
+  .page-title{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--dark);}
+  .page-subtitle{font-size:12px;color:var(--gray);margin-top:2px;margin-bottom:20px;}
+  /* STATS */
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+  .stat-card{background:white;border-radius:14px;padding:14px 12px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border);}
+  .stat-value{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:var(--dark);line-height:1;}
+  .stat-label{font-size:10px;color:var(--gray);margin-top:4px;font-weight:500;text-transform:uppercase;}
+  .stat-card.green .stat-value{color:var(--success);}
+  .stat-card.gold .stat-value{color:var(--gold);}
+  .stat-card.red .stat-value{color:var(--red);}
+  /* CARDS */
+  .section-card{background:white;border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:16px;overflow:hidden;}
+  .section-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .section-title{font-weight:600;font-size:14px;color:var(--dark);}
+  .section-body{padding:16px;}
+  /* ENTRY CARDS */
+  .entry-card{border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:white;cursor:pointer;}
+  .entry-card:hover{border-color:var(--red);box-shadow:0 4px 12px rgba(200,16,46,.08);}
+  .entry-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+  .entry-ref{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--red);}
+  .entry-name{font-size:15px;font-weight:600;color:var(--dark);margin-bottom:2px;}
+  .entry-sub{font-size:12px;color:var(--gray);}
+  .entry-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .meta-tag{background:var(--gray-light);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--gray);font-weight:500;}
+  .status-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+  .badge-pending{background:#fef3c7;color:#92400e;}
+  .badge-confirmed{background:#d1fae5;color:#065f46;}
+  .badge-active{background:#d1fae5;color:#065f46;}
+  .badge-inactive{background:#fee2e2;color:#991b1b;}
+  /* FAB */
+  .fab{position:fixed;bottom:74px;right:20px;width:52px;height:52px;background:linear-gradient(135deg,var(--red),var(--red-dark));color:white;border:none;border-radius:16px;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(200,16,46,.4);display:flex;align-items:center;justify-content:center;z-index:98;}
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);}
+  .modal-overlay.show{display:flex;}
+  .modal{background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:24px 20px 32px;animation:slideUp .3s ease;}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+  .modal-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--dark);margin-bottom:4px;}
+  .modal-subtitle{font-size:12px;color:var(--gray);margin-bottom:20px;}
+  /* ORDER SECTION */
+  .order-section{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;margin-top:8px;display:none;}
+  .order-section.show{display:block;}
+  .order-section-title{font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+  /* PROFILE */
+  .profile-card{background:linear-gradient(135deg,var(--dark),var(--dark2));border-radius:16px;padding:20px;color:white;margin-bottom:16px;}
+  .profile-avatar{width:52px;height:52px;background:var(--red);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px;}
+  .profile-name{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;}
+  .profile-role{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+  .profile-row{display:flex;gap:6px;align-items:center;font-size:13px;color:rgba(255,255,255,.8);margin-bottom:6px;}
+  /* DETAIL */
+  .detail-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+  .detail-row:last-child{border-bottom:none;}
+  .detail-label{font-size:12px;color:var(--gray);font-weight:500;}
+  .detail-value{font-size:13px;font-weight:600;color:var(--dark);text-align:right;max-width:65%;}
+  /* ALERTS & BANNERS */
+  .alert{padding:12px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;}
+  .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .alert-success{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;}
+  .alert-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;}
+  .alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+  .setup-banner{background:linear-gradient(135deg,#fff7ed,#fef3c7);border:1.5px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+  .setup-banner-title{font-size:13px;font-weight:600;color:#92400e;}
+  .setup-banner-text{font-size:12px;color:#78350f;margin-top:2px;line-height:1.5;}
+  /* OD STATUS */
+  .od-status{display:flex;align-items:center;gap:8px;font-size:12px;padding:10px 14px;border-radius:10px;margin-top:12px;}
+  .od-status.connected{background:#d1fae5;color:#065f46;}
+  .od-status.disconnected{background:#fee2e2;color:#991b1b;}
+  .od-status.pending{background:#eff6ff;color:#1e40af;}
+  .od-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  /* FILTER */
+  .filter-row{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;}
+  .filter-btn{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:white;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;color:var(--gray);}
+  .filter-btn.active{background:var(--red);color:white;border-color:var(--red);}
+  /* GROUP HEADER */
+  .group-header{background:var(--gray-light);border-radius:10px;padding:10px 14px;margin-bottom:8px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;}
+  .group-name{font-weight:600;font-size:13px;color:var(--dark);}
+  .group-count{font-size:11px;color:var(--gray);}
+  /* DEALER TAGS */
+  .dealer-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .dealer-tag{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;font-size:12px;color:#1e40af;display:flex;align-items:center;gap:4px;}
+  .dealer-tag-remove{cursor:pointer;color:#6b7280;font-size:14px;line-height:1;}
+  .dealer-tag-remove:hover{color:var(--red);}
+  /* LOADING */
+  .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;backdrop-filter:blur(2px);}
+  .loading-overlay.show{display:flex;}
+  .spinner{width:40px;height:40px;border:3px solid var(--red-light);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:14px;color:var(--gray);font-weight:500;}
+  /* TOAST */
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:white;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* EMPTY */
+  .empty-state{text-align:center;padding:40px 20px;color:var(--gray);}
+  .empty-icon{font-size:48px;margin-bottom:12px;opacity:.4;}
+  .empty-text{font-size:14px;font-weight:500;}
+  .empty-sub{font-size:12px;margin-top:4px;}
+  /* CONFIG */
+  .config-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:360px){.config-row{grid-template-columns:1fr;}}
+  /* ISC CARD ACTIONS */
+  .isc-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
+        <div class="auth-tagline">ISC Site-Tracker · v4.0</div>
+      </div>
+      <div id="alert-login"></div>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-desc">Sign in with your credentials to continue.</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="login-username" placeholder="Enter your username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-password" placeholder="Enter your password">
+      </div>
+      <button class="btn-primary" onclick="doLogin()">Sign In</button>
+      <div class="divider">or</div>
+      <div class="link-text">Admin / ASM? <a onclick="showScreen('screen-admin-login')">Admin Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="screen-admin-login" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">Admin / <span>ASM Login</span></div>
+        <div class="auth-tagline">Restricted Access</div>
+      </div>
+      <div id="alert-admin-login"></div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="admin-login-user" placeholder="Admin / ASM username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="admin-login-pass" placeholder="Password">
+      </div>
+      <button class="btn-primary" onclick="doAdminLogin()">Sign In</button>
+      <div class="divider">or</div>
+      <div class="link-text"><a onclick="showScreen('screen-login')">← Back to ISC Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-app" class="screen">
+  <div class="header">
+    <div class="hb">
+      <div class="hl">MRF</div>
+      <div><div class="ht">ISC <span>Site-Tracker</span></div><div class="hs">MRF Vapocure Paints</div></div>
+    </div>
+    <div class="hr">
+      <div class="ubadge" id="header-user-badge">User</div>
+      <button class="bso" onclick="doSignOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- MY SITES (ISC) -->
+  <div id="tab-mysites" class="main-content">
+    <div class="page-title">My Sites</div>
+    <div class="page-subtitle" id="mysites-subtitle">Your site visits</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="stat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterEntries('Pending',this)">Pending</button>
+      <button class="filter-btn" onclick="filterEntries('Confirmed',this)">Confirmed</button>
+    </div>
+    <div id="entries-list"></div>
+  </div>
+
+  <!-- ALL SITES (ASM/Admin) -->
+  <div id="tab-allsites" class="main-content" style="display:none">
+    <div class="page-title" id="allsites-title">All Sites</div>
+    <div class="page-subtitle" id="allsites-subtitle">All ISC activity</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="astat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="astat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="astat-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterAllEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterAllEntries('Pending',this)">Pending</button>
+      <button class="filter-btn" onclick="filterAllEntries('Confirmed',this)">Confirmed</button>
+    </div>
+    <div id="all-entries-list"></div>
+  </div>
+
+  <!-- MY ISCs (ASM) -->
+  <div id="tab-myiscs" class="main-content" style="display:none">
+    <div class="page-title">My ISCs</div>
+    <div class="page-subtitle" id="myiscs-subtitle">ISCs under your supervision</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="isc-stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="isc-stat-active">0</div><div class="stat-label">Active</div></div>
+      <div class="stat-card red"><div class="stat-value" id="isc-stat-inactive">0</div><div class="stat-label">Inactive</div></div>
+    </div>
+    <div id="isc-list"></div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="tab-profile" class="main-content" style="display:none">
+    <div class="page-title">My Profile</div>
+    <div class="page-subtitle">Your saved details</div>
+    <div class="profile-card" id="profile-card-content"></div>
+    <div class="section-card" id="asm-profile-section">
+      <div class="section-header"><div class="section-title">ASM Details</div></div>
+      <div class="section-body" id="asm-profile-content"></div>
+    </div>
+    <div class="section-card" id="isc-details-section">
+      <div class="section-header"><div class="section-title">Assignment Details</div></div>
+      <div class="section-body" id="isc-details-content"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="tab-admin" class="main-content" style="display:none">
+    <div class="page-title">Admin Panel</div>
+    <div class="page-subtitle">System configuration & management</div>
+
+    <div class="setup-banner">
+      <div style="font-size:20px;flex-shrink:0">📊</div>
+      <div>
+        <div class="setup-banner-title">OneDrive + Excel Connected</div>
+        <div class="setup-banner-text">All data syncs to <strong>ISC-Tracker-Data.xlsx</strong> on OneDrive. Sheets: ASMs, Users, Entries, STs, BDOs.</div>
+      </div>
+    </div>
+
+    <!-- AZURE CONFIG -->
+    <div class="section-card">
+      <div class="section-header"><div class="section-title">🔌 Azure & OneDrive Configuration</div></div>
+      <div class="section-body">
+        <div class="alert alert-info">🔐 <strong>How this works:</strong> Click <em>Test Connection</em> — a Microsoft login popup opens. Sign in with your MRF admin account.</div>
+        <div class="config-row">
+          <div class="form-group"><label class="form-label">Azure Tenant ID</label><input type="text" class="form-input" id="cfg-tenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+          <div class="form-group"><label class="form-label">Azure Client ID</label><input type="text" class="form-input" id="cfg-client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Excel File Name on OneDrive</label><input type="text" class="form-input" id="cfg-filename" placeholder="ISC-Tracker-Data.xlsx"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="saveConfig()">💾 Save</button>
+          <button class="btn-secondary" onclick="testConnection()">🔌 Test Connection</button>
+        </div>
+        <div id="od-status-msg"></div>
+      </div>
+    </div>
+
+    <!-- MANAGE ASMs -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">👥 Manage ASMs</div>
+        <button class="btn-sm btn-green" onclick="openModal('modal-asm')">+ Add ASM</button>
+      </div>
+      <div class="section-body"><div id="asm-list"></div></div>
+    </div>
+
+    <!-- MANAGE STs -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">🧑‍💼 Manage STs (Sales Technologists)</div>
+        <button class="btn-sm btn-blue" onclick="openModal('modal-st')">+ Add ST</button>
+      </div>
+      <div class="section-body"><div id="st-list"></div></div>
+    </div>
+
+    <!-- MANAGE BDOs -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">📈 Manage BDOs (Business Dev Officers)</div>
+        <button class="btn-sm btn-blue" onclick="openModal('modal-bdo')">+ Add BDO</button>
+      </div>
+      <div class="section-body"><div id="bdo-list"></div></div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" id="bottom-nav"></div>
+  <button class="fab" id="fab-btn" onclick="showNewEntryModal()" style="display:none">+</button>
+</div>
+
+<!-- ══════ MODALS ══════ -->
+
+<!-- New/Edit Entry Modal -->
+<div class="modal-overlay" id="modal-entry">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-entry-title">Log Site Visit</div>
+    <div class="modal-subtitle">Fill in the site details below</div>
+    <input type="hidden" id="entry-edit-id">
+    <div class="form-group"><label class="form-label">Customer Name / Site Supervisor *</label><input type="text" class="form-input" id="entry-customer" placeholder="e.g. Mr. Ramesh Kumar"></div>
+    <div class="form-group"><label class="form-label">Site Address *</label><input type="text" class="form-input" id="entry-address" placeholder="Full site address"></div>
+    <div class="form-group">
+      <label class="form-label">Customer Type *</label>
+      <select class="form-select" id="entry-custtype">
+        <option value="">— Select —</option>
+        <option>Individual Home Owner</option>
+        <option>Builder / Developer</option>
+        <option>Contractor</option>
+        <option>Architect / Interior Designer</option>
+        <option>Commercial / Industrial</option>
+        <option>Government / Institution</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Referral Type *</label>
+      <select class="form-select" id="entry-reftype">
+        <option value="">— Select —</option>
+        <option>Self Prospecting</option>
+        <option>Dealer Referral</option>
+        <option>Existing Customer Referral</option>
+        <option>ASM Referral</option>
+        <option>ST Referral</option>
+        <option>BDO Referral</option>
+        <option>Digital / Social Media Lead</option>
+        <option>Contractor Referral</option>
+        <option>Painter Referral</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dealer Code *</label>
+      <select class="form-select" id="entry-dealercode">
+        <option value="">— Select assigned dealer —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Order Status</label>
+      <select class="form-select" id="entry-status" onchange="toggleOrderSection()">
+        <option value="Pending">Pending</option>
+        <option value="Confirmed">Order Confirmed ✅</option>
+      </select>
+    </div>
+    <div class="order-section" id="order-section">
+      <div class="order-section-title">✅ Order Details</div>
+      <div class="form-group"><label class="form-label">Dealer Name *</label><input type="text" class="form-input" id="entry-dealername" placeholder="Dealer / distributor name"></div>
+      <div class="form-group"><label class="form-label">Contractor Name *</label><input type="text" class="form-input" id="entry-contractor" placeholder="Contractor name"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-entry')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveEntry()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Site Details</div>
+    <div id="modal-detail-body"></div>
+    <div style="display:flex;gap:10px;margin-top:16px" id="modal-detail-actions"></div>
+  </div>
+</div>
+
+<!-- Create/Edit ISC Modal (ASM) -->
+<div class="modal-overlay" id="modal-isc">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-isc-title">Create ISC Account</div>
+    <div class="modal-subtitle">Fill in all details for this ISC</div>
+    <input type="hidden" id="isc-edit-id">
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="isc-name" placeholder="ISC full name"></div>
+    <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="isc-phone" placeholder="10-digit mobile number"></div>
+    <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="isc-email" placeholder="isc@email.com"></div>
+    <div class="form-group"><label class="form-label">Username *</label><input type="text" class="form-input" id="isc-username" placeholder="Login username"></div>
+    <div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" id="isc-password" placeholder="Login password"></div>
+    <div class="form-group">
+      <label class="form-label">Sales Technologist (ST) *</label>
+      <select class="form-select" id="isc-st"><option value="">— Select ST —</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Business Dev Officer (BDO) *</label>
+      <select class="form-select" id="isc-bdo"><option value="">— Select BDO —</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Region *</label>
+      <select class="form-select" id="isc-region">
+        <option value="">— Select Region —</option>
+        <option>South-1</option><option>South-2</option><option>South-4</option><option>South-5</option>
+        <option>North-1</option><option>North-2</option>
+        <option>East</option>
+        <option>West-1</option><option>West-2</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dealer Codes (can add multiple)</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="form-input" id="isc-dealer-input" placeholder="Type dealer code & press Add" style="flex:1">
+        <button class="btn-sm btn-blue" onclick="addDealerCode()" style="padding:8px 14px;border-radius:8px">Add</button>
+      </div>
+      <div class="dealer-tags" id="isc-dealer-tags"></div>
+      <input type="hidden" id="isc-dealer-codes">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-isc')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveISC()">Save ISC Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add ASM Modal -->
+<div class="modal-overlay" id="modal-asm">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add ASM</div>
+    <div class="modal-subtitle">Add a new Area Sales Manager</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="asm-name" placeholder="Full name"></div>
+    <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="asm-email" placeholder="asm@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="asm-phone" placeholder="10-digit number"></div>
+    <div class="form-group"><label class="form-label">Username *</label><input type="text" class="form-input" id="asm-username" placeholder="Login username"></div>
+    <div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" id="asm-password" placeholder="Login password"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-asm')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveAsm()">Save ASM</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add ST Modal -->
+<div class="modal-overlay" id="modal-st">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Sales Technologist</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="st-name" placeholder="ST full name"></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="st-email" placeholder="st@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="st-phone" placeholder="10-digit number"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-st')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveST()">Save ST</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add BDO Modal -->
+<div class="modal-overlay" id="modal-bdo">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add BDO</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="bdo-name" placeholder="BDO full name"></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bdo-email" placeholder="bdo@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bdo-phone" placeholder="10-digit number"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-bdo')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveBDO()">Save BDO</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading & Toast -->
+<div class="loading-overlay" id="loading-overlay"><div class="spinner"></div><div class="loading-text" id="loading-text">Loading...</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+window.onerror = (msg,src,line) => { console.error('JS Error:',msg,'Line:',line); return false; };
+
+// ══════════════════════════════════════════════
+//  CONFIG & MSAL
+// ══════════════════════════════════════════════
+const CFG_KEY = 'isc_od_config';
+let _msalApp = null, _msalToken = null;
+
+function getConfig() { return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }
+function saveConfigToLocal(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+
+function loadMSALScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof msal !== 'undefined') { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Could not load MSAL'));
+    document.head.appendChild(s);
+  });
+}
+
+async function buildMSAL() {
+  await loadMSALScript();
+  const cfg = getConfig();
+  if (!cfg.tenantId || !cfg.clientId) return null;
+  const config = {
+    auth: { clientId: cfg.clientId, authority: `https://login.microsoftonline.com/${cfg.tenantId}`, redirectUri: window.location.origin + window.location.pathname },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+  };
+  let app;
+  if (msal.PublicClientApplication.createPublicClientApplication) {
+    app = await msal.PublicClientApplication.createPublicClientApplication(config);
+  } else {
+    app = new msal.PublicClientApplication(config);
+    if (app.initialize) await app.initialize();
+    if (app.handleRedirectPromise) await app.handleRedirectPromise().catch(()=>{});
+  }
+  return app;
+}
+
+async function getAccessToken() {
+  const cfg = getConfig();
+  if (!cfg.tenantId || !cfg.clientId) throw new Error('NOT_CONFIGURED');
+  if (!_msalApp) _msalApp = await buildMSAL();
+  if (!_msalApp) throw new Error('Could not initialize MSAL');
+  const scopes = ['https://graph.microsoft.com/Files.ReadWrite.All','User.Read'];
+  const accounts = _msalApp.getAllAccounts();
+  if (accounts.length > 0) {
+    try { const r = await _msalApp.acquireTokenSilent({scopes, account: accounts[0]}); _msalToken = r.accessToken; return _msalToken; } catch(e) {}
+  }
+  const r = await _msalApp.loginPopup({scopes});
+  _msalToken = r.accessToken;
+  return _msalToken;
+}
+
+// ══════════════════════════════════════════════
+//  EXCEL / GRAPH HELPERS
+// ══════════════════════════════════════════════
+async function getWorkbookBase() {
+  const cfg = getConfig();
+  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
+  const token = _msalToken || await getAccessToken();
+  // Try Documents first
+  const r1 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${encodeURIComponent(filename)}:`, {headers:{Authorization:`Bearer ${token}`}});
+  if (r1.ok) { const f = await r1.json(); if (f.id) return `/me/drive/items/${f.id}/workbook`; }
+  // Try root
+  const r2 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(filename)}:`, {headers:{Authorization:`Bearer ${token}`}});
+  if (r2.ok) { const f = await r2.json(); if (f.id) return `/me/drive/items/${f.id}/workbook`; }
+  // Search
+  const r3 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(filename)}')`, {headers:{Authorization:`Bearer ${token}`}});
+  const d3 = await r3.json();
+  const f3 = d3.value?.find(f=>f.name===filename);
+  if (f3) return `/me/drive/items/${f3.id}/workbook`;
+  throw new Error(`File "${filename}" not found in OneDrive`);
+}
+
+async function readSheet(sheetName) {
+  try {
+    const token = _msalToken || await getAccessToken();
+    const base = await getWorkbookBase();
+    const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
+    if (!resp.ok) { console.warn(`readSheet(${sheetName}): ${resp.status}`); return []; }
+    const data = await resp.json();
+    const rows = data.values || [];
+    if (rows.length < 2) return [];
+    const headers = rows[0];
+    return rows.slice(1).filter(r=>r.some(c=>c!==''&&c!==null)).map(row=>{
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=row[i]??'');
+      return obj;
+    });
+  } catch(e) { console.warn(`readSheet(${sheetName}):`, e.message); return []; }
+}
+
+async function appendRow(sheetName, rowObj) {
+  const token = _msalToken || await getAccessToken();
+  const base = await getWorkbookBase();
+  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
+  if (!resp.ok) throw new Error(`Cannot read sheet "${sheetName}": ${resp.status}`);
+  const data = await resp.json();
+  const rows = data.values || [[]];
+  const headers = rows[0];
+  if (!headers||!headers.length) throw new Error(`Sheet "${sheetName}" has no headers`);
+  const newRow = headers.map(h=>String(rowObj[h]??''));
+  const nextRow = rows.length + 1;
+  const endCol = String.fromCharCode(64 + headers.length);
+  const writeResp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='A${nextRow}:${endCol}${nextRow}')`, {
+    method:'PATCH', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+    body: JSON.stringify({values:[newRow]})
+  });
+  if (!writeResp.ok) { const e=await writeResp.json(); throw new Error(`Write failed: ${e?.error?.message||writeResp.status}`); }
+}
+
+async function updateRow(sheetName, matchField, matchVal, updates) {
+  const token = _msalToken || await getAccessToken();
+  const base = await getWorkbookBase();
+  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
+  const data = await resp.json();
+  const rows = data.values || [[]];
+  const headers = rows[0];
+  const colIdx = headers.indexOf(matchField);
+  const rowIdx = rows.findIndex((r,i)=>i>0&&String(r[colIdx])===String(matchVal));
+  if (rowIdx===-1) return;
+  const updatedRow = rows[rowIdx].map((v,i)=>updates[headers[i]]!==undefined?String(updates[headers[i]]):String(v));
+  const endCol = String.fromCharCode(64+headers.length);
+  await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='A${rowIdx+1}:${endCol}${rowIdx+1}')`, {
+    method:'PATCH', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+    body: JSON.stringify({values:[updatedRow]})
+  });
+}
+
+async function ensureWorkbookExists() {
+  const cfg = getConfig();
+  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
+  const token = _msalToken || await getAccessToken();
+  // Search for file
+  const s = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(filename)}')`, {headers:{Authorization:`Bearer ${token}`}});
+  const sd = await s.json();
+  if (sd.value?.find(f=>f.name===filename)) return;
+  // Create in Documents
+  const cr = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${filename}:/content`, {
+    method:'PUT', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+    body: new Blob([''],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
+  });
+  if (!cr.ok) throw new Error('Could not create Excel file');
+  await new Promise(r=>setTimeout(r,2000));
+  const s2 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(filename)}')`, {headers:{Authorization:`Bearer ${token}`}});
+  const sd2 = await s2.json();
+  const nf = sd2.value?.find(f=>f.name===filename);
+  if (!nf) throw new Error('File created but not found');
+  const base = `/me/drive/items/${nf.id}/workbook`;
+  const sheets = [
+    {name:'ASMs', headers:['id','name','email','phone','username','password']},
+    {name:'Users', headers:['id','name','email','phone','asmId','asmName','stId','stName','bdoId','bdoName','region','dealerCodes','username','password','role','status','createdAt']},
+    {name:'Entries', headers:['id','iscId','iscName','asmId','asmName','stName','bdoName','region','customer','address','custType','refType','dealerCode','dealerName','contractor','status','createdAt','updatedAt']},
+    {name:'STs', headers:['id','name','email','phone']},
+    {name:'BDOs', headers:['id','name','email','phone']},
+  ];
+  for (const sh of sheets) {
+    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/add`, {method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({name:sh.name})});
+    const ec = String.fromCharCode(64+sh.headers.length);
+    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sh.name}/range(address='A1:${ec}1')`, {method:'PATCH',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({values:[sh.headers]})});
+  }
+}
+
+// ══════════════════════════════════════════════
+//  LOCAL FALLBACK
+// ══════════════════════════════════════════════
+function isConfigured() { const c=getConfig(); return !!(c.tenantId&&c.clientId); }
+const LDB = { get:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'null'), set:(k,v)=>localStorage.setItem('isc_l_'+k,JSON.stringify(v)), arr:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'[]'), push:(k,v)=>{const a=JSON.parse(localStorage.getItem('isc_l_'+k)||'[]');a.push(v);localStorage.setItem('isc_l_'+k,JSON.stringify(a));} };
+
+function seedLocal() {
+  if (LDB.get('seeded')) return;
+  LDB.set('asms',[{id:'asm1',name:'Vikram Desai',email:'vikram@mrfpaint.com',phone:'9876543210',username:'vikram',password:'asm123'}]);
+  LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
+  LDB.set('iscs',[]); LDB.set('entries',[]); LDB.set('sts',[]); LDB.set('bdos',[]); LDB.set('seeded',true);
+}
+seedLocal();
+
+// ══════════════════════════════════════════════
+//  DATA LAYER
+// ══════════════════════════════════════════════
+async function DATA_getASMs() { return isConfigured() ? await readSheet('ASMs') : LDB.arr('asms'); }
+async function DATA_getISCs() { return isConfigured() ? await readSheet('Users') : LDB.arr('iscs'); }
+async function DATA_getEntries() { return isConfigured() ? await readSheet('Entries') : LDB.arr('entries'); }
+async function DATA_getSTs() { return isConfigured() ? await readSheet('STs') : LDB.arr('sts'); }
+async function DATA_getBDOs() { return isConfigured() ? await readSheet('BDOs') : LDB.arr('bdos'); }
+async function DATA_addISC(isc) { isConfigured() ? await appendRow('Users',isc) : LDB.push('iscs',isc); }
+async function DATA_updateISC(id,updates) { isConfigured() ? await updateRow('Users','id',id,updates) : (()=>{const a=LDB.arr('iscs');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('iscs',a);}})(); }
+async function DATA_addEntry(e) { isConfigured() ? await appendRow('Entries',e) : LDB.push('entries',e); }
+async function DATA_updateEntry(id,updates) { isConfigured() ? await updateRow('Entries','id',id,updates) : (()=>{const a=LDB.arr('entries');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('entries',a);}})(); }
+async function DATA_addASM(asm) { isConfigured() ? await appendRow('ASMs',asm) : LDB.push('asms',asm); }
+async function DATA_addST(st) { isConfigured() ? await appendRow('STs',st) : LDB.push('sts',st); }
+async function DATA_addBDO(bdo) { isConfigured() ? await appendRow('BDOs',bdo) : LDB.push('bdos',bdo); }
+
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+let currentUser = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+async function doLogin() {
+  const u=gv('login-username').trim(), p=gv('login-password').trim();
+  if (!u||!p) return showAlert('alert-login','Please enter username and password.','error');
+  setLoading(true,'Checking credentials...');
+  try {
+    // Local cache first
+    const localIscs = LDB.arr('iscs');
+    const li = localIscs.find(i=>i.username===u&&i.password===p);
+    if (li) {
+      if (li.status==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
+      currentUser={...li,role:'isc'}; launchApp(); return;
+    }
+    // OneDrive if token available
+    if (isConfigured() && _msalToken) {
+      const iscs = await DATA_getISCs();
+      const isc = iscs.find(i=>i.username===u&&i.password===p);
+      if (isc) {
+        if (isc.status==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
+        currentUser={...isc,role:'isc'}; launchApp(); return;
+      }
+    }
+    showAlert('alert-login','Invalid username or password.','error');
+  } catch(e) { showAlert('alert-login','Error. Try again.','error'); }
+  finally { setLoading(false); }
+}
+
+async function doAdminLogin() {
+  const u=gv('admin-login-user').trim(), p=gv('admin-login-pass').trim();
+  if (!u||!p) return showAlert('alert-admin-login','Please enter credentials.','error');
+  setLoading(true,'Checking credentials...');
+  try {
+    // Check admin local
+    const admins = LDB.arr('admins');
+    const admin = admins.find(a=>a.username===u&&a.password===p);
+    if (admin) { currentUser={...admin}; launchApp(); return; }
+    // Check local ASMs
+    const localAsms = LDB.arr('asms');
+    const la = localAsms.find(a=>a.username===u&&a.password===p);
+    if (la) { currentUser={...la,role:'asm'}; launchApp(); return; }
+    // Check OneDrive ASMs — request token via popup for ASM login
+    if (isConfigured()) {
+      setLoading(true,'Connecting to OneDrive...');
+      if (!_msalToken) {
+        try { _msalApp = await buildMSAL(); await getAccessToken(); } catch(e) { /* continue */ }
+      }
+      if (_msalToken) {
+        const asms = await DATA_getASMs();
+        const asm = asms.find(a=>a.username===u&&a.password===p);
+        if (asm) { currentUser={...asm,role:'asm'}; launchApp(); return; }
+      }
+    }
+    showAlert('alert-admin-login','Invalid credentials.','error');
+  } catch(e) { showAlert('alert-admin-login','Error checking credentials.','error'); }
+  finally { setLoading(false); }
+}
+
+function doSignOut() { currentUser=null; showScreen('screen-login'); sv('login-username',''); sv('login-password',''); }
+
+// ══════════════════════════════════════════════
+//  APP LAUNCH
+// ══════════════════════════════════════════════
+function launchApp() {
+  showScreen('screen-app');
+  document.getElementById('header-user-badge').textContent = currentUser.name||currentUser.username;
+  buildNav();
+  if (currentUser.role==='isc') { showTab('mysites'); document.getElementById('fab-btn').style.display='flex'; }
+  else if (currentUser.role==='asm') { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
+  else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
+}
+
+function buildNav() {
+  const nav = document.getElementById('bottom-nav');
+  if (currentUser.role==='isc') {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else if (currentUser.role==='asm') {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+  }
+}
+
+function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active'); showTab(tab); }
+
+function showTab(tab) {
+  ['tab-mysites','tab-allsites','tab-myiscs','tab-profile','tab-admin'].forEach(t=>document.getElementById(t).style.display='none');
+  document.getElementById('tab-'+tab).style.display='block';
+  if (tab==='mysites') renderMyEntries();
+  if (tab==='allsites') renderAllEntries();
+  if (tab==='myiscs') renderMyISCs();
+  if (tab==='profile') renderProfile();
+  if (tab==='admin') renderAdminPanel();
+}
+
+// ══════════════════════════════════════════════
+//  ENTRIES
+// ══════════════════════════════════════════════
+let _myEntriesCache=[], _allEntriesCache=[];
+
+async function renderMyEntries(filter='all') {
+  setLoading(true,'Loading...');
+  try {
+    const all = await DATA_getEntries();
+    _myEntriesCache = all.filter(e=>e.iscId===currentUser.id);
+    document.getElementById('stat-total').textContent=_myEntriesCache.length;
+    document.getElementById('stat-confirmed').textContent=_myEntriesCache.filter(e=>e.status==='Confirmed').length;
+    document.getElementById('stat-pending').textContent=_myEntriesCache.filter(e=>e.status==='Pending').length;
+    document.getElementById('mysites-subtitle').textContent=`Welcome, ${currentUser.name} 👋 ${isConfigured()?'🟢':'🟡'}`;
+    const shown = filter==='all'?_myEntriesCache:_myEntriesCache.filter(e=>e.status===filter);
+    const el=document.getElementById('entries-list');
+    if (!shown.length){el.innerHTML=emptyState('🏗️','No entries yet','Tap + to log your first site visit');return;}
+    el.innerHTML=shown.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('');
+  } catch(e){showToast('⚠️ Could not load entries');}
+  finally{setLoading(false);}
+}
+
+async function renderAllEntries(filter='all') {
+  setLoading(true,'Loading...');
+  try {
+    let all = await DATA_getEntries();
+    if (currentUser.role==='asm') all=all.filter(e=>e.asmId===currentUser.id);
+    _allEntriesCache=all;
+    document.getElementById('astat-total').textContent=all.length;
+    document.getElementById('astat-confirmed').textContent=all.filter(e=>e.status==='Confirmed').length;
+    document.getElementById('astat-pending').textContent=all.filter(e=>e.status==='Pending').length;
+    document.getElementById('allsites-title').textContent=currentUser.role==='asm'?"My Team's Sites":'All ISC Sites';
+    document.getElementById('allsites-subtitle').textContent=`${currentUser.role==='asm'?currentUser.name:'All Regions'} ${isConfigured()?'🟢':'🟡'}`;
+    const shown=filter==='all'?all:all.filter(e=>e.status===filter);
+    const el=document.getElementById('all-entries-list');
+    if (!shown.length){el.innerHTML=emptyState('📋','No entries found');return;}
+    const byISC={};
+    shown.forEach(e=>{if(!byISC[e.iscId])byISC[e.iscId]={name:e.iscName,entries:[]};byISC[e.iscId].entries.push(e);});
+    el.innerHTML=Object.values(byISC).map(g=>`<div class="group-header"><div class="group-name">👤 ${g.name}</div><div class="group-count">${g.entries.length} site${g.entries.length>1?'s':''}</div></div>${g.entries.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('')}`).join('');
+  } catch(e){showToast('⚠️ Could not load entries');}
+  finally{setLoading(false);}
+}
+
+function entryCard(e) {
+  const badge=e.status==='Confirmed'?`<span class="status-badge badge-confirmed">✅ Confirmed</span>`:`<span class="status-badge badge-pending">⏳ Pending</span>`;
+  return `<div class="entry-card" onclick="showDetail('${e.id}')"><div class="entry-card-top"><div><div class="entry-ref">${String(e.id).slice(-6).toUpperCase()}</div><div class="entry-name">${e.customer}</div><div class="entry-sub">📍 ${e.address}</div></div>${badge}</div><div class="entry-meta"><span class="meta-tag">👤 ${e.custType}</span><span class="meta-tag">🔗 ${e.refType}</span><span class="meta-tag">📅 ${fmtDate(e.createdAt)}</span></div></div>`;
+}
+
+function filterEntries(f,el){document.querySelectorAll('#tab-mysites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderMyEntries(f);}
+function filterAllEntries(f,el){document.querySelectorAll('#tab-allsites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAllEntries(f);}
+
+// ══════════════════════════════════════════════
+//  ENTRY FORM
+// ══════════════════════════════════════════════
+function showNewEntryModal() {
+  sv('entry-edit-id','');sv('entry-customer','');sv('entry-address','');sv('entry-custtype','');sv('entry-reftype','');sv('entry-status','Pending');sv('entry-dealername','');sv('entry-contractor','');
+  document.getElementById('order-section').classList.remove('show');
+  document.getElementById('modal-entry-title').textContent='Log Site Visit';
+  // Populate dealer codes from ISC profile
+  const sel=document.getElementById('entry-dealercode');
+  const codes=(currentUser.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean);
+  sel.innerHTML='<option value="">— Select dealer code —</option>'+codes.map(c=>`<option value="${c}">${c}</option>`).join('');
+  openModal('modal-entry');
+}
+
+function showEditModal(id) {
+  const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
+  if (!e) return;
+  sv('entry-edit-id',id);sv('entry-customer',e.customer);sv('entry-address',e.address);sv('entry-custtype',e.custType);sv('entry-reftype',e.refType);sv('entry-status',e.status);sv('entry-dealercode',e.dealerCode||'');sv('entry-dealername',e.dealerName||'');sv('entry-contractor',e.contractor||'');
+  document.getElementById('order-section').classList.toggle('show',e.status==='Confirmed');
+  document.getElementById('modal-entry-title').textContent='Update Entry';
+  closeModal('modal-detail');openModal('modal-entry');
+}
+
+function toggleOrderSection(){document.getElementById('order-section').classList.toggle('show',gv('entry-status')==='Confirmed');}
+
+async function saveEntry() {
+  const customer=gv('entry-customer').trim(),address=gv('entry-address').trim(),custType=gv('entry-custtype'),refType=gv('entry-reftype'),status=gv('entry-status'),dealerCode=gv('entry-dealercode');
+  if (!customer||!address||!custType||!refType||!dealerCode) return showToast('⚠️ Please fill all required fields');
+  if (status==='Confirmed'&&(!gv('entry-dealername').trim()||!gv('entry-contractor').trim())) return showToast('⚠️ Dealer name & contractor required for confirmed orders');
+  const editId=gv('entry-edit-id');
+  setLoading(true,'Saving...');
+  try {
+    if (editId) {
+      await DATA_updateEntry(editId,{customer,address,custType,refType,dealerCode,status,dealerName:gv('entry-dealername').trim(),contractor:gv('entry-contractor').trim(),updatedAt:new Date().toISOString()});
+      showToast('✅ Entry updated!');
+    } else {
+      await DATA_addEntry({id:'E'+Date.now(),iscId:currentUser.id,iscName:currentUser.name,asmId:currentUser.asmId,asmName:currentUser.asmName,stName:currentUser.stName||'',bdoName:currentUser.bdoName||'',region:currentUser.region||'',customer,address,custType,refType,dealerCode,dealerName:gv('entry-dealername').trim(),contractor:gv('entry-contractor').trim(),status,createdAt:new Date().toISOString()});
+      showToast('✅ Site entry saved!');
+    }
+    closeModal('modal-entry');renderMyEntries();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+function showDetail(id) {
+  const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
+  if (!e) return;
+  const c=e.status==='Confirmed';
+  document.getElementById('modal-detail-body').innerHTML=`
+    <div class="detail-row"><div class="detail-label">Ref #</div><div class="detail-value" style="color:var(--red);font-family:'Rajdhani',sans-serif">${String(e.id).slice(-6).toUpperCase()}</div></div>
+    <div class="detail-row"><div class="detail-label">Customer</div><div class="detail-value">${e.customer}</div></div>
+    <div class="detail-row"><div class="detail-label">Address</div><div class="detail-value">${e.address}</div></div>
+    <div class="detail-row"><div class="detail-label">Customer Type</div><div class="detail-value">${e.custType}</div></div>
+    <div class="detail-row"><div class="detail-label">Referral</div><div class="detail-value">${e.refType}</div></div>
+    <div class="detail-row"><div class="detail-label">Dealer Code</div><div class="detail-value">${e.dealerCode||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${c?'✅ Confirmed':'⏳ Pending'}</div></div>
+    <div class="detail-row"><div class="detail-label">ISC</div><div class="detail-value">${e.iscName}</div></div>
+    <div class="detail-row"><div class="detail-label">ASM</div><div class="detail-value">${e.asmName||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Region</div><div class="detail-value">${e.region||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
+    ${c?`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px;margin-top:12px"><div style="font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✅ Order Details</div><div class="detail-row"><div class="detail-label">Dealer Name</div><div class="detail-value">${e.dealerName}</div></div><div class="detail-row"><div class="detail-label">Contractor</div><div class="detail-value">${e.contractor}</div></div></div>`:''}`;
+  document.getElementById('modal-detail-actions').innerHTML=currentUser.role==='isc'?`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`:`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
+  openModal('modal-detail');
+}
+
+// ══════════════════════════════════════════════
+//  MY ISCs (ASM TAB)
+// ══════════════════════════════════════════════
+let _iscCache = [];
+
+async function renderMyISCs() {
+  setLoading(true,'Loading ISCs...');
+  try {
+    const all = await DATA_getISCs();
+    _iscCache = all.filter(i=>i.asmId===currentUser.id);
+    const active=_iscCache.filter(i=>i.status!=='Inactive').length;
+    const inactive=_iscCache.filter(i=>i.status==='Inactive').length;
+    document.getElementById('isc-stat-total').textContent=_iscCache.length;
+    document.getElementById('isc-stat-active').textContent=active;
+    document.getElementById('isc-stat-inactive').textContent=inactive;
+    document.getElementById('myiscs-subtitle').textContent=`${currentUser.name}'s ISC team`;
+    const el=document.getElementById('isc-list');
+    if (!_iscCache.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No ISCs yet</div><div class="empty-sub">Tap + to create your first ISC account</div></div><button class="btn-primary" onclick="showCreateISCModal()" style="margin-top:16px">+ Create ISC Account</button>`;return;}
+    el.innerHTML=`<button class="btn-primary" onclick="showCreateISCModal()" style="margin-bottom:16px">+ Create ISC Account</button>`+_iscCache.map(iscCard).join('');
+  } catch(e){showToast('⚠️ Could not load ISCs');}
+  finally{setLoading(false);}
+}
+
+function iscCard(isc) {
+  const isActive=isc.status!=='Inactive';
+  const badge=isActive?`<span class="status-badge badge-active">● Active</span>`:`<span class="status-badge badge-inactive">● Inactive</span>`;
+  const codes=(isc.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean);
+  return `<div class="entry-card" style="cursor:default">
+    <div class="entry-card-top">
+      <div><div class="entry-name">${isc.name}</div><div class="entry-sub">📞 ${isc.phone} · 📧 ${isc.email}</div><div class="entry-sub" style="margin-top:4px">👤 @${isc.username} · 🗺️ ${isc.region||'—'}</div></div>
+      ${badge}
+    </div>
+    <div class="entry-meta">
+      <span class="meta-tag">🧑‍💼 ST: ${isc.stName||'—'}</span>
+      <span class="meta-tag">📈 BDO: ${isc.bdoName||'—'}</span>
+    </div>
+    ${codes.length?`<div class="dealer-tags" style="margin-top:8px">${codes.map(c=>`<span class="dealer-tag">🏪 ${c}</span>`).join('')}</div>`:''}
+    <div class="isc-actions">
+      <button class="btn-sm btn-blue" onclick="showEditISCModal('${isc.id}')">✏️ Edit</button>
+      <button class="btn-sm ${isActive?'btn-red':'btn-green'}" onclick="toggleISCStatus('${isc.id}','${isActive?'Inactive':'Active'}')">${isActive?'🔴 Deactivate':'🟢 Activate'}</button>
+    </div>
+  </div>`;
+}
+
+async function showCreateISCModal() {
+  sv('isc-edit-id','');sv('isc-name','');sv('isc-phone','');sv('isc-email','');sv('isc-username','');sv('isc-password','');sv('isc-st','');sv('isc-bdo','');sv('isc-region','');sv('isc-dealer-codes','');
+  document.getElementById('isc-dealer-tags').innerHTML='';
+  document.getElementById('modal-isc-title').textContent='Create ISC Account';
+  await populateSTBDODropdowns();
+  openModal('modal-isc');
+}
+
+async function showEditISCModal(id) {
+  const isc=_iscCache.find(i=>i.id===id);
+  if (!isc) return;
+  sv('isc-edit-id',id);sv('isc-name',isc.name);sv('isc-phone',isc.phone);sv('isc-email',isc.email);sv('isc-username',isc.username);sv('isc-password',isc.password);sv('isc-region',isc.region||'');sv('isc-dealer-codes',isc.dealerCodes||'');
+  document.getElementById('modal-isc-title').textContent='Edit ISC Account';
+  await populateSTBDODropdowns();
+  sv('isc-st',isc.stId||'');sv('isc-bdo',isc.bdoId||'');
+  // Show dealer tags
+  const tags=document.getElementById('isc-dealer-tags');
+  tags.innerHTML='';
+  (isc.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean).forEach(c=>addTagToUI(c));
+  openModal('modal-isc');
+}
+
+async function populateSTBDODropdowns() {
+  const sts=await DATA_getSTs(), bdos=await DATA_getBDOs();
+  document.getElementById('isc-st').innerHTML='<option value="">— Select ST —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('isc-bdo').innerHTML='<option value="">— Select BDO —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+}
+
+function addTagToUI(code) {
+  const tags=document.getElementById('isc-dealer-tags');
+  const tag=document.createElement('span');
+  tag.className='dealer-tag';
+  tag.innerHTML=`🏪 ${code} <span class="dealer-tag-remove" onclick="removeDealerTag(this,'${code}')">×</span>`;
+  tags.appendChild(tag);
+  updateDealerCodesHidden();
+}
+
+function addDealerCode() {
+  const input=document.getElementById('isc-dealer-input');
+  const code=input.value.trim();
+  if (!code) return;
+  const existing=gv('isc-dealer-codes').split(',').map(c=>c.trim()).filter(Boolean);
+  if (existing.includes(code)) { showToast('⚠️ Dealer code already added'); return; }
+  addTagToUI(code);
+  input.value='';
+}
+
+function removeDealerTag(el,code) {
+  el.parentElement.remove();
+  updateDealerCodesHidden();
+}
+
+function updateDealerCodesHidden() {
+  const tags=document.getElementById('isc-dealer-tags');
+  const codes=[...tags.querySelectorAll('.dealer-tag')].map(t=>t.textContent.replace('×','').replace('🏪','').trim());
+  document.getElementById('isc-dealer-codes').value=codes.join(',');
+}
+
+async function saveISC() {
+  const name=gv('isc-name').trim(),phone=gv('isc-phone').trim(),email=gv('isc-email').trim(),username=gv('isc-username').trim(),password=gv('isc-password').trim(),stId=gv('isc-st'),bdoId=gv('isc-bdo'),region=gv('isc-region'),dealerCodes=gv('isc-dealer-codes').trim();
+  if (!name||!phone||!email||!username||!password||!stId||!bdoId||!region) return showToast('⚠️ All fields are required');
+  setLoading(true,'Saving ISC account...');
+  try {
+    const sts=await DATA_getSTs(),bdos=await DATA_getBDOs();
+    const st=sts.find(s=>s.id===stId),bdo=bdos.find(b=>b.id===bdoId);
+    const editId=gv('isc-edit-id');
+    if (editId) {
+      await DATA_updateISC(editId,{name,phone,email,username,password,stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes});
+      showToast('✅ ISC account updated!');
+    } else {
+      const iscs=await DATA_getISCs();
+      if (iscs.find(i=>i.username===username)){showToast('⚠️ Username already taken');return;}
+      await DATA_addISC({id:'isc_'+Date.now(),name,phone,email,asmId:currentUser.id,asmName:currentUser.name,asmEmail:currentUser.email||'',asmPhone:currentUser.phone||'',stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes,username,password,role:'isc',status:'Active',createdAt:new Date().toISOString()});
+      showToast('✅ ISC account created!');
+    }
+    closeModal('modal-isc');renderMyISCs();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+async function toggleISCStatus(id,newStatus) {
+  setLoading(true,`${newStatus==='Inactive'?'Deactivating':'Activating'} ISC...`);
+  try {
+    await DATA_updateISC(id,{status:newStatus});
+    showToast(`✅ ISC ${newStatus==='Inactive'?'deactivated':'activated'}!`);
+    renderMyISCs();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+// ══════════════════════════════════════════════
+//  PROFILE
+// ══════════════════════════════════════════════
+function renderProfile() {
+  const u=currentUser;
+  const initials=(u.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('profile-card-content').innerHTML=`<div class="profile-avatar">${initials}</div><div class="profile-name">${u.name||u.username}</div><div class="profile-role">${u.role==='isc'?'Independent Sales Consultant':u.role==='asm'?'Area Sales Manager':'System Admin'}</div>${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''} ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}<div class="profile-row">👤 @${u.username}</div><div class="profile-row" style="margin-top:8px;font-size:11px;opacity:.6">${isConfigured()?'🟢 OneDrive Connected':'🟡 Demo Mode'}</div>`;
+  document.getElementById('asm-profile-section').style.display=u.role==='isc'?'block':'none';
+  document.getElementById('isc-details-section').style.display=u.role==='isc'?'block':'none';
+  if (u.role==='isc') {
+    document.getElementById('asm-profile-content').innerHTML=`<div class="detail-row"><div class="detail-label">ASM Name</div><div class="detail-value">${u.asmName||'—'}</div></div><div class="detail-row"><div class="detail-label">ASM Email</div><div class="detail-value">${u.asmEmail||'—'}</div></div><div class="detail-row"><div class="detail-label">ASM Phone</div><div class="detail-value">${u.asmPhone||'—'}</div></div>`;
+    const codes=(u.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean);
+    document.getElementById('isc-details-content').innerHTML=`<div class="detail-row"><div class="detail-label">ST</div><div class="detail-value">${u.stName||'—'}</div></div><div class="detail-row"><div class="detail-label">BDO</div><div class="detail-value">${u.bdoName||'—'}</div></div><div class="detail-row"><div class="detail-label">Region</div><div class="detail-value">${u.region||'—'}</div></div><div class="detail-row"><div class="detail-label">Dealer Codes</div><div class="detail-value">${codes.join(', ')||'—'}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  ADMIN
+// ══════════════════════════════════════════════
+function renderAdminPanel() {
+  const cfg=getConfig();
+  if (cfg.tenantId) sv('cfg-tenant',cfg.tenantId);
+  if (cfg.clientId) sv('cfg-client',cfg.clientId);
+  if (cfg.filename) sv('cfg-filename',cfg.filename);
+  renderAsmList();renderSTList();renderBDOList();
+}
+
+function saveConfig() {
+  saveConfigToLocal({tenantId:gv('cfg-tenant').trim(),clientId:gv('cfg-client').trim(),filename:gv('cfg-filename').trim()||'ISC-Tracker-Data.xlsx'});
+  _msalApp=null; showToast('✅ Configuration saved!');
+}
+
+async function testConnection() {
+  const cfg=getConfig(),el=document.getElementById('od-status-msg');
+  if (!cfg.tenantId||!cfg.clientId){el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Fill in Tenant ID and Client ID first.</div>`;return;}
+  el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Initializing...</div>`;
+  try {
+    _msalApp=null;_msalApp=await buildMSAL();
+    el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>🔐 Microsoft login popup opening...</div>`;
+    const token=await getAccessToken();
+    const resp=await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:`Bearer ${token}`}});
+    const me=await resp.json();
+    setLoading(true,'Setting up Excel...');
+    try{await ensureWorkbookExists();}catch(e){}
+    setLoading(false);
+    el.innerHTML=`<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected as <strong>${me.displayName||me.userPrincipalName}</strong>. Excel ready!</div>`;
+  } catch(e) {
+    setLoading(false);
+    const code=e.errorCode||'',msg=e.message||'';
+    let reason=code.includes('redirect_uri')?'Redirect URI mismatch — add GitHub Pages URL as SPA redirect in Azure.':code==='user_cancelled'?'Login cancelled. Try again.':code==='popup_blocked'?'Popup blocked — allow popups for this site.':`${code?code+': ':''}${msg||'Unknown error'}`;
+    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${reason}</div>`;
+  }
+}
+
+async function renderAsmList() {
+  const el=document.getElementById('asm-list');
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const asms=await DATA_getASMs();
+    if (!asms.length){el.innerHTML=emptyState('👥','No ASMs yet');return;}
+    el.innerHTML=asms.map(a=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${a.name}</div><div class="entry-sub">📧 ${a.email} · 📞 ${a.phone}</div><div class="entry-sub" style="margin-top:4px">👤 @${a.username}</div></div>`).join('');
+  } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
+}
+
+async function renderSTList() {
+  const el=document.getElementById('st-list');
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const sts=await DATA_getSTs();
+    if (!sts.length){el.innerHTML=emptyState('🧑‍💼','No STs yet');return;}
+    el.innerHTML=sts.map(s=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${s.name}</div><div class="entry-sub">${s.email?'📧 '+s.email+' · ':''}${s.phone?'📞 '+s.phone:''}</div></div>`).join('');
+  } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
+}
+
+async function renderBDOList() {
+  const el=document.getElementById('bdo-list');
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const bdos=await DATA_getBDOs();
+    if (!bdos.length){el.innerHTML=emptyState('📈','No BDOs yet');return;}
+    el.innerHTML=bdos.map(b=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${b.name}</div><div class="entry-sub">${b.email?'📧 '+b.email+' · ':''}${b.phone?'📞 '+b.phone:''}</div></div>`).join('');
+  } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
+}
+
+async function saveAsm() {
+  const name=gv('asm-name').trim(),email=gv('asm-email').trim(),phone=gv('asm-phone').trim(),username=gv('asm-username').trim(),password=gv('asm-password').trim();
+  if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
+  setLoading(true,'Saving ASM...');
+  try {
+    await ensureWorkbookExists();
+    const asms=await DATA_getASMs();
+    if (asms.find(a=>a.username===username)){showToast('⚠️ Username already taken');return;}
+    await DATA_addASM({id:'asm'+Date.now(),name,email,phone,username,password});
+    showToast('✅ ASM added!');closeModal('modal-asm');renderAsmList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+async function saveST() {
+  const name=gv('st-name').trim(),email=gv('st-email').trim(),phone=gv('st-phone').trim();
+  if (!name) return showToast('⚠️ Name required');
+  setLoading(true,'Saving ST...');
+  try {
+    await DATA_addST({id:'st'+Date.now(),name,email,phone});
+    showToast('✅ ST added!');closeModal('modal-st');renderSTList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+async function saveBDO() {
+  const name=gv('bdo-name').trim(),email=gv('bdo-email').trim(),phone=gv('bdo-phone').trim();
+  if (!name) return showToast('⚠️ Name required');
+  setLoading(true,'Saving BDO...');
+  try {
+    await DATA_addBDO({id:'bdo'+Date.now(),name,email,phone});
+    showToast('✅ BDO added!');closeModal('modal-bdo');renderBDOList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+function gv(id){return document.getElementById(id)?.value??'';}
+function sv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}
+function emptyState(icon,text,sub=''){return`<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-text">${text}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`;}
+function setLoading(show,msg='Loading...'){document.getElementById('loading-overlay').classList.toggle('show',show);document.getElementById('loading-text').textContent=msg;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+function showAlert(id,msg,type){const el=document.getElementById(id);el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;setTimeout(()=>el.innerHTML='',4000);}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
+document.getElementById('isc-dealer-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addDealerCode();}});
+
+// Brace balance check
+const _braceCheck = (() => { const s = document.querySelector('script').textContent; const o=s.split('{').length-1, c=s.split('}').length-1; console.log(`Braces: ${o} open, ${c} close, diff: ${o-c}`); })();
+</script>
+</body>
+</html>
