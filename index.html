@@ -332,7 +332,10 @@
 
   <!-- MY SITES (ISC) -->
   <div id="tab-mysites" class="main-content">
-    <div class="page-title">My Sites</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title">My Sites</div>
+      <button onclick="exportEntries('my')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
     <div class="page-subtitle" id="mysites-subtitle">Your site visits</div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
@@ -349,7 +352,10 @@
 
   <!-- ALL SITES (ASM/Admin) -->
   <div id="tab-allsites" class="main-content" style="display:none">
-    <div class="page-title" id="allsites-title">All Sites</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title" id="allsites-title">All Sites</div>
+      <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
     <div class="page-subtitle" id="allsites-subtitle">All ISC activity</div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-value" id="astat-total">0</div><div class="stat-label">Total</div></div>
@@ -366,7 +372,10 @@
 
   <!-- MY ISCs (ASM) -->
   <div id="tab-myiscs" class="main-content" style="display:none">
-    <div class="page-title">My ISCs</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title">My ISCs</div>
+      <button onclick="exportISCs()" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
     <div class="page-subtitle" id="myiscs-subtitle">ISCs under your supervision</div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-value" id="isc-stat-total">0</div><div class="stat-label">Total</div></div>
@@ -399,21 +408,19 @@
     <div class="setup-banner">
       <div style="font-size:20px;flex-shrink:0">📊</div>
       <div>
-        <div class="setup-banner-title">OneDrive + Excel Connected</div>
-        <div class="setup-banner-text">All data syncs to <strong>ISC-Tracker-Data.xlsx</strong> on OneDrive. Sheets: ASMs, Users, Entries, STs, BDOs.</div>
+        <div class="setup-banner-title">Google Sheets Connected</div>
+        <div class="setup-banner-text">All data syncs to your Google Sheet in real time. Works on every device — no Microsoft login needed!</div>
       </div>
     </div>
 
-    <!-- AZURE CONFIG -->
+    <!-- GOOGLE SHEETS CONFIG -->
     <div class="section-card">
-      <div class="section-header"><div class="section-title">🔌 Azure & OneDrive Configuration</div></div>
+      <div class="section-header"><div class="section-title">🔌 Google Sheets Configuration</div></div>
       <div class="section-body">
-        <div class="alert alert-info">🔐 <strong>How this works:</strong> Click <em>Test Connection</em> — a Microsoft login popup opens. Sign in with your MRF admin account.</div>
-        <div class="config-row">
-          <div class="form-group"><label class="form-label">Azure Tenant ID</label><input type="text" class="form-input" id="cfg-tenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
-          <div class="form-group"><label class="form-label">Azure Client ID</label><input type="text" class="form-input" id="cfg-client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
-        </div>
-        <div class="form-group"><label class="form-label">Excel File Name on OneDrive</label><input type="text" class="form-input" id="cfg-filename" placeholder="ISC-Tracker-Data.xlsx"></div>
+        <div class="alert alert-info">📊 <strong>How this works:</strong> All data is stored in a Google Sheet. Enter the Sheet ID and API Key below. Everyone can log in instantly — no Microsoft popup needed!</div>
+        <div class="form-group"><label class="form-label">Google Sheet ID *</label><input type="text" class="form-input" id="cfg-sheetid" placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"></div>
+        <div class="form-group"><label class="form-label">Google API Key * (for reading data)</label><input type="text" class="form-input" id="cfg-apikey" placeholder="AIzaSy..."></div>
+        <div class="form-group"><label class="form-label">Google OAuth Client ID (for writing data)</label><input type="text" class="form-input" id="cfg-gclientid" placeholder="xxxx.apps.googleusercontent.com"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="saveConfig()">💾 Save</button>
           <button class="btn-secondary" onclick="testConnection()">🔌 Test Connection</button>
@@ -740,167 +747,139 @@
 window.onerror = (msg,src,line) => { console.error('JS Error:',msg,'Line:',line); return false; };
 
 // ══════════════════════════════════════════════
-//  CONFIG & MSAL
+//  CONFIG & GOOGLE SHEETS API
 // ══════════════════════════════════════════════
-const CFG_KEY = 'isc_od_config';
-let _msalApp = null, _msalToken = null;
+const CFG_KEY = 'isc_gs_config';
 
 function getConfig() { return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }
-function saveConfigToLocal(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+function saveConfig() {
+  saveConfigToLocal({
+    sheetId: gv('cfg-sheetid').trim(),
+    apiKey: gv('cfg-apikey').trim(),
+    clientId: gv('cfg-gclientid').trim(),
+  });
+  _gapiToken = null; _tokenClient = null;
+  showToast('✅ Configuration saved!');
+}
+function isConfigured() { const c=getConfig(); return !!(c.sheetId && c.apiKey); }
 
-function loadMSALScript() {
-  return new Promise((resolve, reject) => {
-    if (typeof msal !== 'undefined') { resolve(); return; }
+// ── GOOGLE SHEETS HELPERS ──
+// Sheets are indexed by name. We use the Sheets v4 API.
+// Read: GET spreadsheets/{id}/values/{sheet}
+// Append: POST spreadsheets/{id}/values/{sheet}:append
+// Update: uses batchUpdate to find and update a specific row
+
+async function sheetsGet(sheet) {
+  const cfg = getConfig();
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet)}?key=${cfg.apiKey}`;
+  const resp = await fetch(url);
+  if (!resp.ok) { const e=await resp.json(); throw new Error(`Sheets read error (${sheet}): ${e.error?.message||resp.status}`); }
+  const data = await resp.json();
+  const rows = data.values || [];
+  if (rows.length < 2) return [];
+  const headers = rows[0];
+  return rows.slice(1).filter(r=>r.some(c=>c!==''&&c!==undefined&&c!==null)).map(row=>{
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=row[i]??'');
+    return obj;
+  });
+}
+
+async function sheetsAppend(sheet, rowObj) {
+  const cfg = getConfig();
+  // First get headers
+  const hUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet+'!1:1')}?key=${cfg.apiKey}`;
+  const hResp = await fetch(hUrl);
+  if (!hResp.ok) throw new Error(`Cannot read headers from ${sheet}`);
+  const hData = await hResp.json();
+  const headers = hData.values?.[0] || [];
+  if (!headers.length) throw new Error(`Sheet "${sheet}" has no headers in Row 1`);
+  const row = headers.map(h=>String(rowObj[h]??''));
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS&key=${cfg.apiKey}`;
+  const resp = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${await getOAuthToken()}`},
+    body: JSON.stringify({values:[row]})
+  });
+  if (!resp.ok) { const e=await resp.json(); throw new Error(`Sheets write error: ${e.error?.message||resp.status}`); }
+}
+
+async function sheetsUpdate(sheet, matchField, matchVal, updates) {
+  const cfg = getConfig();
+  // Read all data to find the row
+  const allUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet)}?key=${cfg.apiKey}`;
+  const allResp = await fetch(allUrl);
+  if (!allResp.ok) throw new Error(`Cannot read ${sheet}`);
+  const allData = await allResp.json();
+  const rows = allData.values || [[]];
+  const headers = rows[0];
+  const colIdx = headers.indexOf(matchField);
+  const rowIdx = rows.findIndex((r,i)=>i>0&&String(r[colIdx]||'')===String(matchVal));
+  if (rowIdx===-1) return;
+  const updatedRow = rows[rowIdx].map((v,i)=>updates[headers[i]]!==undefined?String(updates[headers[i]]):String(v||''));
+  const endCol = String.fromCharCode(65+headers.length-1);
+  const range = `${sheet}!A${rowIdx+1}:${endCol}${rowIdx+1}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}?valueInputOption=RAW&key=${cfg.apiKey}`;
+  const resp = await fetch(url, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${await getOAuthToken()}`},
+    body: JSON.stringify({values:[updatedRow]})
+  });
+  if (!resp.ok) { const e=await resp.json(); throw new Error(`Update error: ${e.error?.message||resp.status}`); }
+}
+
+// OAuth token for write operations (uses Google Identity Services)
+let _gapiToken = null;
+let _tokenClient = null;
+
+function loadGoogleIdentity() {
+  return new Promise((resolve,reject)=>{
+    if (typeof google !== 'undefined' && google.accounts) { resolve(); return; }
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js';
+    s.src = 'https://accounts.google.com/gsi/client';
     s.onload = resolve;
-    s.onerror = () => reject(new Error('Could not load MSAL'));
+    s.onerror = ()=>reject(new Error('Google Identity Services failed to load'));
     document.head.appendChild(s);
   });
 }
 
-async function buildMSAL() {
-  await loadMSALScript();
+async function getOAuthToken() {
+  if (_gapiToken && _gapiToken.expiry > Date.now()) return _gapiToken.token;
   const cfg = getConfig();
-  if (!cfg.tenantId || !cfg.clientId) return null;
-  const config = {
-    auth: { clientId: cfg.clientId, authority: `https://login.microsoftonline.com/${cfg.tenantId}`, redirectUri: window.location.origin + window.location.pathname },
-    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
-  };
-  let app;
-  if (msal.PublicClientApplication.createPublicClientApplication) {
-    app = await msal.PublicClientApplication.createPublicClientApplication(config);
-  } else {
-    app = new msal.PublicClientApplication(config);
-    if (app.initialize) await app.initialize();
-    if (app.handleRedirectPromise) await app.handleRedirectPromise().catch(()=>{});
-  }
-  return app;
+  if (!cfg.clientId) throw new Error('Google Client ID not configured');
+  await loadGoogleIdentity();
+  return new Promise((resolve,reject)=>{
+    if (!_tokenClient) {
+      _tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: cfg.clientId,
+        scope: 'https://www.googleapis.com/auth/spreadsheets',
+        callback: (resp)=>{
+          if (resp.error) { reject(new Error(resp.error)); return; }
+          _gapiToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in-60)*1000 };
+          resolve(_gapiToken.token);
+        }
+      });
+    }
+    _tokenClient.requestAccessToken({prompt:''});
+  });
 }
 
-async function getAccessToken() {
+async function requestOAuthPopup() {
   const cfg = getConfig();
-  if (!cfg.tenantId || !cfg.clientId) throw new Error('NOT_CONFIGURED');
-  if (!_msalApp) _msalApp = await buildMSAL();
-  if (!_msalApp) throw new Error('Could not initialize MSAL');
-  const scopes = ['https://graph.microsoft.com/Files.ReadWrite.All','User.Read'];
-  const accounts = _msalApp.getAllAccounts();
-  if (accounts.length > 0) {
-    try { const r = await _msalApp.acquireTokenSilent({scopes, account: accounts[0]}); _msalToken = r.accessToken; return _msalToken; } catch(e) {}
-  }
-  const r = await _msalApp.loginPopup({scopes});
-  _msalToken = r.accessToken;
-  return _msalToken;
-}
-
-// ══════════════════════════════════════════════
-//  EXCEL / GRAPH HELPERS
-// ══════════════════════════════════════════════
-async function getWorkbookBase() {
-  const cfg = getConfig();
-  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
-  const token = _msalToken || await getAccessToken();
-  // Try Documents first
-  const r1 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${encodeURIComponent(filename)}:`, {headers:{Authorization:`Bearer ${token}`}});
-  if (r1.ok) { const f = await r1.json(); if (f.id) return `/me/drive/items/${f.id}/workbook`; }
-  // Try root
-  const r2 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(filename)}:`, {headers:{Authorization:`Bearer ${token}`}});
-  if (r2.ok) { const f = await r2.json(); if (f.id) return `/me/drive/items/${f.id}/workbook`; }
-  // Search
-  const r3 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(filename)}')`, {headers:{Authorization:`Bearer ${token}`}});
-  const d3 = await r3.json();
-  const f3 = d3.value?.find(f=>f.name===filename);
-  if (f3) return `/me/drive/items/${f3.id}/workbook`;
-  throw new Error(`File "${filename}" not found in OneDrive`);
-}
-
-async function readSheet(sheetName) {
-  try {
-    const token = _msalToken || await getAccessToken();
-    const base = await getWorkbookBase();
-    const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
-    if (!resp.ok) { console.warn(`readSheet(${sheetName}): ${resp.status}`); return []; }
-    const data = await resp.json();
-    const rows = data.values || [];
-    if (rows.length < 2) return [];
-    const headers = rows[0];
-    return rows.slice(1).filter(r=>r.some(c=>c!==''&&c!==null)).map(row=>{
-      const obj={};
-      headers.forEach((h,i)=>obj[h]=row[i]??'');
-      return obj;
+  if (!cfg.clientId) throw new Error('Google Client ID not configured. Go to Admin Panel → save Client ID first.');
+  await loadGoogleIdentity();
+  return new Promise((resolve,reject)=>{
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg.clientId,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      callback: (resp)=>{
+        if (resp.error) { reject(new Error(resp.error)); return; }
+        _gapiToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in-60)*1000 };
+        resolve(_gapiToken.token);
+      }
     });
-  } catch(e) { console.warn(`readSheet(${sheetName}):`, e.message); return []; }
-}
-
-async function appendRow(sheetName, rowObj) {
-  const token = _msalToken || await getAccessToken();
-  const base = await getWorkbookBase();
-  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
-  if (!resp.ok) throw new Error(`Cannot read sheet "${sheetName}": ${resp.status}`);
-  const data = await resp.json();
-  const rows = data.values || [[]];
-  const headers = rows[0];
-  if (!headers||!headers.length) throw new Error(`Sheet "${sheetName}" has no headers`);
-  const newRow = headers.map(h=>String(rowObj[h]??''));
-  const nextRow = rows.length + 1;
-  const endCol = String.fromCharCode(64 + headers.length);
-  const writeResp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='A${nextRow}:${endCol}${nextRow}')`, {
-    method:'PATCH', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
-    body: JSON.stringify({values:[newRow]})
+    _tokenClient.requestAccessToken({prompt:'consent'});
   });
-  if (!writeResp.ok) { const e=await writeResp.json(); throw new Error(`Write failed: ${e?.error?.message||writeResp.status}`); }
-}
-
-async function updateRow(sheetName, matchField, matchVal, updates) {
-  const token = _msalToken || await getAccessToken();
-  const base = await getWorkbookBase();
-  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
-  const data = await resp.json();
-  const rows = data.values || [[]];
-  const headers = rows[0];
-  const colIdx = headers.indexOf(matchField);
-  const rowIdx = rows.findIndex((r,i)=>i>0&&String(r[colIdx])===String(matchVal));
-  if (rowIdx===-1) return;
-  const updatedRow = rows[rowIdx].map((v,i)=>updates[headers[i]]!==undefined?String(updates[headers[i]]):String(v));
-  const endCol = String.fromCharCode(64+headers.length);
-  await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='A${rowIdx+1}:${endCol}${rowIdx+1}')`, {
-    method:'PATCH', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
-    body: JSON.stringify({values:[updatedRow]})
-  });
-}
-
-async function ensureWorkbookExists() {
-  const cfg = getConfig();
-  const filename = cfg.filename || 'ISC-Tracker-Data.xlsx';
-  const token = _msalToken || await getAccessToken();
-  // Search for file
-  const s = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(filename)}')`, {headers:{Authorization:`Bearer ${token}`}});
-  const sd = await s.json();
-  if (sd.value?.find(f=>f.name===filename)) return;
-  // Create in Documents
-  const cr = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${filename}:/content`, {
-    method:'PUT', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
-    body: new Blob([''],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
-  });
-  if (!cr.ok) throw new Error('Could not create Excel file');
-  await new Promise(r=>setTimeout(r,2000));
-  const s2 = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(filename)}')`, {headers:{Authorization:`Bearer ${token}`}});
-  const sd2 = await s2.json();
-  const nf = sd2.value?.find(f=>f.name===filename);
-  if (!nf) throw new Error('File created but not found');
-  const base = `/me/drive/items/${nf.id}/workbook`;
-  const sheets = [
-    {name:'ASMs', headers:['id','name','email','phone','username','password']},
-    {name:'Users', headers:['id','name','email','phone','asmId','asmName','stId','stName','bdoId','bdoName','region','dealerCodes','username','password','role','status','createdAt']},
-    {name:'Entries', headers:['id','iscId','iscName','asmId','asmName','stName','bdoName','region','customer','custPhone','custType','refType','siteName','address','buildType','siteStage','area','paintDate','competitor','paintSystem','products','siteValue','dealerCode','dealerName','contractor','painter','status','remarks','sapRef','createdAt','updatedAt']},
-    {name:'STs', headers:['id','name','email','phone']},
-    {name:'BDOs', headers:['id','name','email','phone']},
-  ];
-  for (const sh of sheets) {
-    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/add`, {method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({name:sh.name})});
-    const ec = String.fromCharCode(64+sh.headers.length);
-    await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sh.name}/range(address='A1:${ec}1')`, {method:'PATCH',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({values:[sh.headers]})});
-  }
 }
 
 // ══════════════════════════════════════════════
@@ -910,28 +889,52 @@ function isConfigured() { const c=getConfig(); return !!(c.tenantId&&c.clientId)
 const LDB = { get:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'null'), set:(k,v)=>localStorage.setItem('isc_l_'+k,JSON.stringify(v)), arr:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'[]'), push:(k,v)=>{const a=JSON.parse(localStorage.getItem('isc_l_'+k)||'[]');a.push(v);localStorage.setItem('isc_l_'+k,JSON.stringify(a));} };
 
 function seedLocal() {
+  // Always ensure admin exists regardless of seeded flag
+  if (!LDB.arr('admins').length) {
+    LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
+  }
   if (LDB.get('seeded')) return;
-  LDB.set('asms',[{id:'asm1',name:'Vikram Desai',email:'vikram@mrfpaint.com',phone:'9876543210',username:'vikram',password:'asm123'}]);
-  LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
   LDB.set('iscs',[]); LDB.set('entries',[]); LDB.set('sts',[]); LDB.set('bdos',[]); LDB.set('seeded',true);
 }
 seedLocal();
 
 // ══════════════════════════════════════════════
-//  DATA LAYER
+//  DATA LAYER — Google Sheets
 // ══════════════════════════════════════════════
-async function DATA_getASMs() { return isConfigured() ? await readSheet('ASMs') : LDB.arr('asms'); }
-async function DATA_getISCs() { return isConfigured() ? await readSheet('Users') : LDB.arr('iscs'); }
-async function DATA_getEntries() { return isConfigured() ? await readSheet('Entries') : LDB.arr('entries'); }
-async function DATA_getSTs() { return isConfigured() ? await readSheet('STs') : LDB.arr('sts'); }
-async function DATA_getBDOs() { return isConfigured() ? await readSheet('BDOs') : LDB.arr('bdos'); }
-async function DATA_addISC(isc) { isConfigured() ? await appendRow('Users',isc) : LDB.push('iscs',isc); }
-async function DATA_updateISC(id,updates) { isConfigured() ? await updateRow('Users','id',id,updates) : (()=>{const a=LDB.arr('iscs');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('iscs',a);}})(); }
-async function DATA_addEntry(e) { isConfigured() ? await appendRow('Entries',e) : LDB.push('entries',e); }
-async function DATA_updateEntry(id,updates) { isConfigured() ? await updateRow('Entries','id',id,updates) : (()=>{const a=LDB.arr('entries');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('entries',a);}})(); }
-async function DATA_addASM(asm) { isConfigured() ? await appendRow('ASMs',asm) : LDB.push('asms',asm); }
-async function DATA_addST(st) { isConfigured() ? await appendRow('STs',st) : LDB.push('sts',st); }
-async function DATA_addBDO(bdo) { isConfigured() ? await appendRow('BDOs',bdo) : LDB.push('bdos',bdo); }
+async function DATA_getASMs() { return isConfigured() ? await sheetsGet('ASMs') : LDB.arr('asms'); }
+async function DATA_getISCs() { return isConfigured() ? await sheetsGet('Users') : LDB.arr('iscs'); }
+async function DATA_getEntries() { return isConfigured() ? await sheetsGet('Entries') : LDB.arr('entries'); }
+async function DATA_getSTs() { return isConfigured() ? await sheetsGet('STs') : LDB.arr('sts'); }
+async function DATA_getBDOs() { return isConfigured() ? await sheetsGet('BDOs') : LDB.arr('bdos'); }
+async function DATA_addISC(isc) {
+  if (isConfigured()) { await sheetsAppend('Users',isc); } else { LDB.push('iscs',isc); }
+  // Cache locally
+  const arr=LDB.arr('iscs'); if(!arr.find(x=>x.id===isc.id)){arr.push(isc);LDB.set('iscs',arr);}
+}
+async function DATA_updateISC(id,updates) {
+  if (isConfigured()) await sheetsUpdate('Users','id',id,updates);
+  const a=LDB.arr('iscs');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('iscs',a);}
+}
+async function DATA_addEntry(e) {
+  if (isConfigured()) { await sheetsAppend('Entries',e); } else { LDB.push('entries',e); }
+  const arr=LDB.arr('entries'); if(!arr.find(x=>x.id===e.id)){arr.push(e);LDB.set('entries',arr);}
+}
+async function DATA_updateEntry(id,updates) {
+  if (isConfigured()) await sheetsUpdate('Entries','id',id,updates);
+  const a=LDB.arr('entries');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('entries',a);}
+}
+async function DATA_addASM(asm) {
+  if (isConfigured()) await sheetsAppend('ASMs',asm);
+  const arr=LDB.arr('asms'); if(!arr.find(x=>x.id===asm.id)){arr.push(asm);LDB.set('asms',arr);}
+}
+async function DATA_addST(st) {
+  if (isConfigured()) await sheetsAppend('STs',st);
+  const arr=LDB.arr('sts'); arr.push(st); LDB.set('sts',arr);
+}
+async function DATA_addBDO(bdo) {
+  if (isConfigured()) await sheetsAppend('BDOs',bdo);
+  const arr=LDB.arr('bdos'); arr.push(bdo); LDB.set('bdos',arr);
+}
 
 // ══════════════════════════════════════════════
 //  AUTH
@@ -946,93 +949,78 @@ function showScreen(id) {
 async function doLogin() {
   const u=gv('login-username').trim(), p=gv('login-password').trim();
   if (!u||!p) return showAlert('alert-login','Please enter username and password.','error');
-  setLoading(true,'Checking credentials...');
+  setLoading(true,'Signing in...');
   try {
-    // Check local cache first
+    // Check local cache first (instant, works offline)
     const localIscs = LDB.arr('iscs');
     const li = localIscs.find(i=>i.username===u&&i.password===p);
     if (li) {
-      if (li.status==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
+      if (String(li.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
       currentUser={...li, role:'isc', dealerCodes:String(li.dealerCodes||'')}; launchApp(); return;
     }
-    // Try OneDrive with silent token
+    // Try Google Sheets — no popup needed, just API key read
     if (isConfigured()) {
-      setLoading(true,'Loading from OneDrive...');
-      if (!_msalToken) {
-        try {
-          if (!_msalApp) _msalApp = await buildMSAL();
-          if (_msalApp) {
-            const accounts = _msalApp.getAllAccounts();
-            if (accounts.length > 0) {
-              const r = await _msalApp.acquireTokenSilent({scopes:['https://graph.microsoft.com/Files.ReadWrite.All','User.Read'], account:accounts[0]});
-              _msalToken = r.accessToken;
-            }
-          }
-        } catch(e) { /* silent failed */ }
-      }
-      if (_msalToken) {
-        const iscs = await DATA_getISCs();
-        const isc = iscs.find(i=>i.username===u&&i.password===p);
-        if (isc) {
-          if (isc.status==='Inactive') { showAlert('alert-login','Your account has been deactivated. Contact your ASM.','error'); return; }
-          currentUser = { ...isc, role:'isc',
-            dealerCodes: String(isc.dealerCodes||''),
-            region: String(isc.region||''),
-            stName: String(isc.stName||''),
-            bdoName: String(isc.bdoName||''),
-            asmId: String(isc.asmId||''),
-            asmName: String(isc.asmName||''),
-            asmEmail: String(isc.asmEmail||''),
-            asmPhone: String(isc.asmPhone||''),
-          };
-          const arr = LDB.arr('iscs');
-          const idx = arr.findIndex(x=>x.id===isc.id);
-          if (idx>-1) arr[idx]={...currentUser}; else arr.push({...currentUser});
-          LDB.set('iscs', arr);
-          launchApp(); return;
-        }
+      setLoading(true,'Checking credentials...');
+      const iscs = await DATA_getISCs();
+      const isc = iscs.find(i=>i.username===u&&i.password===p);
+      if (isc) {
+        if (String(isc.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Contact your ASM.','error'); return; }
+        currentUser = { ...isc, role:'isc',
+          dealerCodes:String(isc.dealerCodes||''), region:String(isc.region||''),
+          stName:String(isc.stName||''), bdoName:String(isc.bdoName||''),
+          asmId:String(isc.asmId||''), asmName:String(isc.asmName||''),
+          asmEmail:String(isc.asmEmail||''), asmPhone:String(isc.asmPhone||''),
+        };
+        const arr=LDB.arr('iscs'); const cidx=arr.findIndex(x=>x.id===isc.id);
+        if(cidx>-1) arr[cidx]={...currentUser}; else arr.push({...currentUser});
+        LDB.set('iscs',arr);
+        launchApp(); return;
       }
     }
-    showAlert('alert-login','Invalid username or password. If new, ask your ASM to create your account.','error');
-  } catch(e) { showAlert('alert-login','Error checking credentials. Try again.','error'); console.error(e); }
+    showAlert('alert-login','Invalid username or password. Contact your ASM if you are new.','error');
+  } catch(e) { showAlert('alert-login','Error: '+e.message,'error'); console.error(e); }
   finally { setLoading(false); }
 }
 
 async function doASMLogin() {
   const u=gv('asm-login-user').trim(), p=gv('asm-login-pass').trim();
   if (!u||!p) return showAlert('alert-asm-login','Please enter credentials.','error');
-  setLoading(true,'Checking credentials...');
+  setLoading(true,'Signing in...');
   try {
-    // Check local ASMs first
+    // Check local cache
     const localAsms = LDB.arr('asms');
     const la = localAsms.find(a=>a.username===u&&a.password===p);
     if (la) { currentUser={...la,role:'asm'}; launchApp(); return; }
-    // Check OneDrive ASMs
+    // Google Sheets — read only, no popup needed
     if (isConfigured()) {
-      if (!_msalToken) {
-        try { _msalApp=await buildMSAL(); await getAccessToken(); } catch(e) {}
-      }
-      if (_msalToken) {
-        const asms = await DATA_getASMs();
-        const asm = asms.find(a=>a.username===u&&a.password===p);
-        if (asm) { currentUser={...asm,role:'asm'}; launchApp(); return; }
+      const asms = await DATA_getASMs();
+      const asm = asms.find(a=>a.username===u&&a.password===p);
+      if (asm) {
+        const arr=LDB.arr('asms'); const idx=arr.findIndex(x=>x.id===asm.id);
+        if(idx>-1) arr[idx]={...asm}; else arr.push({...asm});
+        LDB.set('asms',arr);
+        currentUser={...asm,role:'asm'}; launchApp(); return;
       }
     }
     showAlert('alert-asm-login','Invalid ASM credentials.','error');
-  } catch(e) { showAlert('alert-asm-login','Error checking credentials.','error'); }
+  } catch(e) { showAlert('alert-asm-login','Error: '+e.message,'error'); console.error(e); }
   finally { setLoading(false); }
 }
 
 async function doAdminLogin() {
   const u=gv('admin-login-user').trim(), p=gv('admin-login-pass').trim();
   if (!u||!p) return showAlert('alert-admin-login','Please enter credentials.','error');
-  setLoading(true,'Checking credentials...');
+  setLoading(true,'Signing in...');
   try {
-    const admins = LDB.arr('admins');
+    let admins = LDB.arr('admins');
+    if (!admins.length) {
+      LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
+      admins = LDB.arr('admins');
+    }
     const admin = admins.find(a=>a.username===u&&a.password===p);
     if (admin) { currentUser={...admin}; launchApp(); return; }
-    showAlert('alert-admin-login','Invalid admin credentials.','error');
-  } catch(e) { showAlert('alert-admin-login','Error.','error'); }
+    showAlert('alert-admin-login','Invalid credentials. Default: admin / admin123','error');
+  } catch(e) { showAlert('alert-admin-login','Error: '+e.message,'error'); }
   finally { setLoading(false); }
 }
 
@@ -1306,7 +1294,7 @@ async function saveEntry() {
     if(n) products.push({name:n,qty:q});
   });
   const editId=gv('entry-edit-id');
-  setLoading(true,'Saving to OneDrive...');
+  setLoading(true,'Saving...');
   try {
     const entryData = {
       customer:gv('entry-customer').trim(), custPhone:gv('entry-custphone').trim(),
@@ -1506,7 +1494,7 @@ async function toggleISCStatus(id,newStatus) {
 function renderProfile() {
   const u=currentUser;
   const initials=(u.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('profile-card-content').innerHTML=`<div class="profile-avatar">${initials}</div><div class="profile-name">${u.name||u.username}</div><div class="profile-role">${u.role==='isc'?'Independent Sales Consultant':u.role==='asm'?'Area Sales Manager':'System Admin'}</div>${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''} ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}<div class="profile-row">👤 @${u.username}</div><div class="profile-row" style="margin-top:8px;font-size:11px;opacity:.6">${isConfigured()?'🟢 OneDrive Connected':'🟡 Demo Mode'}</div>`;
+  document.getElementById('profile-card-content').innerHTML=`<div class="profile-avatar">${initials}</div><div class="profile-name">${u.name||u.username}</div><div class="profile-role">${u.role==='isc'?'Independent Sales Consultant':u.role==='asm'?'Area Sales Manager':'System Admin'}</div>${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''} ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}<div class="profile-row">👤 @${u.username}</div><div class="profile-row" style="margin-top:8px;font-size:11px;opacity:.6">${isConfigured()?'🟢 Google Sheets Connected':'🟡 Demo Mode'}</div>`;
   document.getElementById('asm-profile-section').style.display=u.role==='isc'?'block':'none';
   document.getElementById('isc-details-section').style.display=u.role==='isc'?'block':'none';
   if (u.role==='isc') {
@@ -1521,36 +1509,33 @@ function renderProfile() {
 // ══════════════════════════════════════════════
 function renderAdminPanel() {
   const cfg=getConfig();
-  if (cfg.tenantId) sv('cfg-tenant',cfg.tenantId);
-  if (cfg.clientId) sv('cfg-client',cfg.clientId);
-  if (cfg.filename) sv('cfg-filename',cfg.filename);
-  renderAsmList();renderSTList();renderBDOList();
+  if (cfg.sheetId) sv('cfg-sheetid',cfg.sheetId);
+  if (cfg.apiKey) sv('cfg-apikey',cfg.apiKey);
+  if (cfg.clientId) sv('cfg-gclientid',cfg.clientId||'');
+  renderAsmList(); renderSTList(); renderBDOList();
 }
 
 function saveConfig() {
   saveConfigToLocal({tenantId:gv('cfg-tenant').trim(),clientId:gv('cfg-client').trim(),filename:gv('cfg-filename').trim()||'ISC-Tracker-Data.xlsx'});
-  _msalApp=null; showToast('✅ Configuration saved!');
+  showToast('✅ Configuration saved!');
 }
 
 async function testConnection() {
-  const cfg=getConfig(),el=document.getElementById('od-status-msg');
-  if (!cfg.tenantId||!cfg.clientId){el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Fill in Tenant ID and Client ID first.</div>`;return;}
-  el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Initializing...</div>`;
+  const cfg=getConfig(), el=document.getElementById('od-status-msg');
+  if (!cfg.sheetId||!cfg.apiKey) {
+    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Fill in Sheet ID and API Key first.</div>`;
+    return;
+  }
+  el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Testing connection...</div>`;
   try {
-    _msalApp=null;_msalApp=await buildMSAL();
-    el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>🔐 Microsoft login popup opening...</div>`;
-    const token=await getAccessToken();
-    const resp=await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:`Bearer ${token}`}});
-    const me=await resp.json();
-    setLoading(true,'Setting up Excel...');
-    try{await ensureWorkbookExists();}catch(e){}
-    setLoading(false);
-    el.innerHTML=`<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected as <strong>${me.displayName||me.userPrincipalName}</strong>. Excel ready!</div>`;
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/ASMs?key=${cfg.apiKey}`;
+    const resp=await fetch(url);
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.error?.message||resp.status); }
+    const data=await resp.json();
+    const rowCount = (data.values?.length||1)-1;
+    el.innerHTML=`<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected! Google Sheet found. ASMs sheet has <strong>${rowCount}</strong> records.</div>`;
   } catch(e) {
-    setLoading(false);
-    const code=e.errorCode||'',msg=e.message||'';
-    let reason=code.includes('redirect_uri')?'Redirect URI mismatch — add GitHub Pages URL as SPA redirect in Azure.':code==='user_cancelled'?'Login cancelled. Try again.':code==='popup_blocked'?'Popup blocked — allow popups for this site.':`${code?code+': ':''}${msg||'Unknown error'}`;
-    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${reason}</div>`;
+    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${e.message}. Check Sheet ID and API Key.</div>`;
   }
 }
 
@@ -1568,7 +1553,6 @@ async function renderSTList() {
   const el=document.getElementById('st-list');
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    if (isConfigured()) await ensureSheetExists('STs',['id','name','email','phone']);
     const sts=await DATA_getSTs();
     if (!sts.length){el.innerHTML=emptyState('🧑‍💼','No STs yet','Click + Add ST to add your first Sales Technologist');return;}
     el.innerHTML=sts.map(s=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${s.name}</div><div class="entry-sub">${s.email?'📧 '+s.email+' · ':''}${s.phone?'📞 '+s.phone:''}</div></div>`).join('');
@@ -1579,7 +1563,6 @@ async function renderBDOList() {
   const el=document.getElementById('bdo-list');
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    if (isConfigured()) await ensureSheetExists('BDOs',['id','name','email','phone']);
     const bdos=await DATA_getBDOs();
     if (!bdos.length){el.innerHTML=emptyState('📈','No BDOs yet','Click + Add BDO to add your first Business Development Officer');return;}
     el.innerHTML=bdos.map(b=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${b.name}</div><div class="entry-sub">${b.email?'📧 '+b.email+' · ':''}${b.phone?'📞 '+b.phone:''}</div></div>`).join('');
@@ -1591,7 +1574,6 @@ async function saveAsm() {
   if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
   setLoading(true,'Saving ASM...');
   try {
-    await ensureWorkbookExists();
     const asms=await DATA_getASMs();
     if (asms.find(a=>a.username===username)){showToast('⚠️ Username already taken');return;}
     await DATA_addASM({id:'asm'+Date.now(),name,email,phone,username,password});
@@ -1600,31 +1582,11 @@ async function saveAsm() {
   finally{setLoading(false);}
 }
 
-async function ensureSheetExists(sheetName, headers) {
-  const token = _msalToken || await getAccessToken();
-  const base = await getWorkbookBase();
-  // Check if sheet exists
-  const resp = await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/usedRange`, {headers:{Authorization:`Bearer ${token}`}});
-  if (resp.ok) return; // already exists
-  // Create the sheet
-  await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/add`, {
-    method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
-    body: JSON.stringify({name: sheetName})
-  });
-  // Write headers
-  const endCol = String.fromCharCode(64 + headers.length);
-  await fetch(`https://graph.microsoft.com/v1.0${base}/worksheets/${sheetName}/range(address='A1:${endCol}1')`, {
-    method:'PATCH', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
-    body: JSON.stringify({values:[headers]})
-  });
-}
-
 async function saveST() {
   const name=gv('st-name').trim(),email=gv('st-email').trim(),phone=gv('st-phone').trim();
   if (!name) return showToast('⚠️ Name required');
   setLoading(true,'Setting up STs sheet...');
   try {
-    await ensureSheetExists('STs',['id','name','email','phone']);
     setLoading(true,'Saving ST...');
     await DATA_addST({id:'st'+Date.now(),name,email,phone});
     showToast('✅ ST added!');closeModal('modal-st');renderSTList();
@@ -1637,7 +1599,6 @@ async function saveBDO() {
   if (!name) return showToast('⚠️ Name required');
   setLoading(true,'Setting up BDOs sheet...');
   try {
-    await ensureSheetExists('BDOs',['id','name','email','phone']);
     setLoading(true,'Saving BDO...');
     await DATA_addBDO({id:'bdo'+Date.now(),name,email,phone});
     showToast('✅ BDO added!');closeModal('modal-bdo');renderBDOList();
@@ -1646,8 +1607,111 @@ async function saveBDO() {
 }
 
 // ══════════════════════════════════════════════
-//  UTILS
+//  EXCEL EXPORT
 // ══════════════════════════════════════════════
+function exportToExcel(rows, filename) {
+  // Build CSV content (opens in Excel)
+  const csv = rows.map(row =>
+    row.map(cell => {
+      const val = String(cell ?? '').replace(/"/g, '""');
+      return val.includes(',') || val.includes('"') || val.includes('\n') ? `"${val}"` : val;
+    }).join(',')
+  ).join('\n');
+
+  // Add BOM for Excel to read UTF-8 correctly (Indian names etc.)
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Excel file downloaded!');
+}
+
+function exportEntries(scope) {
+  const entries = scope === 'my' ? _myEntriesCache : _allEntriesCache;
+  if (!entries.length) { showToast('⚠️ No data to export'); return; }
+
+  const headers = [
+    'Ref #', 'Date', 'ISC Name', 'ASM Name', 'Region', 'ST', 'BDO',
+    'Customer Name', 'Customer Phone', 'Customer Type', 'Referral Type',
+    'Project Name', 'Site Address', 'Building Type', 'Site Stage',
+    'Area (sq.ft)', 'Expected Paint Date', 'Competitor Brand',
+    'Paint System', 'Products', 'Est. Site Value (₹)',
+    'Dealer Code', 'Dealer Name', 'Contractor', 'Painter',
+    'Status', 'Remarks', 'SAP Ref #', 'Last Updated'
+  ];
+
+  const dataRows = entries.map(e => {
+    const products = JSON.parse(e.products || '[]').map(p => `${p.name}${p.qty ? ' (' + p.qty + 'L)' : ''}`).join('; ');
+    return [
+      String(e.id).slice(-6).toUpperCase(),
+      fmtDate(e.createdAt),
+      e.iscName || '',
+      e.asmName || '',
+      e.region || '',
+      e.stName || '',
+      e.bdoName || '',
+      e.customer || '',
+      e.custPhone || '',
+      e.custType || '',
+      e.refType || '',
+      e.siteName || '',
+      e.address || '',
+      e.buildType || '',
+      e.siteStage || '',
+      e.area || '',
+      e.paintDate || '',
+      e.competitor || '',
+      e.paintSystem || '',
+      products,
+      e.siteValue || '',
+      e.dealerCode || '',
+      e.dealerName || '',
+      e.contractor || '',
+      e.painter || '',
+      e.status || '',
+      e.remarks || '',
+      e.sapRef || '',
+      e.updatedAt ? fmtDate(e.updatedAt) : ''
+    ];
+  });
+
+  const today = new Date().toISOString().slice(0,10);
+  const prefix = scope === 'my' ? `ISC_${currentUser.name.replace(/ /g,'_')}` : currentUser.role === 'asm' ? `ASM_${currentUser.name.replace(/ /g,'_')}` : 'Admin_AllSites';
+  exportToExcel([headers, ...dataRows], `MRF_ISC_SiteTracker_${prefix}_${today}.csv`);
+}
+
+function exportISCs() {
+  if (!_iscCache.length) { showToast('⚠️ No ISC data to export'); return; }
+
+  const headers = [
+    'Name', 'Phone', 'Email', 'Username', 'Status',
+    'Region', 'ASM Name', 'ST Name', 'BDO Name',
+    'Dealer Codes', 'Created Date'
+  ];
+
+  const dataRows = _iscCache.map(i => [
+    i.name || '',
+    i.phone || '',
+    i.email || '',
+    i.username || '',
+    i.status || 'Active',
+    i.region || '',
+    i.asmName || '',
+    i.stName || '',
+    i.bdoName || '',
+    i.dealerCodes || '',
+    fmtDate(i.createdAt)
+  ]);
+
+  const today = new Date().toISOString().slice(0,10);
+  exportToExcel([headers, ...dataRows], `MRF_ISC_TeamList_${currentUser.name.replace(/ /g,'_')}_${today}.csv`);
+}
+
+
 function gv(id){return document.getElementById(id)?.value??'';}
 function sv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
 function openModal(id){document.getElementById(id).classList.add('show');}
@@ -1656,7 +1720,7 @@ function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateStrin
 function emptyState(icon,text,sub=''){return`<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-text">${text}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`;}
 function setLoading(show,msg='Loading...'){document.getElementById('loading-overlay').classList.toggle('show',show);document.getElementById('loading-text').textContent=msg;}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
-function showAlert(id,msg,type){const el=document.getElementById(id);el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;setTimeout(()=>el.innerHTML='',4000);}
+function showAlert(id,msg,type){const el=document.getElementById(id);if(!el)return;el.innerHTML=`<div class="alert alert-${type==='info'?'info':type==='success'?'success':'error'}">${msg}</div>`;if(type!=='info')setTimeout(()=>el.innerHTML='',5000);}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
 document.getElementById('isc-dealer-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addDealerCode();}});
 
