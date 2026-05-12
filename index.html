@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISC Site-Tracker — MRF Vapocure Paints</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red:#C8102E;--red-dark:#9e0c24;--red-light:#f5e6e9;
+    --gold:#F5A623;--dark:#1a1a2e;--dark2:#16213e;
+    --gray:#6b7280;--gray-light:#f3f4f6;--white:#ffffff;
+    --success:#10b981;--warning:#f59e0b;--border:#e5e7eb;
+    --shadow:0 2px 12px rgba(0,0,0,0.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:#f8f9fc;color:#1f2937;min-height:100vh;font-size:14px;}
+  .screen{display:none;}.screen.active{display:block;}
+  /* HEADER */
+  .header{background:linear-gradient(135deg,var(--dark),var(--dark2));color:white;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.3);}
+  .hb{display:flex;align-items:center;gap:10px;}
+  .hl{width:32px;height:32px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:white;}
+  .ht{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:.5px;}
+  .ht span{color:var(--gold);}
+  .hs{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:1px;text-transform:uppercase;}
+  .hr{display:flex;align-items:center;gap:12px;}
+  .ubadge{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:12px;color:rgba(255,255,255,.85);}
+  .bso{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
+  /* AUTH */
+  .auth-wrap{min-height:100vh;background:linear-gradient(135deg,var(--dark),#0f3460,var(--dark2));display:flex;align-items:center;justify-content:center;padding:24px 16px;}
+  .auth-card{background:white;border-radius:20px;padding:36px 28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .auth-logo-wrap{text-align:center;margin-bottom:24px;}
+  .auth-logo{width:56px;height:56px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;color:white;margin-bottom:12px;box-shadow:0 8px 20px rgba(200,16,46,.3);}
+  .auth-brand{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--dark);}
+  .auth-brand span{color:var(--red);}
+  .auth-tagline{font-size:12px;color:var(--gray);margin-top:4px;}
+  .auth-title{font-size:18px;font-weight:600;color:var(--dark);margin-bottom:6px;}
+  .auth-desc{font-size:13px;color:var(--gray);margin-bottom:24px;line-height:1.5;}
+  /* FORMS */
+  .form-group{margin-bottom:16px;}
+  .form-label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;letter-spacing:.3px;text-transform:uppercase;}
+  .form-input,.form-select{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--dark);background:white;outline:none;-webkit-appearance:none;transition:border-color .2s;}
+  .form-input:focus,.form-select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(200,16,46,.1);}
+  .form-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+  .btn-primary{width:100%;padding:12px;background:linear-gradient(135deg,var(--red),var(--red-dark));color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 4px 12px rgba(200,16,46,.3);}
+  .btn-primary:hover{transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+  .btn-secondary{padding:10px 16px;background:white;color:var(--red);border:1.5px solid var(--red);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn-sm{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;}
+  .btn-green{background:#d1fae5;color:#065f46;}
+  .btn-red{background:#fee2e2;color:#991b1b;}
+  .btn-blue{background:#dbeafe;color:#1d4ed8;}
+  .btn-gray{background:var(--gray-light);color:var(--gray);}
+  .link-text{text-align:center;font-size:13px;color:var(--gray);}
+  .link-text a{color:var(--red);text-decoration:none;font-weight:600;cursor:pointer;}
+  .divider{text-align:center;color:var(--gray);font-size:12px;margin:16px 0;position:relative;}
+  .divider::before,.divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border);}
+  .divider::before{left:0;}.divider::after{right:0;}
+  /* BOTTOM NAV */
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:flex;z-index:99;box-shadow:0 -4px 16px rgba(0,0,0,.08);}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;cursor:pointer;border:none;background:none;font-family:'DM Sans',sans-serif;color:var(--gray);font-size:10px;gap:3px;}
+  .nav-item.active{color:var(--red);}
+  .nav-icon{font-size:20px;}
+  /* MAIN */
+  .main-content{padding:16px;padding-bottom:80px;}
+  .page-title{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--dark);}
+  .page-subtitle{font-size:12px;color:var(--gray);margin-top:2px;margin-bottom:20px;}
+  /* STATS */
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+  .stat-card{background:white;border-radius:14px;padding:14px 12px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border);}
+  .stat-value{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:var(--dark);line-height:1;}
+  .stat-label{font-size:10px;color:var(--gray);margin-top:4px;font-weight:500;text-transform:uppercase;}
+  .stat-card.green .stat-value{color:var(--success);}
+  .stat-card.gold .stat-value{color:var(--gold);}
+  .stat-card.red .stat-value{color:var(--red);}
+  /* CARDS */
+  .section-card{background:white;border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:16px;overflow:hidden;}
+  .section-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .section-title{font-weight:600;font-size:14px;color:var(--dark);}
+  .section-body{padding:16px;}
+  /* ENTRY CARDS */
+  .entry-card{border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:white;cursor:pointer;}
+  .entry-card:hover{border-color:var(--red);box-shadow:0 4px 12px rgba(200,16,46,.08);}
+  .entry-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+  .entry-ref{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--red);}
+  .entry-name{font-size:15px;font-weight:600;color:var(--dark);margin-bottom:2px;}
+  .entry-sub{font-size:12px;color:var(--gray);}
+  .entry-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .meta-tag{background:var(--gray-light);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--gray);font-weight:500;}
+  .status-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+  .badge-pending{background:#fef3c7;color:#92400e;}
+  .badge-confirmed{background:#d1fae5;color:#065f46;}
+  .badge-active{background:#d1fae5;color:#065f46;}
+  .badge-inactive{background:#fee2e2;color:#991b1b;}
+  /* FAB */
+  .fab{position:fixed;bottom:74px;right:20px;width:52px;height:52px;background:linear-gradient(135deg,var(--red),var(--red-dark));color:white;border:none;border-radius:16px;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(200,16,46,.4);display:flex;align-items:center;justify-content:center;z-index:98;}
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);}
+  .modal-overlay.show{display:flex;}
+  .modal{background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:24px 20px 32px;animation:slideUp .3s ease;}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+  .modal-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--dark);margin-bottom:4px;}
+  .modal-subtitle{font-size:12px;color:var(--gray);margin-bottom:20px;}
+  /* WIZARD FORM */
+  .wizard-overlay{position:fixed;inset:0;background:rgba(12,18,32,.6);z-index:300;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px);}
+  .wizard-overlay.show{display:flex;}
+  .wizard-sheet{background:white;border-radius:24px 24px 0 0;width:100%;max-width:520px;max-height:94vh;display:flex;flex-direction:column;animation:slideUp .3s ease;}
+  .wizard-header{padding:20px 20px 0;flex-shrink:0;}
+  .wizard-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+  .wizard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .wizard-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--dark);}
+  .wizard-close{width:32px;height:32px;border-radius:8px;background:var(--gray-light);border:none;cursor:pointer;font-size:18px;color:var(--gray);display:flex;align-items:center;justify-content:center;}
+  /* STEP INDICATOR */
+  .step-bar{display:flex;align-items:center;margin-bottom:0;padding:0 0 16px;}
+  .step-item{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;}
+  .step-item:not(:last-child)::after{content:'';position:absolute;top:13px;left:50%;right:-50%;height:2px;background:var(--border);z-index:0;}
+  .step-item.done:not(:last-child)::after{background:var(--red);}
+  .step-dot{width:26px;height:26px;border-radius:50%;background:var(--gray-light);color:var(--gray);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;font-family:'Rajdhani',sans-serif;transition:all .2s;}
+  .step-dot.done{background:var(--red);color:white;}
+  .step-dot.active{background:var(--red);color:white;box-shadow:0 0 0 4px rgba(200,16,46,.15);}
+  .step-label{font-size:9px;font-weight:600;color:var(--gray);margin-top:4px;text-transform:uppercase;letter-spacing:.5px;text-align:center;}
+  .step-label.active{color:var(--red);}
+  .step-label.done{color:var(--red);}
+  /* WIZARD BODY */
+  .wizard-body{flex:1;overflow-y:auto;padding:16px 20px;}
+  .wizard-step{display:none;}
+  .wizard-step.active{display:block;}
+  .step-section-title{font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:380px){.form-row{grid-template-columns:1fr;}}
+  /* WIZARD FOOTER */
+  .wizard-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;background:white;}
+  /* PRODUCT ROW */
+  .product-row{display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;}
+  .btn-add-row{width:100%;padding:8px;background:var(--gray-light);border:1.5px dashed var(--border);border-radius:8px;color:var(--gray);cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:.15s;}
+  .btn-add-row:hover{border-color:var(--red);color:var(--red);background:var(--red-light);}
+  .btn-remove-row{width:32px;height:32px;background:var(--gray-light);border:none;border-radius:8px;cursor:pointer;color:var(--gray);font-size:16px;display:flex;align-items:center;justify-content:center;}
+  .btn-remove-row:hover{background:#fee2e2;color:var(--red);}
+  /* REVIEW SECTION */
+  .review-section{background:var(--gray-light);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .review-section-title{font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .review-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(0,0,0,.05);}
+  .review-row:last-child{border-bottom:none;}
+  .review-label{font-size:12px;color:var(--gray);}
+  .review-value{font-size:12px;font-weight:600;color:var(--dark);text-align:right;max-width:60%;}
+
+  /* PROFILE */
+  .profile-card{background:linear-gradient(135deg,var(--dark),var(--dark2));border-radius:16px;padding:20px;color:white;margin-bottom:16px;}
+  .profile-avatar{width:52px;height:52px;background:var(--red);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px;}
+  .profile-name{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;}
+  .profile-role{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+  .profile-row{display:flex;gap:6px;align-items:center;font-size:13px;color:rgba(255,255,255,.8);margin-bottom:6px;}
+  /* DETAIL */
+  .detail-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+  .detail-row:last-child{border-bottom:none;}
+  .detail-label{font-size:12px;color:var(--gray);font-weight:500;}
+  .detail-value{font-size:13px;font-weight:600;color:var(--dark);text-align:right;max-width:65%;}
+  /* ALERTS & BANNERS */
+  .alert{padding:12px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;}
+  .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .alert-success{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;}
+  .alert-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;}
+  .alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+  .setup-banner{background:linear-gradient(135deg,#fff7ed,#fef3c7);border:1.5px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+  .setup-banner-title{font-size:13px;font-weight:600;color:#92400e;}
+  .setup-banner-text{font-size:12px;color:#78350f;margin-top:2px;line-height:1.5;}
+  /* OD STATUS */
+  .od-status{display:flex;align-items:center;gap:8px;font-size:12px;padding:10px 14px;border-radius:10px;margin-top:12px;}
+  .od-status.connected{background:#d1fae5;color:#065f46;}
+  .od-status.disconnected{background:#fee2e2;color:#991b1b;}
+  .od-status.pending{background:#eff6ff;color:#1e40af;}
+  .od-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  /* FILTER */
+  .filter-row{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;}
+  .filter-btn{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:white;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;color:var(--gray);}
+  .filter-btn.active{background:var(--red);color:white;border-color:var(--red);}
+  /* GROUP HEADER */
+  .group-header{background:var(--gray-light);border-radius:10px;padding:10px 14px;margin-bottom:8px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;}
+  .group-name{font-weight:600;font-size:13px;color:var(--dark);}
+  .group-count{font-size:11px;color:var(--gray);}
+  /* DEALER TAGS */
+  .dealer-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .dealer-tag{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;font-size:12px;color:#1e40af;display:flex;align-items:center;gap:4px;}
+  .dealer-tag-remove{cursor:pointer;color:#6b7280;font-size:14px;line-height:1;}
+  .dealer-tag-remove:hover{color:var(--red);}
+  /* LOADING */
+  .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;backdrop-filter:blur(2px);}
+  .loading-overlay.show{display:flex;}
+  .spinner{width:40px;height:40px;border:3px solid var(--red-light);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:14px;color:var(--gray);font-weight:500;}
+  /* TOAST */
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:white;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* EMPTY */
+  .empty-state{text-align:center;padding:40px 20px;color:var(--gray);}
+  .empty-icon{font-size:48px;margin-bottom:12px;opacity:.4;}
+  .empty-text{font-size:14px;font-weight:500;}
+  .empty-sub{font-size:12px;margin-top:4px;}
+  /* CONFIG */
+  .config-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:360px){.config-row{grid-template-columns:1fr;}}
+  /* COLLAPSIBLE */
+  .collapse-btn{background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray);padding:0;line-height:1;transition:transform .2s;}
+  .collapse-btn.open{transform:rotate(180deg);}
+  .collapsible-body{overflow:hidden;transition:max-height .3s ease;}
+  .collapsible-body.collapsed{max-height:0!important;}
+  /* ISC CARD ACTIONS */
+  .isc-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<!-- MAIN ROLE SELECTION -->
+<div id="screen-login" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
+        <div class="auth-tagline">ISC Site-Tracker · v4.0</div>
+      </div>
+      <div class="auth-title">Who are you?</div>
+      <div class="auth-desc">Select your role to continue.</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+        <button class="btn-primary" onclick="showScreen('screen-isc-login')" style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px">
+          🏗️ ISC Login
+          <span style="font-size:11px;opacity:.7;font-weight:400">Independent Sales Consultant</span>
+        </button>
+        <button onclick="showScreen('screen-asm-login')" style="width:100%;padding:12px;background:white;color:var(--dark);border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
+          👥 ASM Login
+          <span style="font-size:11px;color:var(--gray);font-weight:400">Area Sales Manager</span>
+        </button>
+        <button onclick="showScreen('screen-admin-login')" style="width:100%;padding:12px;background:white;color:var(--dark);border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
+          🛡️ Admin Login
+          <span style="font-size:11px;color:var(--gray);font-weight:400">System Administrator</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ISC LOGIN -->
+<div id="screen-isc-login" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">ISC <span>Login</span></div>
+        <div class="auth-tagline">Independent Sales Consultant</div>
+      </div>
+      <div id="alert-login"></div>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-desc">Sign in with your ISC credentials to continue.</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="login-username" placeholder="Enter your username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-password" placeholder="Enter your password">
+      </div>
+      <button class="btn-primary" onclick="doLogin()">Sign In as ISC</button>
+      <div class="divider">or</div>
+      <div class="link-text"><a onclick="showScreen('screen-login')">← Back to Role Selection</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ASM LOGIN -->
+<div id="screen-asm-login" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">ASM <span>Login</span></div>
+        <div class="auth-tagline">Area Sales Manager</div>
+      </div>
+      <div id="alert-asm-login"></div>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-desc">Sign in with your ASM credentials to continue.</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="asm-login-user" placeholder="Enter your username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="asm-login-pass" placeholder="Enter your password">
+      </div>
+      <button class="btn-primary" onclick="doASMLogin()">Sign In as ASM</button>
+      <div class="divider">or</div>
+      <div class="link-text"><a onclick="showScreen('screen-login')">← Back to Role Selection</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="screen-admin-login" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo-wrap">
+        <div class="auth-logo">MRF</div>
+        <div class="auth-brand">Admin <span>Login</span></div>
+        <div class="auth-tagline">System Administrator · Restricted Access</div>
+      </div>
+      <div id="alert-admin-login"></div>
+      <div class="auth-title">Administrator Login</div>
+      <div class="auth-desc">This area is restricted to system administrators only.</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="admin-login-user" placeholder="Admin username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="admin-login-pass" placeholder="Admin password">
+      </div>
+      <button class="btn-primary" onclick="doAdminLogin()">Sign In as Admin</button>
+      <div class="divider">or</div>
+      <div class="link-text"><a onclick="showScreen('screen-login')">← Back to Role Selection</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-app" class="screen">
+  <div class="header">
+    <div class="hb">
+      <div class="hl">MRF</div>
+      <div><div class="ht">ISC <span>Site-Tracker</span></div><div class="hs">MRF Vapocure Paints</div></div>
+    </div>
+    <div class="hr">
+      <div class="ubadge" id="header-user-badge">User</div>
+      <button class="bso" onclick="doSignOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- MY SITES (ISC) -->
+  <div id="tab-mysites" class="main-content">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title">My Sites</div>
+      <button onclick="exportEntries('my')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
+    <div class="page-subtitle" id="mysites-subtitle">Your site visits</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="stat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterEntries('Pending',this)">Pending</button>
+      <button class="filter-btn" onclick="filterEntries('Confirmed',this)">Confirmed</button>
+    </div>
+    <div id="entries-list"></div>
+  </div>
+
+  <!-- ALL SITES (ASM/Admin) -->
+  <div id="tab-allsites" class="main-content" style="display:none">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title" id="allsites-title">All Sites</div>
+      <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
+    <div class="page-subtitle" id="allsites-subtitle">All ISC activity</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="astat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="astat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="astat-pending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterAllEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterAllEntries('Pending',this)">Pending</button>
+      <button class="filter-btn" onclick="filterAllEntries('Confirmed',this)">Confirmed</button>
+    </div>
+    <div id="all-entries-list"></div>
+  </div>
+
+  <!-- MY ISCs (ASM) -->
+  <div id="tab-myiscs" class="main-content" style="display:none">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title">My ISCs</div>
+      <button onclick="exportISCs()" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
+    <div class="page-subtitle" id="myiscs-subtitle">ISCs under your supervision</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="isc-stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="isc-stat-active">0</div><div class="stat-label">Active</div></div>
+      <div class="stat-card red"><div class="stat-value" id="isc-stat-inactive">0</div><div class="stat-label">Inactive</div></div>
+    </div>
+    <div id="isc-list"></div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="tab-profile" class="main-content" style="display:none">
+    <div class="page-title">My Profile</div>
+    <div class="page-subtitle">Your saved details</div>
+    <div class="profile-card" id="profile-card-content"></div>
+    <div class="section-card" id="asm-profile-section">
+      <div class="section-header"><div class="section-title">ASM Details</div></div>
+      <div class="section-body" id="asm-profile-content"></div>
+    </div>
+    <div class="section-card" id="isc-details-section">
+      <div class="section-header"><div class="section-title">Assignment Details</div></div>
+      <div class="section-body" id="isc-details-content"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="tab-admin" class="main-content" style="display:none">
+    <div class="page-title">Admin Panel</div>
+    <div class="page-subtitle">System configuration & management</div>
+
+    <div class="setup-banner">
+      <div style="font-size:20px;flex-shrink:0">📊</div>
+      <div>
+        <div class="setup-banner-title">Google Sheets Connected</div>
+        <div class="setup-banner-text">All data syncs to your Google Sheet in real time. Works on every device — no Microsoft login needed!</div>
+      </div>
+    </div>
+
+    <!-- GOOGLE SHEETS CONFIG -->
+    <div class="section-card">
+      <div class="section-header"><div class="section-title">🔌 Google Sheets Configuration</div></div>
+      <div class="section-body">
+        <div class="alert alert-info">📊 <strong>How this works:</strong> All data is stored in a Google Sheet. Enter the Sheet ID and API Key below. Everyone can log in instantly — no Microsoft popup needed!</div>
+        <div class="form-group"><label class="form-label">Google Sheet ID *</label><input type="text" class="form-input" id="cfg-sheetid" placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"></div>
+        <div class="form-group"><label class="form-label">Google API Key * (for reading data)</label><input type="text" class="form-input" id="cfg-apikey" placeholder="AIzaSy..."></div>
+        <div class="form-group"><label class="form-label">Google OAuth Client ID (for writing data)</label><input type="text" class="form-input" id="cfg-gclientid" placeholder="xxxx.apps.googleusercontent.com"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="saveConfig()">💾 Save</button>
+          <button class="btn-secondary" onclick="testConnection()">🔌 Test Connection</button>
+        </div>
+        <div id="od-status-msg"></div>
+      </div>
+    </div>
+
+    <!-- MANAGE ASMs -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('asms')" style="cursor:pointer">
+        <div class="section-title">👥 Manage ASMs <span id="asm-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm btn-green" onclick="event.stopPropagation();openModal('modal-asm')">+ Add</button>
+          <button class="collapse-btn open" id="toggle-asms">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body" id="body-asms" style="max-height:2000px">
+        <div class="section-body"><div id="asm-list"></div></div>
+      </div>
+    </div>
+
+    <!-- MANAGE ISCs -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('iscs')" style="cursor:pointer">
+        <div class="section-title">🏗️ Manage ISCs <span id="isc-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="collapse-btn" id="toggle-iscs">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body collapsed" id="body-iscs" style="max-height:0">
+        <div class="section-body">
+          <div class="filter-row" style="margin-bottom:12px">
+            <button class="filter-btn active" onclick="filterAdminISCs('all',this)">All</button>
+            <button class="filter-btn" onclick="filterAdminISCs('Active',this)">Active</button>
+            <button class="filter-btn" onclick="filterAdminISCs('Inactive',this)">Inactive</button>
+          </div>
+          <input type="text" class="form-input" id="isc-search" placeholder="🔍 Search by name, emp no, region..." oninput="searchAdminISCs()" style="margin-bottom:12px">
+          <div id="admin-isc-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGE STs -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('sts')" style="cursor:pointer">
+        <div class="section-title">🧑‍💼 Manage STs <span id="st-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm btn-blue" onclick="event.stopPropagation();openModal('modal-st')">+ Add</button>
+          <button class="collapse-btn" id="toggle-sts">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body collapsed" id="body-sts" style="max-height:0">
+        <div class="section-body"><div id="st-list"></div></div>
+      </div>
+    </div>
+
+    <!-- MANAGE BDOs -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('bdos')" style="cursor:pointer">
+        <div class="section-title">📈 Manage BDOs <span id="bdo-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm btn-blue" onclick="event.stopPropagation();openModal('modal-bdo')">+ Add</button>
+          <button class="collapse-btn" id="toggle-bdos">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body collapsed" id="body-bdos" style="max-height:0">
+        <div class="section-body"><div id="bdo-list"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" id="bottom-nav"></div>
+  <button class="fab" id="fab-btn" onclick="showNewEntryModal()" style="display:none">+</button>
+</div>
+
+<!-- ══════ MODALS ══════ -->
+
+<!-- ══════ SITE VISIT WIZARD ══════ -->
+<div class="wizard-overlay" id="wizard-entry">
+  <div class="wizard-sheet">
+    <div class="wizard-header">
+      <div class="wizard-handle"></div>
+      <div class="wizard-top">
+        <div class="wizard-title" id="wizard-title">Log Site Visit</div>
+        <button class="wizard-close" onclick="closeWizard()">✕</button>
+      </div>
+      <!-- Step Bar -->
+      <div class="step-bar" id="step-bar">
+        <div class="step-item active" id="si-0"><div class="step-dot active" id="sd-0">1</div><div class="step-label active">Customer</div></div>
+        <div class="step-item" id="si-1"><div class="step-dot" id="sd-1">2</div><div class="step-label">Site</div></div>
+        <div class="step-item" id="si-2"><div class="step-dot" id="sd-2">3</div><div class="step-label">Products</div></div>
+        <div class="step-item" id="si-3"><div class="step-dot" id="sd-3">4</div><div class="step-label">Dealer</div></div>
+        <div class="step-item" id="si-4"><div class="step-dot" id="sd-4">5</div><div class="step-label">Order</div></div>
+        <div class="step-item" id="si-5"><div class="step-dot" id="sd-5">✓</div><div class="step-label">Review</div></div>
+      </div>
+    </div>
+
+    <div class="wizard-body">
+      <input type="hidden" id="entry-edit-id">
+
+      <!-- STEP 1: CUSTOMER -->
+      <div class="wizard-step active" id="wstep-0">
+        <div class="step-section-title">👤 Customer Information</div>
+        <div class="form-group"><label class="form-label">Customer Name / Site Supervisor *</label><input type="text" class="form-input" id="entry-customer" placeholder="e.g. Mr. Ramesh Kumar"></div>
+        <div class="form-group"><label class="form-label">Customer Phone</label><input type="tel" class="form-input" id="entry-custphone" placeholder="10-digit mobile number"></div>
+        <div class="form-group">
+          <label class="form-label">Customer Type *</label>
+          <select class="form-select" id="entry-custtype">
+            <option value="">— Select —</option>
+            <option>Individual Home Owner</option>
+            <option>Builder / Developer</option>
+            <option>Contractor</option>
+            <option>Architect / Interior Designer</option>
+            <option>Commercial / Industrial</option>
+            <option>Government / Institution</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Referral Type *</label>
+          <select class="form-select" id="entry-reftype">
+            <option value="">— Select —</option>
+            <option>Self Prospecting</option>
+            <option>Dealer Referral</option>
+            <option>Existing Customer Referral</option>
+            <option>ASM Referral</option>
+            <option>ST Referral</option>
+            <option>BDO Referral</option>
+            <option>Digital / Social Media Lead</option>
+            <option>Contractor Referral</option>
+            <option>Painter Referral</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 2: SITE -->
+      <div class="wizard-step" id="wstep-1">
+        <div class="step-section-title">🏗️ Site Details</div>
+        <div class="form-group"><label class="form-label">Site / Project Name *</label><input type="text" class="form-input" id="entry-sitename" placeholder="e.g. Sai Residency, Block B"></div>
+        <div class="form-group"><label class="form-label">Site Address *</label><input type="text" class="form-input" id="entry-address" placeholder="Full site address"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Building Type *</label>
+            <select class="form-select" id="entry-buildtype">
+              <option value="">— Select —</option>
+              <option>Residential — Villa / Bungalow</option>
+              <option>Residential — Apartment</option>
+              <option>Commercial — Office</option>
+              <option>Commercial — Mall / Retail</option>
+              <option>Industrial — Factory</option>
+              <option>Industrial — Warehouse</option>
+              <option>Infrastructure — Road / Bridge</option>
+              <option>Institutional — Hospital</option>
+              <option>Institutional — School / College</option>
+              <option>Government Building</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Site Stage *</label>
+            <select class="form-select" id="entry-sitestage">
+              <option value="">— Select —</option>
+              <option>Foundation / Structure</option>
+              <option>Plastering</option>
+              <option>Primer Stage</option>
+              <option>Finishing / Painting</option>
+              <option>Completed</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Approx. Area (sq.ft)</label><input type="number" class="form-input" id="entry-area" placeholder="e.g. 2500"></div>
+          <div class="form-group"><label class="form-label">Expected Paint Date</label><input type="month" class="form-input" id="entry-paintdate"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Competitor Brand Currently Used</label><input type="text" class="form-input" id="entry-competitor" placeholder="e.g. Asian Paints, Nerolac"></div>
+      </div>
+
+      <!-- STEP 3: PRODUCTS -->
+      <div class="wizard-step" id="wstep-2">
+        <div class="step-section-title">🎨 Products Pitched</div>
+        <div class="form-group">
+          <label class="form-label">Paint System *</label>
+          <select class="form-select" id="entry-paintsystem">
+            <option value="">— Select —</option>
+            <option>Vapocure (2K Epoxy)</option>
+            <option>Vapocure (2K PU)</option>
+            <option>Damp Proof System</option>
+            <option>Waterproofing System</option>
+            <option>Decorative — Interior</option>
+            <option>Decorative — Exterior</option>
+            <option>Industrial Coating</option>
+            <option>Floor Coating</option>
+          </select>
+        </div>
+        <div id="product-rows">
+          <div class="product-row" id="pr-0">
+            <div class="form-group" style="margin:0"><label class="form-label">Product Name</label><input type="text" class="form-input" placeholder="e.g. Vapocure 2K Epoxy"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50"></div>
+            <button class="btn-remove-row" onclick="removeProductRow(0)" style="margin-top:20px">×</button>
+          </div>
+        </div>
+        <button class="btn-add-row" onclick="addProductRow()">+ Add Another Product</button>
+        <div class="form-group" style="margin-top:16px"><label class="form-label">Estimated Site Value (₹)</label><input type="number" class="form-input" id="entry-sitevalue" placeholder="e.g. 150000"></div>
+      </div>
+
+      <!-- STEP 4: DEALER -->
+      <div class="wizard-step" id="wstep-3">
+        <div class="step-section-title">🏪 Dealer & Referral</div>
+        <div class="form-group">
+          <label class="form-label">Dealer Code *</label>
+          <input type="text" class="form-input" id="entry-dealercode" placeholder="Enter 6-digit dealer code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)">
+          <div style="font-size:11px;color:var(--gray);margin-top:4px">Enter the 6-digit numeric dealer code assigned to you</div>
+        </div>
+        <div class="form-group"><label class="form-label">Dealer Name *</label><input type="text" class="form-input" id="entry-dealername" placeholder="Dealer / distributor name"></div>
+        <div class="form-group"><label class="form-label">Contractor Name</label><input type="text" class="form-input" id="entry-contractor" placeholder="Contractor / applicator name"></div>
+        <div class="form-group"><label class="form-label">Painter Name</label><input type="text" class="form-input" id="entry-painter" placeholder="Painter name on site"></div>
+      </div>
+
+      <!-- STEP 5: ORDER STATUS -->
+      <div class="wizard-step" id="wstep-4">
+        <div class="step-section-title">📦 Order Status</div>
+        <div class="form-group">
+          <label class="form-label">Current Status *</label>
+          <select class="form-select" id="entry-status">
+            <option value="Pending">Pending — Follow up required</option>
+            <option value="Confirmed">Order Confirmed ✅</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Remarks / Notes</label><textarea class="form-input" id="entry-remarks" rows="3" placeholder="Any additional notes about this site visit..."></textarea></div>
+        <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;margin-top:8px" id="order-confirm-section" style="display:none">
+          <div style="font-size:11px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✅ Order Confirmed — Additional Details</div>
+          <div class="form-group"><label class="form-label">Sales Order SAP Ref # (if available)</label><input type="text" class="form-input" id="entry-sapref" placeholder="SAP order reference number"></div>
+        </div>
+      </div>
+
+      <!-- STEP 6: REVIEW -->
+      <div class="wizard-step" id="wstep-5">
+        <div class="step-section-title">✅ Review & Submit</div>
+        <div id="review-content"></div>
+      </div>
+    </div>
+
+    <div class="wizard-footer">
+      <button class="btn-secondary" id="wizard-back-btn" onclick="wizardBack()" style="display:none">← Back</button>
+      <div style="flex:1"></div>
+      <button class="btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Site Details</div>
+    <div id="modal-detail-body"></div>
+    <div style="display:flex;gap:10px;margin-top:16px" id="modal-detail-actions"></div>
+  </div>
+</div>
+
+<!-- Create/Edit ISC Modal (ASM) -->
+<div class="modal-overlay" id="modal-isc">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-isc-title">Create ISC Account</div>
+    <div class="modal-subtitle">Fill in all details for this ISC</div>
+    <input type="hidden" id="isc-edit-id">
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="isc-name" placeholder="ISC full name"></div>
+    <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="isc-phone" placeholder="10-digit mobile number"></div>
+    <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="isc-email" placeholder="isc@email.com"></div>
+    <div class="form-group"><label class="form-label">Username *</label><input type="text" class="form-input" id="isc-username" placeholder="Login username"></div>
+    <div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" id="isc-password" placeholder="Login password"></div>
+    <div class="form-group">
+      <label class="form-label">Sales Technologist (ST) *</label>
+      <select class="form-select" id="isc-st"><option value="">— Select ST —</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Business Dev Officer (BDO) *</label>
+      <select class="form-select" id="isc-bdo"><option value="">— Select BDO —</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Region *</label>
+      <select class="form-select" id="isc-region">
+        <option value="">— Select Region —</option>
+        <option>South-1</option><option>South-2</option><option>South-4</option><option>South-5</option>
+        <option>North-1</option><option>North-2</option>
+        <option>East</option>
+        <option>West-1</option><option>West-2</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dealer Codes (can add multiple)</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="form-input" id="isc-dealer-input" placeholder="Type dealer code & press Add" style="flex:1">
+        <button class="btn-sm btn-blue" onclick="addDealerCode()" style="padding:8px 14px;border-radius:8px">Add</button>
+      </div>
+      <div class="dealer-tags" id="isc-dealer-tags"></div>
+      <input type="hidden" id="isc-dealer-codes">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-isc')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveISC()">Save ISC Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add ASM Modal -->
+<div class="modal-overlay" id="modal-asm">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add ASM</div>
+    <div class="modal-subtitle">Add a new Area Sales Manager</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="asm-name" placeholder="Full name"></div>
+    <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="asm-email" placeholder="asm@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="asm-phone" placeholder="10-digit number"></div>
+    <div class="form-group"><label class="form-label">Username *</label><input type="text" class="form-input" id="asm-username" placeholder="Login username"></div>
+    <div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" id="asm-password" placeholder="Login password"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-asm')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveAsm()">Save ASM</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add ST Modal -->
+<div class="modal-overlay" id="modal-st">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Sales Technologist</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="st-name" placeholder="ST full name"></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="st-email" placeholder="st@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="st-phone" placeholder="10-digit number"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-st')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveST()">Save ST</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add BDO Modal -->
+<div class="modal-overlay" id="modal-bdo">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add BDO</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="bdo-name" placeholder="BDO full name"></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bdo-email" placeholder="bdo@mrfpaint.com"></div>
+    <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bdo-phone" placeholder="10-digit number"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-bdo')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveBDO()">Save BDO</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading & Toast -->
+<div class="loading-overlay" id="loading-overlay"><div class="spinner"></div><div class="loading-text" id="loading-text">Loading...</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+window.onerror = (msg,src,line) => { console.error('JS Error:',msg,'Line:',line); return false; };
+
+// ══════════════════════════════════════════════
+//  CONFIG & GOOGLE SHEETS API
+// ══════════════════════════════════════════════
+const CFG_KEY = 'isc_gs_config';
+
+function getConfig() { return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }
+function saveConfig() {
+  saveConfigToLocal({
+    sheetId: gv('cfg-sheetid').trim(),
+    apiKey: gv('cfg-apikey').trim(),
+    clientId: gv('cfg-gclientid').trim(),
+  });
+  _gapiToken = null; _tokenClient = null;
+  showToast('✅ Configuration saved!');
+}
+function isConfigured() { const c=getConfig(); return !!(c.sheetId && c.apiKey); }
+
+// ── GOOGLE SHEETS HELPERS ──
+// Sheets are indexed by name. We use the Sheets v4 API.
+// Read: GET spreadsheets/{id}/values/{sheet}
+// Append: POST spreadsheets/{id}/values/{sheet}:append
+// Update: uses batchUpdate to find and update a specific row
+
+async function sheetsGet(sheet) {
+  const cfg = getConfig();
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet)}?key=${cfg.apiKey}`;
+  const resp = await fetch(url);
+  if (!resp.ok) { const e=await resp.json(); throw new Error(`Sheets read error (${sheet}): ${e.error?.message||resp.status}`); }
+  const data = await resp.json();
+  const rows = data.values || [];
+  if (rows.length < 2) return [];
+  const headers = rows[0];
+  return rows.slice(1).filter(r=>r.some(c=>c!==''&&c!==undefined&&c!==null)).map(row=>{
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=row[i]??'');
+    return obj;
+  });
+}
+
+async function sheetsAppend(sheet, rowObj) {
+  const cfg = getConfig();
+  // First get headers
+  const hUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet+'!1:1')}?key=${cfg.apiKey}`;
+  const hResp = await fetch(hUrl);
+  if (!hResp.ok) throw new Error(`Cannot read headers from ${sheet}`);
+  const hData = await hResp.json();
+  const headers = hData.values?.[0] || [];
+  if (!headers.length) throw new Error(`Sheet "${sheet}" has no headers in Row 1`);
+  const row = headers.map(h=>String(rowObj[h]??''));
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS&key=${cfg.apiKey}`;
+  const resp = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${await getOAuthToken()}`},
+    body: JSON.stringify({values:[row]})
+  });
+  if (!resp.ok) { const e=await resp.json(); throw new Error(`Sheets write error: ${e.error?.message||resp.status}`); }
+}
+
+async function sheetsUpdate(sheet, matchField, matchVal, updates) {
+  const cfg = getConfig();
+  // Read all data to find the row
+  const allUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(sheet)}?key=${cfg.apiKey}`;
+  const allResp = await fetch(allUrl);
+  if (!allResp.ok) throw new Error(`Cannot read ${sheet}`);
+  const allData = await allResp.json();
+  const rows = allData.values || [[]];
+  const headers = rows[0];
+  const colIdx = headers.indexOf(matchField);
+  const rowIdx = rows.findIndex((r,i)=>i>0&&String(r[colIdx]||'')===String(matchVal));
+  if (rowIdx===-1) return;
+  const updatedRow = rows[rowIdx].map((v,i)=>updates[headers[i]]!==undefined?String(updates[headers[i]]):String(v||''));
+  const endCol = String.fromCharCode(65+headers.length-1);
+  const range = `${sheet}!A${rowIdx+1}:${endCol}${rowIdx+1}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}?valueInputOption=RAW&key=${cfg.apiKey}`;
+  const resp = await fetch(url, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${await getOAuthToken()}`},
+    body: JSON.stringify({values:[updatedRow]})
+  });
+  if (!resp.ok) { const e=await resp.json(); throw new Error(`Update error: ${e.error?.message||resp.status}`); }
+}
+
+// OAuth token for write operations (uses Google Identity Services)
+let _gapiToken = null;
+let _tokenClient = null;
+
+function loadGoogleIdentity() {
+  return new Promise((resolve,reject)=>{
+    if (typeof google !== 'undefined' && google.accounts) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = resolve;
+    s.onerror = ()=>reject(new Error('Google Identity Services failed to load'));
+    document.head.appendChild(s);
+  });
+}
+
+async function getOAuthToken() {
+  if (_gapiToken && _gapiToken.expiry > Date.now()) return _gapiToken.token;
+  const cfg = getConfig();
+  if (!cfg.clientId) throw new Error('Google Client ID not configured');
+  await loadGoogleIdentity();
+  return new Promise((resolve,reject)=>{
+    if (!_tokenClient) {
+      _tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: cfg.clientId,
+        scope: 'https://www.googleapis.com/auth/spreadsheets',
+        callback: (resp)=>{
+          if (resp.error) { reject(new Error(resp.error)); return; }
+          _gapiToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in-60)*1000 };
+          resolve(_gapiToken.token);
+        }
+      });
+    }
+    _tokenClient.requestAccessToken({prompt:''});
+  });
+}
+
+async function requestOAuthPopup() {
+  const cfg = getConfig();
+  if (!cfg.clientId) throw new Error('Google Client ID not configured. Go to Admin Panel → save Client ID first.');
+  await loadGoogleIdentity();
+  return new Promise((resolve,reject)=>{
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg.clientId,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      callback: (resp)=>{
+        if (resp.error) { reject(new Error(resp.error)); return; }
+        _gapiToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in-60)*1000 };
+        resolve(_gapiToken.token);
+      }
+    });
+    _tokenClient.requestAccessToken({prompt:'consent'});
+  });
+}
+
+// ══════════════════════════════════════════════
+//  LOCAL FALLBACK
+// ══════════════════════════════════════════════
+// isConfigured defined above
+const LDB = { get:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'null'), set:(k,v)=>localStorage.setItem('isc_l_'+k,JSON.stringify(v)), arr:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'[]'), push:(k,v)=>{const a=JSON.parse(localStorage.getItem('isc_l_'+k)||'[]');a.push(v);localStorage.setItem('isc_l_'+k,JSON.stringify(a));} };
+
+function seedLocal() {
+  // Always ensure admin exists regardless of seeded flag
+  if (!LDB.arr('admins').length) {
+    LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
+  }
+  if (LDB.get('seeded')) return;
+  LDB.set('iscs',[]); LDB.set('entries',[]); LDB.set('sts',[]); LDB.set('bdos',[]); LDB.set('seeded',true);
+}
+seedLocal();
+
+// ══════════════════════════════════════════════
+//  DATA LAYER — Google Sheets
+// ══════════════════════════════════════════════
+async function DATA_getASMs() { return isConfigured() ? await sheetsGet('ASMs') : LDB.arr('asms'); }
+async function DATA_getISCs() { return isConfigured() ? await sheetsGet('Users') : LDB.arr('iscs'); }
+async function DATA_getEntries() { return isConfigured() ? await sheetsGet('Entries') : LDB.arr('entries'); }
+async function DATA_getSTs() { return isConfigured() ? await sheetsGet('STs') : LDB.arr('sts'); }
+async function DATA_getBDOs() { return isConfigured() ? await sheetsGet('BDOs') : LDB.arr('bdos'); }
+async function DATA_addISC(isc) {
+  if (isConfigured()) { await sheetsAppend('Users',isc); } else { LDB.push('iscs',isc); }
+  // Cache locally
+  const arr=LDB.arr('iscs'); if(!arr.find(x=>x.id===isc.id)){arr.push(isc);LDB.set('iscs',arr);}
+}
+async function DATA_updateISC(id,updates) {
+  if (isConfigured()) await sheetsUpdate('Users','id',id,updates);
+  const a=LDB.arr('iscs');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('iscs',a);}
+}
+async function DATA_addEntry(e) {
+  if (isConfigured()) { await sheetsAppend('Entries',e); } else { LDB.push('entries',e); }
+  const arr=LDB.arr('entries'); if(!arr.find(x=>x.id===e.id)){arr.push(e);LDB.set('entries',arr);}
+}
+async function DATA_updateEntry(id,updates) {
+  if (isConfigured()) await sheetsUpdate('Entries','id',id,updates);
+  const a=LDB.arr('entries');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('entries',a);}
+}
+async function DATA_addASM(asm) {
+  if (isConfigured()) await sheetsAppend('ASMs',asm);
+  const arr=LDB.arr('asms'); if(!arr.find(x=>x.id===asm.id)){arr.push(asm);LDB.set('asms',arr);}
+}
+async function DATA_addST(st) {
+  if (isConfigured()) await sheetsAppend('STs',st);
+  const arr=LDB.arr('sts'); arr.push(st); LDB.set('sts',arr);
+}
+async function DATA_addBDO(bdo) {
+  if (isConfigured()) await sheetsAppend('BDOs',bdo);
+  const arr=LDB.arr('bdos'); arr.push(bdo); LDB.set('bdos',arr);
+}
+
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+let currentUser = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+async function doLogin() {
+  const u=gv('login-username').trim(), p=gv('login-password').trim();
+  if (!u||!p) return showAlert('alert-login','Please enter username and password.','error');
+  setLoading(true,'Signing in...');
+  try {
+    // Check local cache first (instant, works offline)
+    const localIscs = LDB.arr('iscs');
+    const li = localIscs.find(i=>i.username===u&&i.password===p);
+    if (li) {
+      if (String(li.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
+      currentUser={...li, role:'isc', dealerCodes:String(li.dealerCodes||'')}; launchApp(); return;
+    }
+    // Try Google Sheets — no popup needed, just API key read
+    if (isConfigured()) {
+      setLoading(true,'Checking credentials...');
+      const iscs = await DATA_getISCs();
+      const isc = iscs.find(i=>i.username===u&&i.password===p);
+      if (isc) {
+        if (String(isc.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Contact your ASM.','error'); return; }
+        currentUser = { ...isc, role:'isc',
+          dealerCodes:String(isc.dealerCodes||''), region:String(isc.region||''),
+          stName:String(isc.stName||''), bdoName:String(isc.bdoName||''),
+          asmId:String(isc.asmId||''), asmName:String(isc.asmName||''),
+          asmEmail:String(isc.asmEmail||''), asmPhone:String(isc.asmPhone||''),
+        };
+        const arr=LDB.arr('iscs'); const cidx=arr.findIndex(x=>x.id===isc.id);
+        if(cidx>-1) arr[cidx]={...currentUser}; else arr.push({...currentUser});
+        LDB.set('iscs',arr);
+        launchApp(); return;
+      }
+    }
+    showAlert('alert-login','Invalid username or password. Contact your ASM if you are new.','error');
+  } catch(e) { showAlert('alert-login','Error: '+e.message,'error'); console.error(e); }
+  finally { setLoading(false); }
+}
+
+async function doASMLogin() {
+  const u=gv('asm-login-user').trim(), p=gv('asm-login-pass').trim();
+  if (!u||!p) return showAlert('alert-asm-login','Please enter credentials.','error');
+  setLoading(true,'Signing in...');
+  try {
+    // Check local cache
+    const localAsms = LDB.arr('asms');
+    const la = localAsms.find(a=>a.username===u&&a.password===p);
+    if (la) { currentUser={...la,role:'asm'}; launchApp(); return; }
+    // Google Sheets — read only, no popup needed
+    if (isConfigured()) {
+      const asms = await DATA_getASMs();
+      const asm = asms.find(a=>a.username===u&&a.password===p);
+      if (asm) {
+        const arr=LDB.arr('asms'); const idx=arr.findIndex(x=>x.id===asm.id);
+        if(idx>-1) arr[idx]={...asm}; else arr.push({...asm});
+        LDB.set('asms',arr);
+        currentUser={...asm,role:'asm'}; launchApp(); return;
+      }
+    }
+    showAlert('alert-asm-login','Invalid ASM credentials.','error');
+  } catch(e) { showAlert('alert-asm-login','Error: '+e.message,'error'); console.error(e); }
+  finally { setLoading(false); }
+}
+
+async function doAdminLogin() {
+  const u=gv('admin-login-user').trim(), p=gv('admin-login-pass').trim();
+  if (!u||!p) return showAlert('alert-admin-login','Please enter credentials.','error');
+  setLoading(true,'Signing in...');
+  try {
+    let admins = LDB.arr('admins');
+    if (!admins.length) {
+      LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
+      admins = LDB.arr('admins');
+    }
+    const admin = admins.find(a=>a.username===u&&a.password===p);
+    if (admin) { currentUser={...admin}; launchApp(); return; }
+    showAlert('alert-admin-login','Invalid credentials. Default: admin / admin123','error');
+  } catch(e) { showAlert('alert-admin-login','Error: '+e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+function doSignOut() {
+  currentUser=null;
+  showScreen('screen-login');
+  sv('login-username',''); sv('login-password','');
+  sv('asm-login-user',''); sv('asm-login-pass','');
+  sv('admin-login-user',''); sv('admin-login-pass','');
+}
+
+// ══════════════════════════════════════════════
+//  APP LAUNCH
+// ══════════════════════════════════════════════
+function launchApp() {
+  showScreen('screen-app');
+  document.getElementById('header-user-badge').textContent = currentUser.name||currentUser.username;
+  buildNav();
+  if (currentUser.role==='isc') { showTab('mysites'); document.getElementById('fab-btn').style.display='flex'; }
+  else if (currentUser.role==='asm') { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
+  else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
+}
+
+function buildNav() {
+  const nav = document.getElementById('bottom-nav');
+  if (currentUser.role==='isc') {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else if (currentUser.role==='asm') {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+  }
+}
+
+function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active'); showTab(tab); }
+
+function showTab(tab) {
+  ['tab-mysites','tab-allsites','tab-myiscs','tab-profile','tab-admin'].forEach(t=>document.getElementById(t).style.display='none');
+  document.getElementById('tab-'+tab).style.display='block';
+  if (tab==='mysites') renderMyEntries();
+  if (tab==='allsites') renderAllEntries();
+  if (tab==='myiscs') renderMyISCs();
+  if (tab==='profile') renderProfile();
+  if (tab==='admin') renderAdminPanel();
+}
+
+// ══════════════════════════════════════════════
+//  ENTRIES
+// ══════════════════════════════════════════════
+let _myEntriesCache=[], _allEntriesCache=[];
+
+async function renderMyEntries(filter='all') {
+  setLoading(true,'Loading...');
+  try {
+    const all = await DATA_getEntries();
+    _myEntriesCache = all.filter(e=>e.iscId===currentUser.id);
+    document.getElementById('stat-total').textContent=_myEntriesCache.length;
+    document.getElementById('stat-confirmed').textContent=_myEntriesCache.filter(e=>e.status==='Confirmed').length;
+    document.getElementById('stat-pending').textContent=_myEntriesCache.filter(e=>e.status==='Pending').length;
+    document.getElementById('mysites-subtitle').textContent=`Welcome, ${currentUser.name} 👋 ${isConfigured()?'🟢':'🟡'}`;
+    const shown = filter==='all'?_myEntriesCache:_myEntriesCache.filter(e=>e.status===filter);
+    const el=document.getElementById('entries-list');
+    if (!shown.length){el.innerHTML=emptyState('🏗️','No entries yet','Tap + to log your first site visit');return;}
+    el.innerHTML=shown.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('');
+  } catch(e){showToast('⚠️ Could not load entries');}
+  finally{setLoading(false);}
+}
+
+async function renderAllEntries(filter='all') {
+  setLoading(true,'Loading...');
+  try {
+    let all = await DATA_getEntries();
+    if (currentUser.role==='asm') all=all.filter(e=>e.asmId===currentUser.id);
+    _allEntriesCache=all;
+    document.getElementById('astat-total').textContent=all.length;
+    document.getElementById('astat-confirmed').textContent=all.filter(e=>e.status==='Confirmed').length;
+    document.getElementById('astat-pending').textContent=all.filter(e=>e.status==='Pending').length;
+    document.getElementById('allsites-title').textContent=currentUser.role==='asm'?"My Team's Sites":'All ISC Sites';
+    document.getElementById('allsites-subtitle').textContent=`${currentUser.role==='asm'?currentUser.name:'All Regions'} ${isConfigured()?'🟢':'🟡'}`;
+    const shown=filter==='all'?all:all.filter(e=>e.status===filter);
+    const el=document.getElementById('all-entries-list');
+    if (!shown.length){el.innerHTML=emptyState('📋','No entries found');return;}
+    const byISC={};
+    shown.forEach(e=>{if(!byISC[e.iscId])byISC[e.iscId]={name:e.iscName,entries:[]};byISC[e.iscId].entries.push(e);});
+    el.innerHTML=Object.values(byISC).map(g=>`<div class="group-header"><div class="group-name">👤 ${g.name}</div><div class="group-count">${g.entries.length} site${g.entries.length>1?'s':''}</div></div>${g.entries.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(entryCard).join('')}`).join('');
+  } catch(e){showToast('⚠️ Could not load entries');}
+  finally{setLoading(false);}
+}
+
+function entryCard(e) {
+  const badge=e.status==='Confirmed'?`<span class="status-badge badge-confirmed">✅ Confirmed</span>`:`<span class="status-badge badge-pending">⏳ Pending</span>`;
+  return `<div class="entry-card" onclick="showDetail('${e.id}')"><div class="entry-card-top"><div><div class="entry-ref">${String(e.id).slice(-6).toUpperCase()}</div><div class="entry-name">${e.customer}</div><div class="entry-sub">📍 ${e.siteName||e.address}</div></div>${badge}</div><div class="entry-meta"><span class="meta-tag">🏗️ ${e.buildType||e.custType||'—'}</span><span class="meta-tag">🎨 ${e.paintSystem||'—'}</span><span class="meta-tag">📅 ${fmtDate(e.createdAt)}</span>${e.siteValue?`<span class="meta-tag">₹${Number(e.siteValue).toLocaleString('en-IN')}</span>`:''}</div></div>`;
+}
+
+function filterEntries(f,el){document.querySelectorAll('#tab-mysites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderMyEntries(f);}
+function filterAllEntries(f,el){document.querySelectorAll('#tab-allsites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAllEntries(f);}
+
+// ══════════════════════════════════════════════
+//  ENTRY FORM
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  SITE VISIT WIZARD
+// ══════════════════════════════════════════════
+let _wizardStep = 0;
+let _wizardProductCount = 1;
+const WIZARD_STEPS = 6;
+
+function openWizard() { document.getElementById('wizard-entry').classList.add('show'); }
+function closeWizard() { document.getElementById('wizard-entry').classList.remove('show'); }
+
+function showNewEntryModal() {
+  _wizardStep = 0;
+  _wizardProductCount = 1;
+  // Clear all fields
+  ['entry-customer','entry-custphone','entry-sitename','entry-address','entry-buildtype','entry-sitestage','entry-area','entry-paintdate','entry-competitor','entry-paintsystem','entry-sitevalue','entry-dealername','entry-contractor','entry-painter','entry-remarks','entry-sapref'].forEach(id=>sv(id,''));
+  sv('entry-custtype','');sv('entry-reftype','');sv('entry-status','Pending');
+  sv('entry-edit-id','');
+  document.getElementById('wizard-title').textContent='Log Site Visit';
+  document.getElementById('wizard-next-btn').textContent='Next →';
+  // Reset product rows
+  document.getElementById('product-rows').innerHTML=`<div class="product-row" id="pr-0"><div class="form-group" style="margin:0"><label class="form-label">Product Name</label><input type="text" class="form-input" placeholder="e.g. Vapocure 2K Epoxy" id="pname-0"></div><div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50" id="pqty-0"></div><button class="btn-remove-row" onclick="removeProductRow(0)" style="margin-top:20px">×</button></div>`;
+  sv('entry-dealercode','');
+  renderWizardStep();
+  openWizard();
+}
+
+function showEditModal(id) {
+  const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
+  if (!e) return;
+  _wizardStep = 0;
+  sv('entry-edit-id',id);
+  sv('entry-customer',e.customer);sv('entry-custphone',e.custPhone||'');
+  sv('entry-custtype',e.custType);sv('entry-reftype',e.refType);
+  sv('entry-sitename',e.siteName||'');sv('entry-address',e.address);
+  sv('entry-buildtype',e.buildType||'');sv('entry-sitestage',e.siteStage||'');
+  sv('entry-area',e.area||'');sv('entry-paintdate',e.paintDate||'');
+  sv('entry-competitor',e.competitor||'');sv('entry-paintsystem',e.paintSystem||'');
+  sv('entry-sitevalue',e.siteValue||'');sv('entry-dealercode',e.dealerCode||'');
+  sv('entry-dealername',e.dealerName||'');sv('entry-contractor',e.contractor||'');
+  sv('entry-painter',e.painter||'');sv('entry-status',e.status);
+  sv('entry-remarks',e.remarks||'');sv('entry-sapref',e.sapRef||'');
+  // Restore products
+  const products = JSON.parse(e.products||'[]');
+  document.getElementById('product-rows').innerHTML='';
+  _wizardProductCount=0;
+  if (products.length) {
+    products.forEach((p,i)=>{ _wizardProductCount++; addProductRowWithData(i,p.name,p.qty); });
+  } else { _wizardProductCount=1; addProductRowWithData(0,'',''); }
+  sv('entry-dealercode',e.dealerCode||'');
+  document.getElementById('wizard-title').textContent='Update Entry';
+  renderWizardStep();
+  closeModal('modal-detail');
+  openWizard();
+}
+
+function addProductRowWithData(idx, name, qty) {
+  const rows=document.getElementById('product-rows');
+  const div=document.createElement('div');
+  div.className='product-row'; div.id=`pr-${idx}`;
+  div.innerHTML=`<div class="form-group" style="margin:0"><label class="form-label">Product Name</label><input type="text" class="form-input" placeholder="e.g. Vapocure 2K Epoxy" id="pname-${idx}" value="${name}"></div><div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50" id="pqty-${idx}" value="${qty}"></div><button class="btn-remove-row" onclick="removeProductRow(${idx})" style="margin-top:20px">×</button>`;
+  rows.appendChild(div);
+}
+
+function addProductRow() {
+  addProductRowWithData(_wizardProductCount,'','');
+  _wizardProductCount++;
+}
+
+function removeProductRow(idx) {
+  const el=document.getElementById(`pr-${idx}`);
+  if (el && document.getElementById('product-rows').children.length > 1) el.remove();
+}
+
+function renderWizardStep() {
+  // Hide all steps
+  for(let i=0;i<WIZARD_STEPS;i++){
+    document.getElementById(`wstep-${i}`).classList.toggle('active', i===_wizardStep);
+    const dot=document.getElementById(`sd-${i}`);
+    const lbl=document.querySelector(`#si-${i} .step-label`);
+    const item=document.getElementById(`si-${i}`);
+    dot.className='step-dot'+(i<_wizardStep?' done':i===_wizardStep?' active':'');
+    dot.textContent=i<_wizardStep?'✓':(i+1);
+    if(lbl){lbl.className='step-label'+(i<_wizardStep?' done':i===_wizardStep?' active':'');}
+    if(item){item.className='step-item'+(i<_wizardStep?' done':'');}
+  }
+  // Back button
+  document.getElementById('wizard-back-btn').style.display=_wizardStep>0?'block':'none';
+  // Next/Submit button
+  const nextBtn=document.getElementById('wizard-next-btn');
+  nextBtn.textContent=_wizardStep===WIZARD_STEPS-1?'✅ Submit':'Next →';
+  // Build review on last step
+  if(_wizardStep===WIZARD_STEPS-1) buildReview();
+  // Show/hide order confirm section
+  if(_wizardStep===4){
+    document.getElementById('order-confirm-section').style.display=gv('entry-status')==='Confirmed'?'block':'none';
+    document.getElementById('entry-status').onchange=()=>{ document.getElementById('order-confirm-section').style.display=gv('entry-status')==='Confirmed'?'block':'none'; };
+  }
+}
+
+function wizardNext() {
+  if (!validateWizardStep()) return;
+  if (_wizardStep===WIZARD_STEPS-1) { saveEntry(); return; }
+  _wizardStep++;
+  renderWizardStep();
+}
+
+function wizardBack() {
+  if (_wizardStep>0) { _wizardStep--; renderWizardStep(); }
+}
+
+function validateWizardStep() {
+  if (_wizardStep===0) {
+    if (!gv('entry-customer').trim()) { showToast('⚠️ Customer name is required'); return false; }
+    if (!gv('entry-custtype')) { showToast('⚠️ Please select customer type'); return false; }
+    if (!gv('entry-reftype')) { showToast('⚠️ Please select referral type'); return false; }
+  }
+  if (_wizardStep===1) {
+    if (!gv('entry-sitename').trim()) { showToast('⚠️ Site / project name is required'); return false; }
+    if (!gv('entry-address').trim()) { showToast('⚠️ Site address is required'); return false; }
+    if (!gv('entry-buildtype')) { showToast('⚠️ Please select building type'); return false; }
+    if (!gv('entry-sitestage')) { showToast('⚠️ Please select site stage'); return false; }
+  }
+  if (_wizardStep===3) {
+    if (!gv('entry-dealercode')) { showToast('⚠️ Please select a dealer code'); return false; }
+    if (!gv('entry-dealername').trim()) { showToast('⚠️ Dealer name is required'); return false; }
+  }
+  return true;
+}
+
+function buildReview() {
+  const products=[];
+  document.querySelectorAll('#product-rows .product-row').forEach((row,i)=>{
+    const n=document.getElementById(`pname-${row.id.split('-')[1]}`)?.value||'';
+    const q=document.getElementById(`pqty-${row.id.split('-')[1]}`)?.value||'';
+    if(n) products.push({name:n,qty:q});
+  });
+  document.getElementById('review-content').innerHTML=`
+    <div class="review-section"><div class="review-section-title">👤 Customer</div>
+      <div class="review-row"><div class="review-label">Name</div><div class="review-value">${gv('entry-customer')}</div></div>
+      <div class="review-row"><div class="review-label">Type</div><div class="review-value">${gv('entry-custtype')}</div></div>
+      <div class="review-row"><div class="review-label">Referral</div><div class="review-value">${gv('entry-reftype')}</div></div>
+    </div>
+    <div class="review-section"><div class="review-section-title">🏗️ Site</div>
+      <div class="review-row"><div class="review-label">Project</div><div class="review-value">${gv('entry-sitename')}</div></div>
+      <div class="review-row"><div class="review-label">Address</div><div class="review-value">${gv('entry-address')}</div></div>
+      <div class="review-row"><div class="review-label">Building</div><div class="review-value">${gv('entry-buildtype')}</div></div>
+      <div class="review-row"><div class="review-label">Stage</div><div class="review-value">${gv('entry-sitestage')}</div></div>
+      ${gv('entry-area')?`<div class="review-row"><div class="review-label">Area</div><div class="review-value">${gv('entry-area')} sq.ft</div></div>`:''}
+    </div>
+    <div class="review-section"><div class="review-section-title">🎨 Products</div>
+      ${products.length?products.map(p=>`<div class="review-row"><div class="review-label">${p.name}</div><div class="review-value">${p.qty?p.qty+' Ltrs':''}</div></div>`).join(''):'<div class="review-row"><div class="review-label">No products added</div></div>'}
+      ${gv('entry-sitevalue')?`<div class="review-row"><div class="review-label">Est. Site Value</div><div class="review-value">₹${Number(gv('entry-sitevalue')).toLocaleString('en-IN')}</div></div>`:''}
+    </div>
+    <div class="review-section"><div class="review-section-title">🏪 Dealer</div>
+      <div class="review-row"><div class="review-label">Dealer Code</div><div class="review-value">${gv('entry-dealercode')}</div></div>
+      <div class="review-row"><div class="review-label">Dealer Name</div><div class="review-value">${gv('entry-dealername')}</div></div>
+      ${gv('entry-contractor')?`<div class="review-row"><div class="review-label">Contractor</div><div class="review-value">${gv('entry-contractor')}</div></div>`:''}
+    </div>
+    <div class="review-section"><div class="review-section-title">📦 Status</div>
+      <div class="review-row"><div class="review-label">Status</div><div class="review-value" style="color:${gv('entry-status')==='Confirmed'?'#065f46':'#92400e'}">${gv('entry-status')==='Confirmed'?'✅ Confirmed':'⏳ Pending'}</div></div>
+      ${gv('entry-remarks')?`<div class="review-row"><div class="review-label">Remarks</div><div class="review-value">${gv('entry-remarks')}</div></div>`:''}
+    </div>`;
+}
+
+async function saveEntry() {
+  const products=[];
+  document.querySelectorAll('#product-rows .product-row').forEach(row=>{
+    const idx=row.id.split('-')[1];
+    const n=document.getElementById(`pname-${idx}`)?.value||'';
+    const q=document.getElementById(`pqty-${idx}`)?.value||'';
+    if(n) products.push({name:n,qty:q});
+  });
+  const editId=gv('entry-edit-id');
+  setLoading(true,'Saving...');
+  try {
+    const entryData = {
+      customer:gv('entry-customer').trim(), custPhone:gv('entry-custphone').trim(),
+      custType:gv('entry-custtype'), refType:gv('entry-reftype'),
+      siteName:gv('entry-sitename').trim(), address:gv('entry-address').trim(),
+      buildType:gv('entry-buildtype'), siteStage:gv('entry-sitestage'),
+      area:gv('entry-area'), paintDate:gv('entry-paintdate'),
+      competitor:gv('entry-competitor').trim(), paintSystem:gv('entry-paintsystem'),
+      products:JSON.stringify(products), siteValue:gv('entry-sitevalue'),
+      dealerCode:gv('entry-dealercode'), dealerName:gv('entry-dealername').trim(),
+      contractor:gv('entry-contractor').trim(), painter:gv('entry-painter').trim(),
+      status:gv('entry-status'), remarks:gv('entry-remarks').trim(),
+      sapRef:gv('entry-sapref').trim()
+    };
+    if (editId) {
+      await DATA_updateEntry(editId,{...entryData, updatedAt:new Date().toISOString()});
+      showToast('✅ Entry updated!');
+    } else {
+      await DATA_addEntry({id:'E'+Date.now(), iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, createdAt:new Date().toISOString()});
+      showToast('✅ Site entry saved!');
+    }
+    closeWizard();
+    renderMyEntries();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+function showDetail(id) {
+  const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
+  if (!e) return;
+  const c=e.status==='Confirmed';
+  const products=JSON.parse(e.products||'[]');
+  document.getElementById('modal-detail-body').innerHTML=`
+    <div class="detail-row"><div class="detail-label">Ref #</div><div class="detail-value" style="color:var(--red);font-family:'Rajdhani',sans-serif">${String(e.id).slice(-6).toUpperCase()}</div></div>
+    <div class="detail-row"><div class="detail-label">Customer</div><div class="detail-value">${e.customer}</div></div>
+    ${e.custPhone?`<div class="detail-row"><div class="detail-label">Phone</div><div class="detail-value">${e.custPhone}</div></div>`:''}
+    <div class="detail-row"><div class="detail-label">Customer Type</div><div class="detail-value">${e.custType}</div></div>
+    <div class="detail-row"><div class="detail-label">Referral</div><div class="detail-value">${e.refType}</div></div>
+    <div class="detail-row"><div class="detail-label">Project Name</div><div class="detail-value">${e.siteName||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Address</div><div class="detail-value">${e.address}</div></div>
+    <div class="detail-row"><div class="detail-label">Building Type</div><div class="detail-value">${e.buildType||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Site Stage</div><div class="detail-value">${e.siteStage||'—'}</div></div>
+    ${e.area?`<div class="detail-row"><div class="detail-label">Area</div><div class="detail-value">${e.area} sq.ft</div></div>`:''}
+    <div class="detail-row"><div class="detail-label">Paint System</div><div class="detail-value">${e.paintSystem||'—'}</div></div>
+    ${products.length?`<div class="detail-row"><div class="detail-label">Products</div><div class="detail-value">${products.map(p=>`${p.name}${p.qty?' ('+p.qty+'L)':''}`).join(', ')}</div></div>`:''}
+    ${e.siteValue?`<div class="detail-row"><div class="detail-label">Est. Value</div><div class="detail-value">₹${Number(e.siteValue).toLocaleString('en-IN')}</div></div>`:''}
+    <div class="detail-row"><div class="detail-label">Dealer Code</div><div class="detail-value">${e.dealerCode||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Dealer Name</div><div class="detail-value">${e.dealerName||'—'}</div></div>
+    ${e.contractor?`<div class="detail-row"><div class="detail-label">Contractor</div><div class="detail-value">${e.contractor}</div></div>`:''}
+    ${e.painter?`<div class="detail-row"><div class="detail-label">Painter</div><div class="detail-value">${e.painter}</div></div>`:''}
+    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${c?'✅ Confirmed':'⏳ Pending'}</div></div>
+    <div class="detail-row"><div class="detail-label">ISC</div><div class="detail-value">${e.iscName}</div></div>
+    <div class="detail-row"><div class="detail-label">ASM · Region</div><div class="detail-value">${e.asmName||'—'} · ${e.region||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
+    ${e.remarks?`<div class="detail-row"><div class="detail-label">Remarks</div><div class="detail-value">${e.remarks}</div></div>`:''}
+    ${e.sapRef?`<div class="detail-row"><div class="detail-label">SAP Ref #</div><div class="detail-value">${e.sapRef}</div></div>`:''}`;
+  document.getElementById('modal-detail-actions').innerHTML=currentUser.role==='isc'?`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`:`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
+  openModal('modal-detail');
+}
+// ══════════════════════════════════════════════
+//  MY ISCs (ASM TAB)
+// ══════════════════════════════════════════════
+let _iscCache = [];
+
+async function renderMyISCs() {
+  setLoading(true,'Loading ISCs...');
+  try {
+    const all = await DATA_getISCs();
+    _iscCache = all.filter(i=>i.asmId===currentUser.id);
+    const active=_iscCache.filter(i=>i.status!=='Inactive').length;
+    const inactive=_iscCache.filter(i=>i.status==='Inactive').length;
+    document.getElementById('isc-stat-total').textContent=_iscCache.length;
+    document.getElementById('isc-stat-active').textContent=active;
+    document.getElementById('isc-stat-inactive').textContent=inactive;
+    document.getElementById('myiscs-subtitle').textContent=`${currentUser.name}'s ISC team`;
+    const el=document.getElementById('isc-list');
+    if (!_iscCache.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No ISCs yet</div><div class="empty-sub">Tap + to create your first ISC account</div></div><button class="btn-primary" onclick="showCreateISCModal()" style="margin-top:16px">+ Create ISC Account</button>`;return;}
+    el.innerHTML=`<button class="btn-primary" onclick="showCreateISCModal()" style="margin-bottom:16px">+ Create ISC Account</button>`+_iscCache.map(iscCard).join('');
+  } catch(e){showToast('⚠️ Could not load ISCs');}
+  finally{setLoading(false);}
+}
+
+function iscCard(isc) {
+  const isActive=isc.status!=='Inactive';
+  const badge=isActive?`<span class="status-badge badge-active">● Active</span>`:`<span class="status-badge badge-inactive">● Inactive</span>`;
+  const codes=(isc.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean);
+  return `<div class="entry-card" style="cursor:default">
+    <div class="entry-card-top">
+      <div><div class="entry-name">${isc.name}</div><div class="entry-sub">📞 ${isc.phone} · 📧 ${isc.email}</div><div class="entry-sub" style="margin-top:4px">👤 @${isc.username} · 🗺️ ${isc.region||'—'}</div></div>
+      ${badge}
+    </div>
+    <div class="entry-meta">
+      <span class="meta-tag">🧑‍💼 ST: ${isc.stName||'—'}</span>
+      <span class="meta-tag">📈 BDO: ${isc.bdoName||'—'}</span>
+    </div>
+    ${codes.length?`<div class="dealer-tags" style="margin-top:8px">${codes.map(c=>`<span class="dealer-tag">🏪 ${c}</span>`).join('')}</div>`:''}
+    <div class="isc-actions">
+      <button class="btn-sm btn-blue" onclick="showEditISCModal('${isc.id}')">✏️ Edit</button>
+      <button class="btn-sm ${isActive?'btn-red':'btn-green'}" onclick="toggleISCStatus('${isc.id}','${isActive?'Inactive':'Active'}')">${isActive?'🔴 Deactivate':'🟢 Activate'}</button>
+    </div>
+  </div>`;
+}
+
+async function showCreateISCModal() {
+  sv('isc-edit-id','');sv('isc-name','');sv('isc-phone','');sv('isc-email','');sv('isc-username','');sv('isc-password','');sv('isc-st','');sv('isc-bdo','');sv('isc-region','');sv('isc-dealer-codes','');
+  document.getElementById('isc-dealer-tags').innerHTML='';
+  document.getElementById('modal-isc-title').textContent='Create ISC Account';
+  await populateSTBDODropdowns();
+  openModal('modal-isc');
+}
+
+async function showEditISCModal(id) {
+  const isc=_iscCache.find(i=>i.id===id);
+  if (!isc) return;
+  sv('isc-edit-id',id);sv('isc-name',isc.name);sv('isc-phone',isc.phone);sv('isc-email',isc.email);sv('isc-username',isc.username);sv('isc-password',isc.password);sv('isc-region',isc.region||'');sv('isc-dealer-codes',isc.dealerCodes||'');
+  document.getElementById('modal-isc-title').textContent='Edit ISC Account';
+  await populateSTBDODropdowns();
+  sv('isc-st',isc.stId||'');sv('isc-bdo',isc.bdoId||'');
+  // Show dealer tags
+  const tags=document.getElementById('isc-dealer-tags');
+  tags.innerHTML='';
+  (isc.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean).forEach(c=>addTagToUI(c));
+  openModal('modal-isc');
+}
+
+async function populateSTBDODropdowns() {
+  const sts=await DATA_getSTs(), bdos=await DATA_getBDOs();
+  document.getElementById('isc-st').innerHTML='<option value="">— Select ST —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('isc-bdo').innerHTML='<option value="">— Select BDO —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+}
+
+function addTagToUI(code) {
+  const tags=document.getElementById('isc-dealer-tags');
+  const tag=document.createElement('span');
+  tag.className='dealer-tag';
+  tag.innerHTML=`🏪 ${code} <span class="dealer-tag-remove" onclick="removeDealerTag(this,'${code}')">×</span>`;
+  tags.appendChild(tag);
+  updateDealerCodesHidden();
+}
+
+function addDealerCode() {
+  const input=document.getElementById('isc-dealer-input');
+  const code=input.value.trim();
+  if (!code) return;
+  const existing=gv('isc-dealer-codes').split(',').map(c=>c.trim()).filter(Boolean);
+  if (existing.includes(code)) { showToast('⚠️ Dealer code already added'); return; }
+  addTagToUI(code);
+  input.value='';
+}
+
+function removeDealerTag(el,code) {
+  el.parentElement.remove();
+  updateDealerCodesHidden();
+}
+
+function updateDealerCodesHidden() {
+  const tags=document.getElementById('isc-dealer-tags');
+  const codes=[...tags.querySelectorAll('.dealer-tag')].map(t=>t.textContent.replace('×','').replace('🏪','').trim());
+  document.getElementById('isc-dealer-codes').value=codes.join(',');
+}
+
+async function saveISC() {
+  const name=gv('isc-name').trim(),phone=gv('isc-phone').trim(),email=gv('isc-email').trim(),username=gv('isc-username').trim(),password=gv('isc-password').trim(),stId=gv('isc-st'),bdoId=gv('isc-bdo'),region=gv('isc-region'),dealerCodes=gv('isc-dealer-codes').trim();
+  if (!name||!phone||!email||!username||!password||!stId||!bdoId||!region) return showToast('⚠️ All fields are required');
+  setLoading(true,'Saving ISC account...');
+  try {
+    const sts=await DATA_getSTs(),bdos=await DATA_getBDOs();
+    const st=sts.find(s=>s.id===stId),bdo=bdos.find(b=>b.id===bdoId);
+    const editId=gv('isc-edit-id');
+    if (editId) {
+      await DATA_updateISC(editId,{name,phone,email,username,password,stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes});
+      showToast('✅ ISC account updated!');
+    } else {
+      const iscs=await DATA_getISCs();
+      if (iscs.find(i=>i.username===username)){showToast('⚠️ Username already taken');return;}
+      await DATA_addISC({id:'isc_'+Date.now(),name,phone,email,asmId:currentUser.id,asmName:currentUser.name,asmEmail:currentUser.email||'',asmPhone:currentUser.phone||'',stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes,username,password,role:'isc',status:'Active',createdAt:new Date().toISOString()});
+      showToast('✅ ISC account created!');
+    }
+    closeModal('modal-isc');renderMyISCs();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+async function toggleISCStatus(id,newStatus) {
+  setLoading(true,`${newStatus==='Inactive'?'Deactivating':'Activating'} ISC...`);
+  try {
+    await DATA_updateISC(id,{status:newStatus});
+    showToast(`✅ ISC ${newStatus==='Inactive'?'deactivated':'activated'}!`);
+    renderMyISCs();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+// ══════════════════════════════════════════════
+//  PROFILE
+// ══════════════════════════════════════════════
+function renderProfile() {
+  const u=currentUser;
+  const initials=(u.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('profile-card-content').innerHTML=`<div class="profile-avatar">${initials}</div><div class="profile-name">${u.name||u.username}</div><div class="profile-role">${u.role==='isc'?'Independent Sales Consultant':u.role==='asm'?'Area Sales Manager':'System Admin'}</div>${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''} ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}<div class="profile-row">👤 @${u.username}</div><div class="profile-row" style="margin-top:8px;font-size:11px;opacity:.6">${isConfigured()?'🟢 Google Sheets Connected':'🟡 Demo Mode'}</div>`;
+  document.getElementById('asm-profile-section').style.display=u.role==='isc'?'block':'none';
+  document.getElementById('isc-details-section').style.display=u.role==='isc'?'block':'none';
+  if (u.role==='isc') {
+    document.getElementById('asm-profile-content').innerHTML=`<div class="detail-row"><div class="detail-label">ASM Name</div><div class="detail-value">${u.asmName||'—'}</div></div><div class="detail-row"><div class="detail-label">ASM Email</div><div class="detail-value">${u.asmEmail||'—'}</div></div><div class="detail-row"><div class="detail-label">ASM Phone</div><div class="detail-value">${u.asmPhone||'—'}</div></div>`;
+    const codes=(u.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean);
+    document.getElementById('isc-details-content').innerHTML=`<div class="detail-row"><div class="detail-label">ST</div><div class="detail-value">${u.stName||'—'}</div></div><div class="detail-row"><div class="detail-label">BDO</div><div class="detail-value">${u.bdoName||'—'}</div></div><div class="detail-row"><div class="detail-label">Region</div><div class="detail-value">${u.region||'—'}</div></div><div class="detail-row"><div class="detail-label">Dealer Codes</div><div class="detail-value">${codes.join(', ')||'—'}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  ADMIN
+// ══════════════════════════════════════════════
+function renderAdminPanel() {
+  const cfg=getConfig();
+  if (cfg.sheetId) sv('cfg-sheetid',cfg.sheetId);
+  if (cfg.apiKey) sv('cfg-apikey',cfg.apiKey);
+  if (cfg.clientId) sv('cfg-gclientid',cfg.clientId||'');
+  renderAsmList(); renderAdminISCList(); renderSTList(); renderBDOList();
+}
+
+function toggleSection(id) {
+  const body = document.getElementById('body-'+id);
+  const btn = document.getElementById('toggle-'+id);
+  const isCollapsed = body.classList.contains('collapsed');
+  if (isCollapsed) {
+    body.classList.remove('collapsed');
+    body.style.maxHeight = '3000px';
+    btn.classList.add('open');
+    // Load data when expanding
+    if (id==='iscs') renderAdminISCList();
+    if (id==='sts') renderSTList();
+    if (id==='bdos') renderBDOList();
+  } else {
+    body.classList.add('collapsed');
+    body.style.maxHeight = '0';
+    btn.classList.remove('open');
+  }
+}
+
+// Admin ISC management
+let _adminISCCache = [];
+
+async function renderAdminISCList(filter='all') {
+  const el = document.getElementById('admin-isc-list');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading ISCs...</div>`;
+  try {
+    const all = await DATA_getISCs();
+    _adminISCCache = all;
+    const countEl = document.getElementById('isc-count');
+    if (countEl) countEl.textContent = `(${all.length} total)`;
+    renderAdminISCListFiltered(filter);
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">Could not load ISCs: ${e.message}</div>`; }
+}
+
+function renderAdminISCListFiltered(filter='all') {
+  const el = document.getElementById('admin-isc-list');
+  if (!el) return;
+  const search = (document.getElementById('isc-search')?.value||'').toLowerCase();
+  let list = _adminISCCache;
+  if (filter !== 'all') list = list.filter(i=>String(i.status||'Active')===filter);
+  if (search) list = list.filter(i=>
+    (i.name||'').toLowerCase().includes(search) ||
+    String(i.username||'').includes(search) ||
+    (i.region||'').toLowerCase().includes(search) ||
+    (i.location||'').toLowerCase().includes(search)
+  );
+  if (!list.length) { el.innerHTML = emptyState('👤','No ISCs found'); return; }
+  el.innerHTML = list.map(isc => {
+    const isActive = String(isc.status||'Active') !== 'Inactive';
+    return `<div class="entry-card" style="cursor:default">
+      <div class="entry-card-top">
+        <div>
+          <div class="entry-name">${isc.name}</div>
+          <div class="entry-sub">👤 @${isc.username} · 🗺️ ${isc.region||'—'} · 📍 ${isc.location||'—'}</div>
+          ${isc.phone?`<div class="entry-sub">📞 ${isc.phone}</div>`:''}
+          ${isc.asmName?`<div class="entry-sub">ASM: ${isc.asmName}</div>`:''}
+        </div>
+        <span class="status-badge ${isActive?'badge-active':'badge-inactive'}">${isActive?'● Active':'● Inactive'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterAdminISCs(filter, el) {
+  document.querySelectorAll('#body-iscs .filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderAdminISCListFiltered(filter);
+}
+
+function searchAdminISCs() {
+  const activeFilter = document.querySelector('#body-iscs .filter-btn.active')?.textContent||'all';
+  renderAdminISCListFiltered(activeFilter==='All'?'all':activeFilter);
+}
+
+
+
+async function testConnection() {
+  const cfg=getConfig(), el=document.getElementById('od-status-msg');
+  if (!cfg.sheetId||!cfg.apiKey) {
+    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ Fill in Sheet ID and API Key first.</div>`;
+    return;
+  }
+  el.innerHTML=`<div class="od-status pending"><span class="od-dot" style="background:#3b82f6"></span>⏳ Testing connection...</div>`;
+  try {
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/ASMs?key=${cfg.apiKey}`;
+    const resp=await fetch(url);
+    if (!resp.ok) { const e=await resp.json(); throw new Error(e.error?.message||resp.status); }
+    const data=await resp.json();
+    const rowCount = (data.values?.length||1)-1;
+    el.innerHTML=`<div class="od-status connected"><span class="od-dot" style="background:var(--success)"></span>✅ Connected! Google Sheet found. ASMs sheet has <strong>${rowCount}</strong> records.</div>`;
+  } catch(e) {
+    el.innerHTML=`<div class="od-status disconnected"><span class="od-dot" style="background:#ef4444"></span>❌ ${e.message}. Check Sheet ID and API Key.</div>`;
+  }
+}
+
+async function renderAsmList() {
+  const el=document.getElementById('asm-list');
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const asms=await DATA_getASMs();
+    const countEl=document.getElementById('asm-count');
+    if(countEl) countEl.textContent=`(${asms.length} total)`;
+    if (!asms.length){el.innerHTML=emptyState('👥','No ASMs yet');return;}
+    el.innerHTML=asms.map(a=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${a.name}</div><div class="entry-sub">📧 ${a.email} · 📞 ${a.phone}</div><div class="entry-sub" style="margin-top:4px">👤 @${a.username}</div></div>`).join('');
+  } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
+}
+
+async function renderSTList() {
+  const el=document.getElementById('st-list');
+  if(!el) return;
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const sts=await DATA_getSTs();
+    const countEl=document.getElementById('st-count');
+    if(countEl) countEl.textContent=`(${sts.length} total)`;
+    if (!sts.length){el.innerHTML=emptyState('🧑‍💼','No STs yet','Click + Add ST to add');return;}
+    el.innerHTML=sts.map(s=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${s.name}</div><div class="entry-sub">${s.email?'📧 '+s.email+' · ':''}${s.phone?'📞 '+s.phone:''}</div></div>`).join('');
+  } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
+}
+
+async function renderBDOList() {
+  const el=document.getElementById('bdo-list');
+  if(!el) return;
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const bdos=await DATA_getBDOs();
+    const countEl=document.getElementById('bdo-count');
+    if(countEl) countEl.textContent=`(${bdos.length} total)`;
+    if (!bdos.length){el.innerHTML=emptyState('📈','No BDOs yet','Click + Add BDO to add');return;}
+    el.innerHTML=bdos.map(b=>`<div class="entry-card" style="cursor:default"><div class="entry-name">${b.name}</div><div class="entry-sub">${b.email?'📧 '+b.email+' · ':''}${b.phone?'📞 '+b.phone:''}</div></div>`).join('');
+  } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
+}
+
+async function saveAsm() {
+  const name=gv('asm-name').trim(),email=gv('asm-email').trim(),phone=gv('asm-phone').trim(),username=gv('asm-username').trim(),password=gv('asm-password').trim();
+  if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
+  setLoading(true,'Saving ASM...');
+  try {
+    const asms=await DATA_getASMs();
+    if (asms.find(a=>a.username===username)){showToast('⚠️ Username already taken');return;}
+    await DATA_addASM({id:'asm'+Date.now(),name,email,phone,username,password});
+    showToast('✅ ASM added!');closeModal('modal-asm');renderAsmList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+async function saveST() {
+  const name=gv('st-name').trim(),email=gv('st-email').trim(),phone=gv('st-phone').trim();
+  if (!name) return showToast('⚠️ Name required');
+  setLoading(true,'Setting up STs sheet...');
+  try {
+    setLoading(true,'Saving ST...');
+    await DATA_addST({id:'st'+Date.now(),name,email,phone});
+    showToast('✅ ST added!');closeModal('modal-st');renderSTList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+async function saveBDO() {
+  const name=gv('bdo-name').trim(),email=gv('bdo-email').trim(),phone=gv('bdo-phone').trim();
+  if (!name) return showToast('⚠️ Name required');
+  setLoading(true,'Setting up BDOs sheet...');
+  try {
+    setLoading(true,'Saving BDO...');
+    await DATA_addBDO({id:'bdo'+Date.now(),name,email,phone});
+    showToast('✅ BDO added!');closeModal('modal-bdo');renderBDOList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
+}
+
+// ══════════════════════════════════════════════
+//  EXCEL EXPORT
+// ══════════════════════════════════════════════
+function exportToExcel(rows, filename) {
+  // Build CSV content (opens in Excel)
+  const csv = rows.map(row =>
+    row.map(cell => {
+      const val = String(cell ?? '').replace(/"/g, '""');
+      return val.includes(',') || val.includes('"') || val.includes('\n') ? `"${val}"` : val;
+    }).join(',')
+  ).join('\n');
+
+  // Add BOM for Excel to read UTF-8 correctly (Indian names etc.)
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Excel file downloaded!');
+}
+
+function exportEntries(scope) {
+  const entries = scope === 'my' ? _myEntriesCache : _allEntriesCache;
+  if (!entries.length) { showToast('⚠️ No data to export'); return; }
+
+  const headers = [
+    'Ref #', 'Date', 'ISC Name', 'ASM Name', 'Region', 'ST', 'BDO',
+    'Customer Name', 'Customer Phone', 'Customer Type', 'Referral Type',
+    'Project Name', 'Site Address', 'Building Type', 'Site Stage',
+    'Area (sq.ft)', 'Expected Paint Date', 'Competitor Brand',
+    'Paint System', 'Products', 'Est. Site Value (₹)',
+    'Dealer Code', 'Dealer Name', 'Contractor', 'Painter',
+    'Status', 'Remarks', 'SAP Ref #', 'Last Updated'
+  ];
+
+  const dataRows = entries.map(e => {
+    const products = JSON.parse(e.products || '[]').map(p => `${p.name}${p.qty ? ' (' + p.qty + 'L)' : ''}`).join('; ');
+    return [
+      String(e.id).slice(-6).toUpperCase(),
+      fmtDate(e.createdAt),
+      e.iscName || '',
+      e.asmName || '',
+      e.region || '',
+      e.stName || '',
+      e.bdoName || '',
+      e.customer || '',
+      e.custPhone || '',
+      e.custType || '',
+      e.refType || '',
+      e.siteName || '',
+      e.address || '',
+      e.buildType || '',
+      e.siteStage || '',
+      e.area || '',
+      e.paintDate || '',
+      e.competitor || '',
+      e.paintSystem || '',
+      products,
+      e.siteValue || '',
+      e.dealerCode || '',
+      e.dealerName || '',
+      e.contractor || '',
+      e.painter || '',
+      e.status || '',
+      e.remarks || '',
+      e.sapRef || '',
+      e.updatedAt ? fmtDate(e.updatedAt) : ''
+    ];
+  });
+
+  const today = new Date().toISOString().slice(0,10);
+  const prefix = scope === 'my' ? `ISC_${currentUser.name.replace(/ /g,'_')}` : currentUser.role === 'asm' ? `ASM_${currentUser.name.replace(/ /g,'_')}` : 'Admin_AllSites';
+  exportToExcel([headers, ...dataRows], `MRF_ISC_SiteTracker_${prefix}_${today}.csv`);
+}
+
+function exportISCs() {
+  if (!_iscCache.length) { showToast('⚠️ No ISC data to export'); return; }
+
+  const headers = [
+    'Name', 'Phone', 'Email', 'Username', 'Status',
+    'Region', 'ASM Name', 'ST Name', 'BDO Name',
+    'Dealer Codes', 'Created Date'
+  ];
+
+  const dataRows = _iscCache.map(i => [
+    i.name || '',
+    i.phone || '',
+    i.email || '',
+    i.username || '',
+    i.status || 'Active',
+    i.region || '',
+    i.asmName || '',
+    i.stName || '',
+    i.bdoName || '',
+    i.dealerCodes || '',
+    fmtDate(i.createdAt)
+  ]);
+
+  const today = new Date().toISOString().slice(0,10);
+  exportToExcel([headers, ...dataRows], `MRF_ISC_TeamList_${currentUser.name.replace(/ /g,'_')}_${today}.csv`);
+}
+
+
+function gv(id){return document.getElementById(id)?.value??'';}
+function sv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}
+function emptyState(icon,text,sub=''){return`<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-text">${text}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`;}
+function setLoading(show,msg='Loading...'){document.getElementById('loading-overlay').classList.toggle('show',show);document.getElementById('loading-text').textContent=msg;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+function showAlert(id,msg,type){const el=document.getElementById(id);if(!el)return;el.innerHTML=`<div class="alert alert-${type==='info'?'info':type==='success'?'success':'error'}">${msg}</div>`;if(type!=='info')setTimeout(()=>el.innerHTML='',5000);}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
+document.getElementById('isc-dealer-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addDealerCode();}});
+
+// Brace balance check
+const _braceCheck = (() => { const s = document.querySelector('script').textContent; const o=s.split('{').length-1, c=s.split('}').length-1; console.log(`Braces: ${o} open, ${c} close, diff: ${o-c}`); })();
+</script>
+</body>
+</html>
