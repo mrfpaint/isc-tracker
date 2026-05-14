@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BDO Bulk Upload — MRF ISC Tracker</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f8f9fc;padding:24px;color:#1f2937;}
+  .card{background:white;border-radius:16px;padding:28px;max-width:650px;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+  h2{color:#C8102E;margin-bottom:4px;}
+  .sub{color:#6b7280;font-size:13px;margin-bottom:24px;}
+  .form-group{margin-bottom:16px;}
+  label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;color:#374151;margin-bottom:6px;}
+  input{width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box;}
+  .btn{width:100%;padding:12px;background:#C8102E;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;}
+  .btn:disabled{opacity:.6;cursor:not-allowed;}
+  .btn-outline{background:white;color:#C8102E;border:1.5px solid #C8102E;}
+  #log{margin-top:20px;background:#1a1a2e;border-radius:10px;padding:16px;color:#a3e635;font-family:monospace;font-size:12px;max-height:360px;overflow-y:auto;display:none;}
+  .ok{color:#a3e635;}.err{color:#f87171;}.info{color:#93c5fd;}
+  .progress{background:#e5e7eb;border-radius:10px;height:8px;margin-top:12px;display:none;}
+  .progress-bar{background:#C8102E;height:8px;border-radius:10px;width:0%;transition:width .3s;}
+  .stat{display:inline-block;background:#f3f4f6;border-radius:8px;padding:8px 16px;margin:4px;font-size:13px;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>📈 BDO Bulk Upload</h2>
+  <p class="sub">Uploads all 41 BDOs to the Google Sheet BDOs tab with login credentials</p>
+  <div style="margin-bottom:16px">
+    <span class="stat">📈 41 BDOs</span>
+    <span class="stat">🔑 Username = Password = Emp No</span>
+    <span class="stat">🗺️ All regions covered</span>
+  </div>
+  <div class="form-group"><label>Google Sheet ID *</label><input type="text" id="sheetId" placeholder="From your Google Sheet URL"></div>
+  <div class="form-group"><label>Google OAuth Client ID *</label><input type="text" id="clientId" placeholder="xxxx.apps.googleusercontent.com"></div>
+  <button class="btn" onclick="startUpload()">🚀 Sign in & Upload All 41 BDOs</button>
+  <button class="btn btn-outline" onclick="clearAndUpload()" style="margin-top:8px">🗑️ Clear BDOs Sheet First, Then Upload</button>
+  <div class="progress" id="progress"><div class="progress-bar" id="pbar"></div></div>
+  <div id="log"></div>
+</div>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script>
+const BDOS = [{"id": "bdo_90000350", "name": "S Jahirhussain", "empNo": "90000350", "email": "", "phone": "", "location": "Madurai", "region": "South-5", "username": "90000350", "password": "90000350", "role": "bdo", "status": "Active"}, {"id": "bdo_90000701", "name": "Gajendar Singh Shekhawat", "empNo": "90000701", "email": "", "phone": "", "location": "Jaipur", "region": "North-2", "username": "90000701", "password": "90000701", "role": "bdo", "status": "Active"}, {"id": "bdo_90001105", "name": "Sajid V B", "empNo": "90001105", "email": "", "phone": "", "location": "Kochi", "region": "South-2", "username": "90001105", "password": "90001105", "role": "bdo", "status": "Active"}, {"id": "bdo_90000470", "name": "Rathina Francis Jeba", "empNo": "90000470", "email": "", "phone": "", "location": "Chennai HO", "region": "South-1", "username": "90000470", "password": "90000470", "role": "bdo", "status": "Active"}, {"id": "bdo_33173", "name": "I Gopinath", "empNo": "33173", "email": "", "phone": "", "location": "Chennai", "region": "South-1", "username": "33173", "password": "33173", "role": "bdo", "status": "Active"}, {"id": "bdo_90000557", "name": "Gaurav Jain", "empNo": "90000557", "email": "", "phone": "", "location": "Agra", "region": "North-1", "username": "90000557", "password": "90000557", "role": "bdo", "status": "Active"}, {"id": "bdo_90000665", "name": "Muthukrishnan Subramanian", "empNo": "90000665", "email": "", "phone": "", "location": "Tirunelveli", "region": "South-5", "username": "90000665", "password": "90000665", "role": "bdo", "status": "Active"}, {"id": "bdo_90000667", "name": "Aftab Alam Saslam Khan", "empNo": "90000667", "email": "", "phone": "", "location": "Mumbai", "region": "West-1", "username": "90000667", "password": "90000667", "role": "bdo", "status": "Active"}, {"id": "bdo_90000926", "name": "Ashbin K Rahman", "empNo": "90000926", "email": "", "phone": "", "location": "Kottayam", "region": "South-2", "username": "90000926", "password": "90000926", "role": "bdo", "status": "Active"}, {"id": "bdo_90000927", "name": "Kasi Ragul S", "empNo": "90000927", "email": "", "phone": "", "location": "Madurai", "region": "South-5", "username": "90000927", "password": "90000927", "role": "bdo", "status": "Active"}, {"id": "bdo_90000994", "name": "Rohit Singh", "empNo": "90000994", "email": "", "phone": "", "location": "Ambala", "region": "North-2", "username": "90000994", "password": "90000994", "role": "bdo", "status": "Active"}, {"id": "bdo_90000995", "name": "Deepu S L", "empNo": "90000995", "email": "", "phone": "", "location": "Trivandrum", "region": "South-2", "username": "90000995", "password": "90000995", "role": "bdo", "status": "Active"}, {"id": "bdo_90001066", "name": "Mohd Bilal", "empNo": "90001066", "email": "", "phone": "", "location": "Meerut", "region": "North-2", "username": "90001066", "password": "90001066", "role": "bdo", "status": "Active"}, {"id": "bdo_90001095", "name": "Tadde Krishnaiah", "empNo": "90001095", "email": "", "phone": "", "location": "Khammam", "region": "South-4", "username": "90001095", "password": "90001095", "role": "bdo", "status": "Active"}, {"id": "bdo_90001097", "name": "Vishnudharsan Sakthivel", "empNo": "90001097", "email": "", "phone": "", "location": "Chennai", "region": "South-1", "username": "90001097", "password": "90001097", "role": "bdo", "status": "Active"}, {"id": "bdo_90001122", "name": "Akash", "empNo": "90001122", "email": "", "phone": "", "location": "Bhatinda", "region": "North-2", "username": "90001122", "password": "90001122", "role": "bdo", "status": "Active"}, {"id": "bdo_90001123", "name": "Aswin M C", "empNo": "90001123", "email": "", "phone": "", "location": "Thalassery", "region": "South-2", "username": "90001123", "password": "90001123", "role": "bdo", "status": "Active"}, {"id": "bdo_90001179", "name": "Febin K F", "empNo": "90001179", "email": "", "phone": "", "location": "Thrissur", "region": "South-2", "username": "90001179", "password": "90001179", "role": "bdo", "status": "Active"}, {"id": "bdo_90001185", "name": "Dhilipkumar E", "empNo": "90001185", "email": "", "phone": "", "location": "Chennai", "region": "South-1", "username": "90001185", "password": "90001185", "role": "bdo", "status": "Active"}, {"id": "bdo_90001197", "name": "Ramesh Chandra", "empNo": "90001197", "email": "", "phone": "", "location": "Noida", "region": "North-2", "username": "90001197", "password": "90001197", "role": "bdo", "status": "Active"}, {"id": "bdo_90001209", "name": "Aravind Thiyagarajan", "empNo": "90001209", "email": "", "phone": "", "location": "Tanjore", "region": "South-5", "username": "90001209", "password": "90001209", "role": "bdo", "status": "Active"}, {"id": "bdo_90001215", "name": "Abshan B", "empNo": "90001215", "email": "", "phone": "", "location": "Vatakara", "region": "South-2", "username": "90001215", "password": "90001215", "role": "bdo", "status": "Active"}, {"id": "bdo_90001223", "name": "Nageshwaran R P", "empNo": "90001223", "email": "", "phone": "", "location": "Coimbatore", "region": "South-1", "username": "90001223", "password": "90001223", "role": "bdo", "status": "Active"}, {"id": "bdo_90001224", "name": "Tamilselvan Kathiravan", "empNo": "90001224", "email": "", "phone": "", "location": "Trichy", "region": "South-5", "username": "90001224", "password": "90001224", "role": "bdo", "status": "Active"}, {"id": "bdo_90001228", "name": "Kalesh M", "empNo": "90001228", "email": "", "phone": "", "location": "Kannur", "region": "South-2", "username": "90001228", "password": "90001228", "role": "bdo", "status": "Active"}, {"id": "bdo_90001247", "name": "Yadav Dipeshkumar Rakeshkumar", "empNo": "90001247", "email": "", "phone": "", "location": "Ahmedabad", "region": "West-2", "username": "90001247", "password": "90001247", "role": "bdo", "status": "Active"}, {"id": "bdo_90001252", "name": "Prahalathan P R", "empNo": "90001252", "email": "", "phone": "", "location": "Chennai", "region": "South-1", "username": "90001252", "password": "90001252", "role": "bdo", "status": "Active"}, {"id": "bdo_90001260", "name": "Udhya Shankar A", "empNo": "90001260", "email": "", "phone": "", "location": "Chennai", "region": "South-1", "username": "90001260", "password": "90001260", "role": "bdo", "status": "Active"}, {"id": "bdo_90001263", "name": "Arunkumar", "empNo": "90001263", "email": "", "phone": "", "location": "Pondycherry", "region": "South-1", "username": "90001263", "password": "90001263", "role": "bdo", "status": "Active"}, {"id": "bdo_90001020", "name": "Himanshu Pratap Singh", "empNo": "90001020", "email": "", "phone": "", "location": "Agra", "region": "North-1", "username": "90001020", "password": "90001020", "role": "bdo", "status": "Active"}, {"id": "bdo_90000802", "name": "Athul Raj S", "empNo": "90000802", "email": "", "phone": "", "location": "Kollam", "region": "South-2", "username": "90000802", "password": "90000802", "role": "bdo", "status": "Active"}, {"id": "bdo_90000838", "name": "Vashik Khan", "empNo": "90000838", "email": "", "phone": "", "location": "Saharanpur", "region": "North-2", "username": "90000838", "password": "90000838", "role": "bdo", "status": "Active"}, {"id": "bdo_90000898", "name": "Ramesh Kumar", "empNo": "90000898", "email": "", "phone": "", "location": "Hissar", "region": "North-1", "username": "90000898", "password": "90000898", "role": "bdo", "status": "Active"}, {"id": "bdo_90000907", "name": "Murugan Selvan", "empNo": "90000907", "email": "", "phone": "", "location": "Erode", "region": "South-1", "username": "90000907", "password": "90000907", "role": "bdo", "status": "Active"}, {"id": "bdo_90000949", "name": "Jasir E", "empNo": "90000949", "email": "", "phone": "", "location": "Calicut", "region": "South-2", "username": "90000949", "password": "90000949", "role": "bdo", "status": "Active"}, {"id": "bdo_90000999", "name": "Shabaz", "empNo": "90000999", "email": "", "phone": "", "location": "Faridabad", "region": "North-1", "username": "90000999", "password": "90000999", "role": "bdo", "status": "Active"}, {"id": "bdo_90001030", "name": "Pradeep Vasanth Jadhav", "empNo": "90001030", "email": "", "phone": "", "location": "Mumbai", "region": "West-1", "username": "90001030", "password": "90001030", "role": "bdo", "status": "Active"}, {"id": "bdo_90001032", "name": "Vaisaghan B", "empNo": "90001032", "email": "", "phone": "", "location": "Palakkad", "region": "South-2", "username": "90001032", "password": "90001032", "role": "bdo", "status": "Active"}, {"id": "bdo_90001034", "name": "Milkh Raj", "empNo": "90001034", "email": "", "phone": "", "location": "Fatehabad", "region": "North-1", "username": "90001034", "password": "90001034", "role": "bdo", "status": "Active"}, {"id": "bdo_90001129", "name": "Mohammed Adil N", "empNo": "90001129", "email": "", "phone": "", "location": "Vatakara", "region": "South-2", "username": "90001129", "password": "90001129", "role": "bdo", "status": "Active"}, {"id": "bdo_90001238", "name": "Muhammed Hashar P A", "empNo": "90001238", "email": "", "phone": "", "location": "Kochi", "region": "South-2", "username": "90001238", "password": "90001238", "role": "bdo", "status": "Active"}];
+const HEADERS = ["id", "name", "empNo", "email", "phone", "location", "region", "username", "password", "role", "status"];
+
+let token=null;
+function log(msg,type='info'){const el=document.getElementById('log');el.style.display='block';el.innerHTML+=`<div class="${type}">${msg}</div>`;el.scrollTop=el.scrollHeight;}
+function setProgress(pct){document.getElementById('progress').style.display='block';document.getElementById('pbar').style.width=pct+'%';}
+function colName(n){let s='';while(n>0){s=String.fromCharCode(64+(n%26||26))+s;n=Math.floor((n-1)/26);}return s;}
+
+async function getToken(){
+  const clientId=document.getElementById('clientId').value.trim();
+  if(!clientId) throw new Error('Please enter OAuth Client ID');
+  return new Promise((resolve,reject)=>{
+    const client=google.accounts.oauth2.initTokenClient({
+      client_id:clientId,scope:'https://www.googleapis.com/auth/spreadsheets',
+      callback:(resp)=>{if(resp.error){reject(new Error(resp.error));return;}token=resp.access_token;resolve(token);}
+    });
+    client.requestAccessToken({prompt:'consent'});
+  });
+}
+
+async function sheetReq(method,path,body=null){
+  const sheetId=document.getElementById('sheetId').value.trim();
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}${path}`;
+  const opts={method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}};
+  if(body) opts.body=JSON.stringify(body);
+  const resp=await fetch(url,opts);
+  if(!resp.ok){const e=await resp.json();throw new Error(e.error?.message||resp.status);}
+  return resp.json();
+}
+
+async function clearSheet(){
+  log('Clearing BDOs sheet...','info');
+  const resp=await sheetReq('GET','/values/BDOs');
+  const rows=resp.values||[[]];
+  if(rows.length<=1){log('Already empty','ok');return;}
+  await sheetReq('POST',`/values/${encodeURIComponent('BDOs!A2:'+colName(rows[0].length)+rows.length)}:clear`,{});
+  log('Cleared '+(rows.length-1)+' rows','ok');
+}
+
+async function uploadBDOs(){
+  log('Uploading '+BDOS.length+' BDOs...','info');
+  const endCol=colName(HEADERS.length);
+  await sheetReq('PUT',`/values/${encodeURIComponent('BDOs!A1:'+endCol+'1')}?valueInputOption=RAW`,{values:[HEADERS]});
+  const rows=BDOS.map(b=>HEADERS.map(h=>String(b[h]||'')));
+  await sheetReq('PUT',`/values/${encodeURIComponent('BDOs!A2:'+endCol+(rows.length+1))}?valueInputOption=RAW`,{values:rows});
+  setProgress(100);
+  log('✅ All '+BDOS.length+' BDOs uploaded!','ok');
+  log('BDOs can now log in at mrfpaint.github.io/isc-tracker/ → BDO Login','info');
+  log('Username = Emp No, Password = Emp No','info');
+}
+
+async function startUpload(doClear=false){
+  if(!document.getElementById('sheetId').value.trim()){alert('Please enter Sheet ID');return;}
+  document.querySelectorAll('.btn').forEach(b=>b.disabled=true);
+  document.getElementById('log').innerHTML='';
+  try{
+    log('Opening Google sign-in...','info');
+    await getToken(); log('Signed in!','ok'); setProgress(10);
+    if(doClear) await clearSheet();
+    setProgress(30);
+    await uploadBDOs();
+  }catch(e){log('Error: '+e.message,'err');}
+  finally{document.querySelectorAll('.btn').forEach(b=>b.disabled=false);}
+}
+function clearAndUpload(){startUpload(true);}
+window.onload=()=>{
+  const cfg=JSON.parse(localStorage.getItem('isc_gs_config')||'{}');
+  if(cfg.sheetId) document.getElementById('sheetId').value=cfg.sheetId;
+  if(cfg.clientId) document.getElementById('clientId').value=cfg.clientId;
+};
+</script>
+</body>
+</html>
