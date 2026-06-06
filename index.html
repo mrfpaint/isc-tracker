@@ -1436,7 +1436,20 @@ seedLocal();
 // ══════════════════════════════════════════════
 async function DATA_getASMs() { return isConfigured() ? await sheetsGet('ASMs') : LDB.arr('asms'); }
 async function DATA_getISCs() { return isConfigured() ? await sheetsGet('Users') : LDB.arr('iscs'); }
-async function DATA_getEntries() { return isConfigured() ? await sheetsGet('Entries') : LDB.arr('entries'); }
+async function DATA_getEntries() {
+  const local = LDB.arr('entries');
+  if (!isConfigured()) return local;
+  try {
+    const remote = await sheetsGet('Entries');
+    // Merge — remote takes priority, local fills gaps for entries not yet synced
+    const remoteIds = new Set(remote.map(r=>r.id));
+    const localOnly = local.filter(r=>!remoteIds.has(r.id));
+    return [...remote, ...localOnly];
+  } catch(e) {
+    console.warn('Could not read Entries from Sheets, using local:', e.message);
+    return local;
+  }
+}
 async function DATA_getSTs() { return isConfigured() ? await sheetsGet('STs') : LDB.arr('sts'); }
 async function DATA_getBDOs() { return isConfigured() ? await sheetsGet('BDOs') : LDB.arr('bdos'); }
 async function DATA_addISC(isc) {
@@ -1449,26 +1462,25 @@ async function DATA_updateISC(id,updates) {
   const a=LDB.arr('iscs');const i=a.findIndex(x=>x.id===id);if(i>-1){a[i]={...a[i],...updates};LDB.set('iscs',a);}
 }
 async function DATA_addEntry(e) {
+  // Save locally FIRST so it shows immediately
+  const arr=LDB.arr('entries');
+  if(!arr.find(x=>x.id===e.id)){arr.push(e);LDB.set('entries',arr);}
+  // Then write to Sheets in background
   if (isConfigured()) {
     try {
-      // Use fixed headers so GPS columns are always included
-      const cfg = getConfig();
       const row = ENTRIES_HEADERS.map(h=>String(e[h]??''));
       const wresp = await fetch(`${WORKER_URL}/sheets/append`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({sheet:'Entries', row})
       });
       if (!wresp.ok) throw new Error('Worker write failed: '+wresp.status);
-      // Also repair headers in case they're outdated
       repairEntriesHeaders();
     } catch(err) {
-      // Network failed — save to offline queue
       console.warn('Entry save error, queuing offline:', err.message);
       LDB.push('offline_queue', e);
-      showToast('📴 No internet — entry saved offline. It will sync when you reconnect.');
+      showToast('📴 Entry saved locally — will sync when internet is available.');
     }
-  } else { LDB.push('entries',e); }
-  const arr=LDB.arr('entries'); if(!arr.find(x=>x.id===e.id)){arr.push(e);LDB.set('entries',arr);}
+  }
 }
 async function DATA_updateEntry(id,updates) {
   if (isConfigured()) await sheetsUpdate('Entries','id',id,updates);
@@ -2977,9 +2989,11 @@ async function renderMyAttendance() {
   const mf = document.getElementById('att-month-filter');
   if (mf && !mf.value) mf.value = new Date().toISOString().slice(0,7);
 
-  // Check if already marked today
-  const allAtt = await DATA_getAttendance(currentUser.id);
+  // Check if already marked today — local first (fast), then merge with remote
+  const localAtt = LDB.arr('attendance').filter(r=>r.iscId===currentUser.id);
   const today = todayStr();
+  const todayLocal = localAtt.find(a=>a.date===today);
+  const allAtt = todayLocal ? localAtt : await DATA_getAttendance(currentUser.id);
   const todayRec = allAtt.find(a=>a.date===today);
 
   const markBtns = document.getElementById('att-mark-buttons');
@@ -3029,9 +3043,17 @@ async function renderMyAttendance() {
 
 async function markAttendance(status) {
   const today = todayStr();
-  // Check local cache first to avoid duplicate
+
+  // Prevent double-tap — disable buttons immediately
+  document.querySelectorAll('#att-mark-buttons button').forEach(b=>b.disabled=true);
+
+  // Check local cache first (fast)
   const localAtt = LDB.arr('attendance').filter(r=>r.iscId===currentUser.id);
-  if (localAtt.find(a=>a.date===today)) { showToast('⚠️ Already marked for today!'); return; }
+  if (localAtt.find(a=>a.date===today)) {
+    showToast('⚠️ Already marked for today!');
+    document.querySelectorAll('#att-mark-buttons button').forEach(b=>b.disabled=false);
+    return;
+  }
 
   setLoading(true, 'Marking attendance...');
   try {
@@ -3069,14 +3091,21 @@ async function markAttendance(status) {
     // Save to local cache immediately
     LDB.push('attendance', record);
 
-    // Update UI immediately — don't wait for Sheets
+    // Hide mark buttons immediately to prevent double-marking
+    const markBtns = document.getElementById('att-mark-buttons');
+    if (markBtns) markBtns.style.display='none';
+
+    // Update UI immediately
     showToast(`✅ Attendance marked — ${status}!`);
     updateAttendanceUIImmediately(record);
 
-    // Then write to Sheets in background
+    // Write to Sheets in background
     DATA_addAttendanceToSheets(record);
 
-  } catch(e) { showToast('⚠️ '+e.message); }
+  } catch(e) {
+    showToast('⚠️ '+e.message);
+    document.querySelectorAll('#att-mark-buttons button').forEach(b=>b.disabled=false);
+  }
   finally { setLoading(false); }
 }
 
