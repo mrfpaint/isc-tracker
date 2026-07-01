@@ -2755,6 +2755,8 @@ function showDetail(id) {
 //  MY ISCs (ASM TAB)
 // ══════════════════════════════════════════════
 let _iscCache = [];
+let _allISCsForSearch = [];
+let _currentISCMode = 'select';
 
 async function renderMyISCs() {
   setLoading(true,'Loading ISCs...');
