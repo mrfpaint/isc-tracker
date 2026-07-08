@@ -730,13 +730,17 @@
       <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('execute',this)">✅ Execute</button>
       <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('expenses',this)">💰 Expenses</button>
       <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('summary',this)">📊 Summary</button>
-      <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('approvals',this)">🔖 Approvals</button>
+      <button id="pcm-approvals-tab-btn" style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('approvals',this)">🔖 Approvals</button>
     </div>
 
     <!-- PLAN TAB -->
     <div id="pcm-plan" style="display:block;">
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <input type="month" class="form-input" id="pcm-plan-month" onchange="renderPCMPlans()" style="flex:1">
+        <select class="form-select" id="pcm-plan-range" onchange="renderPCMPlans()" style="flex:0 0 110px;font-size:13px">
+          <option value="month">Month</option>
+          <option value="quarter">Quarter</option>
+        </select>
         <button onclick="openPCMPlanModal()" style="padding:10px 16px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ New Plan</button>
       </div>
       <div id="pcm-plan-list"></div>
@@ -746,6 +750,7 @@
     <div id="pcm-execute" style="display:none;">
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <input type="date" class="form-input" id="pcm-exec-date" onchange="renderPCMExecutions()" style="flex:1">
+        <button onclick="exportPCMExecutions()" style="padding:10px 12px;background:var(--gray-light);color:var(--dark);border:none;border-radius:8px;cursor:pointer;font-weight:600">⬇ Export</button>
         <button onclick="openPCMExecModal()" style="padding:10px 16px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ Log Meet</button>
       </div>
       <div id="pcm-exec-list"></div>
@@ -755,6 +760,7 @@
     <div id="pcm-expenses" style="display:none;">
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <input type="month" class="form-input" id="pcm-exp-month" onchange="renderPCMExpenses()" style="flex:1">
+        <button onclick="exportPCMExpenses()" style="padding:10px 12px;background:var(--gray-light);color:var(--dark);border:none;border-radius:8px;cursor:pointer;font-weight:600">⬇ Export</button>
         <button onclick="openPCMExpenseModal()" style="padding:10px 16px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ Add Expense</button>
       </div>
       <div id="pcm-exp-summary" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;"></div>
@@ -1524,6 +1530,10 @@
           <label class="form-label">KYC Enrolled</label>
           <input type="number" class="form-input" id="pcm-exec-kyc" placeholder="Count">
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dealer Primary Value (₹)</label>
+        <input type="number" class="form-input" id="pcm-exec-primary" placeholder="e.g. 50000 (leave blank if none)">
       </div>
       <div class="form-group">
         <label class="form-label">Conversions / Orders</label>
@@ -2329,7 +2339,7 @@ function launchApp() {
 function buildNav() {
   const nav = document.getElementById('bottom-nav');
   if (currentUser.role==='isc') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='asm') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
@@ -2358,7 +2368,12 @@ function showTab(tab) {
   if (tab==='profile') renderProfile();
   if (tab==='admin') renderAdminPanel();
   if (tab==='dashboard') renderDashboard();
-  if (tab==='pcm') renderPCMPlans();
+  if (tab==='pcm') {
+    // Approvals are for managers only (ASM / RSM / Admin)
+    const ab = document.getElementById('pcm-approvals-tab-btn');
+    if (ab) ab.style.display = ['asm','rsm','admin'].includes(currentUser.role) ? '' : 'none';
+    renderPCMPlans();
+  }
 }
 
 async function renderBDOSites() {
@@ -4737,6 +4752,8 @@ function autoFillUsername() {
 }
 
 // ══════════ PAINTER CONTRACTOR MEET (PCM) MODULE ══════════
+let _pcmExpensesCache = [];   // last-loaded expense list, used by submit-for-approval and export
+
 /* ═══════ PCM TAB SWITCHING ═══════ */
 function switchPCMTab(tab, el) {
   const tabs = el.parentElement.querySelectorAll('button');
@@ -4808,10 +4825,20 @@ async function savePCMPlan() {
 
 async function renderPCMPlans() {
   const month = document.getElementById('pcm-plan-month').value || new Date().toISOString().slice(0, 7);
+  const range = document.getElementById('pcm-plan-range')?.value || 'month';
   setLoading(true);
   try {
-    const res = await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/plans?month=${month}`);
-    const plans = await res.json();
+    let months = [month];
+    if (range === 'quarter') {
+      // Quarter = the 3 calendar months of the quarter containing the selected month
+      const [y, m] = month.split('-').map(Number);
+      const qStart = Math.floor((m - 1) / 3) * 3 + 1;
+      months = [0,1,2].map(i => y + '-' + String(qStart + i).padStart(2, '0'));
+    }
+    const results = await Promise.all(months.map(mo =>
+      fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/plans?month=${mo}`).then(r => r.json()).catch(() => [])
+    ));
+    const plans = results.flat();
     const html = plans.length ? plans.map(p => `
       <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
         <div style="flex:1;">
@@ -4858,6 +4885,7 @@ function openPCMExecModal(execId = null) {
   document.getElementById('pcm-exec-objective').value = '';
   document.getElementById('pcm-exec-attended').value = '';
   document.getElementById('pcm-exec-kyc').value = '';
+  document.getElementById('pcm-exec-primary').value = '';
   document.getElementById('pcm-exec-conversion').value = '';
   document.getElementById('pcm-exec-remarks').value = '';
   openModal('modal-pcm-exec');
@@ -4872,7 +4900,10 @@ async function savePCMExecution() {
   const objective = document.getElementById('pcm-exec-objective').value;
   const attended = document.getElementById('pcm-exec-attended').value;
   const kyc = document.getElementById('pcm-exec-kyc').value;
-  const conversion = document.getElementById('pcm-exec-conversion').value;
+  const primary = document.getElementById('pcm-exec-primary').value;
+  let conversion = document.getElementById('pcm-exec-conversion').value;
+  // Dealer primary value is stored inside the Conversion column (sheet has no separate column)
+  if (primary) conversion = 'Primary ₹' + parseInt(primary).toLocaleString('en-IN') + (conversion ? ' | ' + conversion : '');
   const remarks = document.getElementById('pcm-exec-remarks').value;
   
   if (!datetime || !town || !area || !dealerName || !contractor || !objective) {
@@ -4978,6 +5009,7 @@ async function renderPCMExpenses() {
   try {
     const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/expenses');
     const expenses = await res.json();
+    _pcmExpensesCache = expenses;
     const totalCost = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     
     const summaryHtml = `
@@ -5000,6 +5032,7 @@ async function renderPCMExpenses() {
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;font-size:16px">₹${e.amount.toLocaleString('en-IN')}</span>
+          <button class="btn-sm btn-green" onclick="submitPCMExpenseForApproval('${e.id}')">Submit Claim</button>
           <button class="btn-sm btn-red" onclick="deletePCMExpense('${e.id}')">Delete</button>
         </div>
       </div>
@@ -5025,6 +5058,79 @@ async function deletePCMExpense(expId) {
   } finally {
     setLoading(false);
   }
+}
+
+/* ═══════ PCM CLAIM SUBMISSION ═══════ */
+async function submitPCMExpenseForApproval(expId) {
+  const exp = _pcmExpensesCache.find(e => e.id === expId);
+  if (!exp) { showToast('⚠️ Expense not found — refresh and try again'); return; }
+  if (!confirm(`Submit ₹${(exp.amount||0).toLocaleString('en-IN')} (${exp.description}) for approval?`)) return;
+  setLoading(true, 'Submitting claim...');
+  try {
+    const claimId = 'pcma_' + expId;   // one claim per expense — same ID on resubmit
+    // Duplicate check: has this expense already been submitted?
+    try {
+      const existing = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/approvals?status=all').then(r=>r.json());
+      const dup = existing.find(a => a.id === claimId);
+      if (dup) { showToast(`⚠️ Already submitted (status: ${dup.status})`); return; }
+    } catch(e) { /* if the check fails, proceed with submission */ }
+    const record = {
+      id: claimId, submittedBy: currentUser.name, dealerName: exp.description,
+      amount: exp.amount, submittedAt: new Date().toISOString(), status: 'pending'
+    };
+    // Preferred: PCM API. Fallback: append directly to the PCMApprovals sheet.
+    let ok = false;
+    try {
+      const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/approval', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record)
+      });
+      ok = res.ok;
+    } catch(e) { ok = false; }
+    if (!ok) {
+      // Row order must match PCMApprovals sheet: ID, SubmittedBy, DealerName, Amount, SubmittedAt, Reason, Status, ApprovedBy
+      const row = [record.id, record.submittedBy, record.dealerName, String(record.amount), record.submittedAt, '', 'pending', ''];
+      const res2 = await fetch(`${WORKER_URL}/sheets/append`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheet: 'PCMApprovals', row })
+      });
+      if (!res2.ok) throw new Error('Could not submit claim (server error)');
+    }
+    showToast('✓ Claim submitted for approval');
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ═══════ PCM DETAIL EXPORTS ═══════ */
+async function exportPCMExecutions() {
+  setLoading(true, 'Preparing export...');
+  try {
+    const executions = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions').then(r=>r.json());
+    if (!executions.length) { showToast('⚠️ No meets to export'); return; }
+    const headers = ['Date & Time','Town','Area','Dealer','Contractor','Objective','Attendees','KYC Enrolled','Conversion / Primary','Remarks','Executed By'];
+    const rows = executions.map(e => [
+      e.datetime||'', e.town||'', e.area||'', e.dealerName||'', e.contractor||'',
+      e.objective||'', e.attendeesAttended||0, e.kycEnrolled||0, e.conversion||'', e.remarks||'', e.executedBy||''
+    ]);
+    exportToExcel([headers, ...rows], `PCM_Meets_${new Date().toISOString().slice(0,10)}.csv`);
+  } catch(e) { showToast('❌ ' + e.message); }
+  finally { setLoading(false); }
+}
+
+async function exportPCMExpenses() {
+  setLoading(true, 'Preparing export...');
+  try {
+    const expenses = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/expenses').then(r=>r.json());
+    if (!expenses.length) { showToast('⚠️ No expenses to export'); return; }
+    const headers = ['Date','Type','Amount (Rs)','Description','Remarks','Created By'];
+    const rows = expenses.map(e => [
+      e.date||'', e.type||'', e.amount||0, e.description||'', e.remarks||'', e.createdBy||''
+    ]);
+    exportToExcel([headers, ...rows], `PCM_Expenses_${new Date().toISOString().slice(0,10)}.csv`);
+  } catch(e) { showToast('❌ ' + e.message); }
+  finally { setLoading(false); }
 }
 
 /* ═══════ PCM SUMMARY FUNCTIONS ═══════ */
