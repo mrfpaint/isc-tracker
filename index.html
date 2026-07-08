@@ -721,6 +721,71 @@
   </div>
 
   <!-- DASHBOARD -->
+  <div id="tab-pcm" class="main-content" style="display:none">
+    <div class="page-title">🎨 Painter Contractor Meets</div>
+    <div class="page-subtitle">Plan, execute, track & approve PCM activities</div>
+    
+    <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);overflow-x:auto;padding-bottom:0;">
+      <button style="padding:12px 16px;border:none;background:none;color:var(--red);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid var(--red);" onclick="switchPCMTab('plan',this)">📋 Plan</button>
+      <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('execute',this)">✅ Execute</button>
+      <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('expenses',this)">💰 Expenses</button>
+      <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('summary',this)">📊 Summary</button>
+      <button style="padding:12px 16px;border:none;background:none;color:var(--gray);cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid transparent;" onclick="switchPCMTab('approvals',this)">🔖 Approvals</button>
+    </div>
+
+    <!-- PLAN TAB -->
+    <div id="pcm-plan" style="display:block;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <input type="month" class="form-input" id="pcm-plan-month" onchange="renderPCMPlans()" style="flex:1">
+        <button onclick="openPCMPlanModal()" style="padding:10px 16px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ New Plan</button>
+      </div>
+      <div id="pcm-plan-list"></div>
+    </div>
+
+    <!-- EXECUTE TAB -->
+    <div id="pcm-execute" style="display:none;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <input type="date" class="form-input" id="pcm-exec-date" onchange="renderPCMExecutions()" style="flex:1">
+        <button onclick="openPCMExecModal()" style="padding:10px 16px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ Log Meet</button>
+      </div>
+      <div id="pcm-exec-list"></div>
+    </div>
+
+    <!-- EXPENSES TAB -->
+    <div id="pcm-expenses" style="display:none;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <input type="month" class="form-input" id="pcm-exp-month" onchange="renderPCMExpenses()" style="flex:1">
+        <button onclick="openPCMExpenseModal()" style="padding:10px 16px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ Add Expense</button>
+      </div>
+      <div id="pcm-exp-summary" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;"></div>
+      <div id="pcm-exp-list"></div>
+    </div>
+
+    <!-- SUMMARY TAB -->
+    <div id="pcm-summary" style="display:none;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <select class="form-select" id="pcm-summary-period" onchange="renderPCMSummary()" style="flex:1">
+          <option value="monthly">📅 This Month</option>
+          <option value="quarterly">📊 This Quarter</option>
+          <option value="ytd">📈 Year to Date</option>
+        </select>
+        <button onclick="exportPCMSummary()" style="padding:10px 16px;background:white;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">⬇ Export</button>
+      </div>
+      <div id="pcm-summary-content"></div>
+    </div>
+
+    <!-- APPROVALS TAB -->
+    <div id="pcm-approvals" style="display:none;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <select class="form-select" id="pcm-approval-status" onchange="renderPCMApprovals()" style="flex:1">
+          <option value="pending">⏳ Pending</option>
+          <option value="all">📋 All</option>
+        </select>
+      </div>
+      <div id="pcm-approval-list"></div>
+    </div>
+  </div>
+
   <div id="tab-dashboard" class="main-content" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <div class="page-title">📊 Dashboard</div>
@@ -1232,11 +1297,11 @@
         <button class="pwd-eye" type="button" onclick="togglePwd('isc-password',this)" tabindex="-1">👁</button>
       </div></div>
     <div class="form-group">
-      <label class="form-label">Sales Technologist (ST) *</label>
+      <label class="form-label">Sales Technologist (ST)</label>
       <select class="form-select" id="isc-st"><option value="">— Select ST —</option></select>
     </div>
     <div class="form-group">
-      <label class="form-label">Business Dev Officer (BDO) *</label>
+      <label class="form-label">Business Dev Officer (BDO)</label>
       <select class="form-select" id="isc-bdo"><option value="">— Select BDO —</option></select>
     </div>
     <div class="form-group">
@@ -1357,6 +1422,163 @@
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-bdo')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveBDO()">Save BDO</button>
+    </div>
+  </div>
+</div>
+
+<!-- PCM MODALS -->
+<div class="modal-overlay" id="modal-pcm-plan">
+  <div class="modal" style="max-height:90vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="font-size:18px;font-weight:700;color:var(--dark)">📋 Plan Painter Meet</h3>
+      <button onclick="closeModal('modal-pcm-plan')" style="background:none;border:none;font-size:24px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;gap:14px;">
+      <input type="hidden" id="pcm-plan-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Month *</label>
+          <input type="month" class="form-input" id="pcm-plan-month-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Target Date *</label>
+          <input type="date" class="form-input" id="pcm-plan-date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Town / City *</label>
+        <input type="text" class="form-input" id="pcm-plan-town" placeholder="e.g., Chennai">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Area / Zone *</label>
+        <input type="text" class="form-input" id="pcm-plan-area" placeholder="e.g., Kodambakkam">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dealer Name *</label>
+        <input type="text" class="form-input" id="pcm-plan-dealer" placeholder="Dealer name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expected Attendees</label>
+        <input type="number" class="form-input" id="pcm-plan-attendees" placeholder="e.g., 8">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Remarks / Invites</label>
+        <textarea class="form-input" id="pcm-plan-remarks" placeholder="Any special details or invites..." style="min-height:80px;font-family:'DM Sans',sans-serif;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="savePCMPlan()" style="flex:1;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">✓ Save Plan</button>
+        <button onclick="closeModal('modal-pcm-plan')" style="flex:1;padding:12px;background:var(--gray-light);color:var(--dark);border:none;border-radius:8px;cursor:pointer;font-weight:600">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PCM EXECUTE MODAL -->
+<div class="modal-overlay" id="modal-pcm-exec">
+  <div class="modal" style="max-height:90vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="font-size:18px;font-weight:700;color:var(--dark)">✅ Log Meet Execution</h3>
+      <button onclick="closeModal('modal-pcm-exec')" style="background:none;border:none;font-size:24px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;gap:14px;overflow-y:auto;max-height:calc(90vh - 80px);">
+      <input type="hidden" id="pcm-exec-id">
+      <div class="form-group">
+        <label class="form-label">Actual Date & Time *</label>
+        <input type="datetime-local" class="form-input" id="pcm-exec-datetime">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Town / City *</label>
+        <input type="text" class="form-input" id="pcm-exec-town" placeholder="e.g., Chennai">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Area / Zone *</label>
+        <input type="text" class="form-input" id="pcm-exec-area" placeholder="e.g., Kodambakkam">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dealer Name *</label>
+        <input type="text" class="form-input" id="pcm-exec-dealer" placeholder="Dealer name">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Contractor Details *</label>
+          <input type="text" class="form-input" id="pcm-exec-contractor" placeholder="Name & Phone">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Objective *</label>
+          <select class="form-select" id="pcm-exec-objective">
+            <option value="">— Select —</option>
+            <option>Product Promotion</option>
+            <option>Relationship Building</option>
+            <option>Problem Solving</option>
+            <option>Training</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Attendees Attended</label>
+          <input type="number" class="form-input" id="pcm-exec-attended" placeholder="Count">
+        </div>
+        <div class="form-group">
+          <label class="form-label">KYC Enrolled</label>
+          <input type="number" class="form-input" id="pcm-exec-kyc" placeholder="Count">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Conversions / Orders</label>
+        <input type="text" class="form-input" id="pcm-exec-conversion" placeholder="Dealer name or product details">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Remarks</label>
+        <textarea class="form-input" id="pcm-exec-remarks" placeholder="Meeting notes..." style="min-height:80px;font-family:'DM Sans',sans-serif;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="savePCMExecution()" style="flex:1;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">✓ Log Execution</button>
+        <button onclick="closeModal('modal-pcm-exec')" style="flex:1;padding:12px;background:var(--gray-light);color:var(--dark);border:none;border-radius:8px;cursor:pointer;font-weight:600">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PCM EXPENSE MODAL -->
+<div class="modal-overlay" id="modal-pcm-expense">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="font-size:18px;font-weight:700;color:var(--dark)">💰 Add Expense</h3>
+      <button onclick="closeModal('modal-pcm-expense')" style="background:none;border:none;font-size:24px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;gap:14px;">
+      <input type="hidden" id="pcm-expense-id">
+      <div class="form-group">
+        <label class="form-label">Date *</label>
+        <input type="date" class="form-input" id="pcm-expense-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expense Type *</label>
+        <select class="form-select" id="pcm-expense-type">
+          <option value="">— Select —</option>
+          <option>PCM Costs</option>
+          <option>Gift Disbursement</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (₹) *</label>
+        <input type="number" class="form-input" id="pcm-expense-amount" placeholder="0" step="100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <input type="text" class="form-input" id="pcm-expense-desc" placeholder="e.g., Refreshments for PCM, Gift hampers">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Remarks</label>
+        <textarea class="form-input" id="pcm-expense-remarks" placeholder="Additional notes..." style="min-height:60px;font-family:'DM Sans',sans-serif;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="savePCMExpense()" style="flex:1;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">✓ Save Expense</button>
+        <button onclick="closeModal('modal-pcm-expense')" style="flex:1;padding:12px;background:var(--gray-light);color:var(--dark);border:none;border-radius:8px;cursor:pointer;font-weight:600">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2107,22 +2329,22 @@ function launchApp() {
 function buildNav() {
   const nav = document.getElementById('bottom-nav');
   if (currentUser.role==='isc') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='asm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
 }
 
 function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active'); showTab(tab); }
 
 function showTab(tab) {
-  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-profile','tab-admin','tab-dashboard'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
+  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
   document.getElementById('tab-'+tab).style.display='block';
   if (tab==='mysites') renderMyEntries();
   if (tab==='allsites') renderAllEntries();
@@ -2136,6 +2358,7 @@ function showTab(tab) {
   if (tab==='profile') renderProfile();
   if (tab==='admin') renderAdminPanel();
   if (tab==='dashboard') renderDashboard();
+  if (tab==='pcm') renderPCMPlans();
 }
 
 async function renderBDOSites() {
@@ -3198,7 +3421,7 @@ async function saveISC() {
   // MODE: Create new ISC or Edit existing
   const name=gv('isc-name').trim(),empNo=gv('isc-empno').trim(),phone=gv('isc-phone').trim(),email=gv('isc-email').trim(),
         username=gv('isc-username').trim()||empNo,password=gv('isc-password').trim()||empNo;
-  if (!name||!phone||!email||!username||!password||!stId||!bdoId||!region) return showToast('⚠️ All fields are required');
+  if (!name||!phone||!email||!username||!password||!region) return showToast('⚠️ Please fill Name, Phone, Email, Username, Password and Region');
   setLoading(true,'Saving ISC account...');
   try {
     const sts=await DATA_getSTs(),bdos=await DATA_getBDOs();
@@ -4512,6 +4735,448 @@ function autoFillUsername() {
     sv('isc-password', empNo);
   }
 }
+
+// ══════════ PAINTER CONTRACTOR MEET (PCM) MODULE ══════════
+/* ═══════ PCM TAB SWITCHING ═══════ */
+function switchPCMTab(tab, el) {
+  const tabs = el.parentElement.querySelectorAll('button');
+  tabs.forEach(t => t.style.color = 'var(--gray)');
+  tabs.forEach(t => t.style.borderBottomColor = 'transparent');
+  el.style.color = 'var(--red)';
+  el.style.borderBottomColor = 'var(--red)';
+  
+  document.getElementById('pcm-plan').style.display = tab === 'plan' ? 'block' : 'none';
+  document.getElementById('pcm-execute').style.display = tab === 'execute' ? 'block' : 'none';
+  document.getElementById('pcm-expenses').style.display = tab === 'expenses' ? 'block' : 'none';
+  document.getElementById('pcm-summary').style.display = tab === 'summary' ? 'block' : 'none';
+  document.getElementById('pcm-approvals').style.display = tab === 'approvals' ? 'block' : 'none';
+  
+  if (tab === 'plan') renderPCMPlans();
+  else if (tab === 'execute') renderPCMExecutions();
+  else if (tab === 'expenses') renderPCMExpenses();
+  else if (tab === 'summary') renderPCMSummary();
+  else if (tab === 'approvals') renderPCMApprovals();
+}
+
+/* ═══════ PCM PLAN FUNCTIONS ═══════ */
+function openPCMPlanModal(planId = null) {
+  document.getElementById('pcm-plan-id').value = planId || '';
+  document.getElementById('pcm-plan-month-input').value = new Date().toISOString().slice(0, 7);
+  document.getElementById('pcm-plan-date').value = '';
+  document.getElementById('pcm-plan-town').value = '';
+  document.getElementById('pcm-plan-area').value = '';
+  document.getElementById('pcm-plan-dealer').value = '';
+  document.getElementById('pcm-plan-attendees').value = '';
+  document.getElementById('pcm-plan-remarks').value = '';
+  openModal('modal-pcm-plan');
+}
+
+async function savePCMPlan() {
+  const month = document.getElementById('pcm-plan-month-input').value;
+  const targetDate = document.getElementById('pcm-plan-date').value;
+  const town = document.getElementById('pcm-plan-town').value;
+  const area = document.getElementById('pcm-plan-area').value;
+  const dealerName = document.getElementById('pcm-plan-dealer').value;
+  const expectedAttendees = document.getElementById('pcm-plan-attendees').value;
+  const remarks = document.getElementById('pcm-plan-remarks').value;
+  
+  if (!month || !targetDate || !town || !area || !dealerName) {
+    showToast('⚠️ Fill all required fields');
+    return;
+  }
+  
+  setLoading(true, 'Saving plan...');
+  try {
+    const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        month, targetDate, town, area, dealerName, expectedAttendees, remarks,
+        createdBy: currentUser.name, createdAt: new Date().toISOString()
+      })
+    });
+    const data = await res.json();
+    showToast('✓ Plan saved');
+    closeModal('modal-pcm-plan');
+    renderPCMPlans();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function renderPCMPlans() {
+  const month = document.getElementById('pcm-plan-month').value || new Date().toISOString().slice(0, 7);
+  setLoading(true);
+  try {
+    const res = await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/plans?month=${month}`);
+    const plans = await res.json();
+    const html = plans.length ? plans.map(p => `
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;color:var(--dark)">${p.dealerName}</div>
+          <div style="font-size:12px;color:var(--gray);margin-top:2px">${p.town}, ${p.area} • Target: ${new Date(p.targetDate).toLocaleDateString('en-IN')}</div>
+          <div style="margin-top:6px;"><span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">Expected: ${p.expectedAttendees || '—'} attendees</span></div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-sm btn-blue" onclick="openPCMPlanModal('${p.id}')">Edit</button>
+          <button class="btn-sm btn-red" onclick="deletePCMPlan('${p.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('') : emptyState('📋', 'No plans for this month', 'Click "+ New Plan" to create one');
+    document.getElementById('pcm-plan-list').innerHTML = html;
+  } catch(e) {
+    showToast('⚠️ Error: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function deletePCMPlan(planId) {
+  if (!confirm('Delete this plan?')) return;
+  setLoading(true);
+  try {
+    await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/plan/${planId}`, { method: 'DELETE' });
+    showToast('✓ Plan deleted');
+    renderPCMPlans();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ═══════ PCM EXECUTION FUNCTIONS ═══════ */
+function openPCMExecModal(execId = null) {
+  document.getElementById('pcm-exec-id').value = execId || '';
+  document.getElementById('pcm-exec-datetime').value = new Date().toISOString().slice(0, 16);
+  document.getElementById('pcm-exec-town').value = '';
+  document.getElementById('pcm-exec-area').value = '';
+  document.getElementById('pcm-exec-dealer').value = '';
+  document.getElementById('pcm-exec-contractor').value = '';
+  document.getElementById('pcm-exec-objective').value = '';
+  document.getElementById('pcm-exec-attended').value = '';
+  document.getElementById('pcm-exec-kyc').value = '';
+  document.getElementById('pcm-exec-conversion').value = '';
+  document.getElementById('pcm-exec-remarks').value = '';
+  openModal('modal-pcm-exec');
+}
+
+async function savePCMExecution() {
+  const datetime = document.getElementById('pcm-exec-datetime').value;
+  const town = document.getElementById('pcm-exec-town').value;
+  const area = document.getElementById('pcm-exec-area').value;
+  const dealerName = document.getElementById('pcm-exec-dealer').value;
+  const contractor = document.getElementById('pcm-exec-contractor').value;
+  const objective = document.getElementById('pcm-exec-objective').value;
+  const attended = document.getElementById('pcm-exec-attended').value;
+  const kyc = document.getElementById('pcm-exec-kyc').value;
+  const conversion = document.getElementById('pcm-exec-conversion').value;
+  const remarks = document.getElementById('pcm-exec-remarks').value;
+  
+  if (!datetime || !town || !area || !dealerName || !contractor || !objective) {
+    showToast('⚠️ Fill all required fields');
+    return;
+  }
+  
+  setLoading(true, 'Logging execution...');
+  try {
+    const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/execution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        datetime, town, area, dealerName, contractor, objective,
+        attendeesAttended: parseInt(attended) || 0, kycEnrolled: parseInt(kyc) || 0, conversion, remarks,
+        executedBy: currentUser.name, createdAt: new Date().toISOString()
+      })
+    });
+    showToast('✓ Execution logged');
+    closeModal('modal-pcm-exec');
+    renderPCMExecutions();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function renderPCMExecutions() {
+  setLoading(true);
+  try {
+    const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions');
+    const executions = await res.json();
+    const html = executions.length ? executions.map(e => `
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;color:var(--dark)">${e.dealerName}</div>
+          <div style="font-size:12px;color:var(--gray);margin-top:2px">${e.town}, ${e.area} • ${new Date(e.datetime).toLocaleString('en-IN')}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+            <span style="background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">Attended: ${e.attendeesAttended}</span>
+            <span style="background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">KYC: ${e.kycEnrolled}</span>
+            ${e.conversion ? '<span style="background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">✓ Conversion</span>' : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-sm btn-blue" onclick="openPCMExecModal('${e.id}')">Edit</button>
+        </div>
+      </div>
+    `).join('') : emptyState('✅', 'No executions logged', 'Click "+ Log Meet" to add one');
+    document.getElementById('pcm-exec-list').innerHTML = html;
+  } catch(e) {
+    showToast('⚠️ Error: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ═══════ PCM EXPENSE FUNCTIONS ═══════ */
+function openPCMExpenseModal(expId = null) {
+  document.getElementById('pcm-expense-id').value = expId || '';
+  document.getElementById('pcm-expense-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('pcm-expense-type').value = '';
+  document.getElementById('pcm-expense-amount').value = '';
+  document.getElementById('pcm-expense-desc').value = '';
+  document.getElementById('pcm-expense-remarks').value = '';
+  openModal('modal-pcm-expense');
+}
+
+async function savePCMExpense() {
+  const date = document.getElementById('pcm-expense-date').value;
+  const type = document.getElementById('pcm-expense-type').value;
+  const amount = parseFloat(document.getElementById('pcm-expense-amount').value);
+  const desc = document.getElementById('pcm-expense-desc').value;
+  const remarks = document.getElementById('pcm-expense-remarks').value;
+  
+  if (!date || !type || !amount || !desc) {
+    showToast('⚠️ Fill all required fields');
+    return;
+  }
+  
+  setLoading(true, 'Saving expense...');
+  try {
+    const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/expense', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date, type, amount, description: desc, remarks,
+        createdBy: currentUser.name, createdAt: new Date().toISOString()
+      })
+    });
+    showToast('✓ Expense saved');
+    closeModal('modal-pcm-expense');
+    renderPCMExpenses();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function renderPCMExpenses() {
+  setLoading(true);
+  try {
+    const res = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/expenses');
+    const expenses = await res.json();
+    const totalCost = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    
+    const summaryHtml = `
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">₹${totalCost.toLocaleString('en-IN')}</div>
+        <div style="font-size:11px;color:var(--gray);margin-top:4px;text-transform:uppercase;">Total Expenses</div>
+      </div>
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">${expenses.length}</div>
+        <div style="font-size:11px;color:var(--gray);margin-top:4px;text-transform:uppercase;">Transactions</div>
+      </div>
+    `;
+    document.getElementById('pcm-exp-summary').innerHTML = summaryHtml;
+    
+    const html = expenses.length ? expenses.map(e => `
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;color:var(--dark)">${e.description}</div>
+          <div style="font-size:12px;color:var(--gray);margin-top:2px">${e.type} • ${new Date(e.date).toLocaleDateString('en-IN')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;font-size:16px">₹${e.amount.toLocaleString('en-IN')}</span>
+          <button class="btn-sm btn-red" onclick="deletePCMExpense('${e.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('') : '<div style="text-align:center;color:var(--gray);padding:20px">No expenses logged</div>';
+    
+    document.getElementById('pcm-exp-list').innerHTML = html;
+  } catch(e) {
+    showToast('⚠️ Error: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function deletePCMExpense(expId) {
+  if (!confirm('Delete this expense?')) return;
+  setLoading(true);
+  try {
+    await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/expense/${expId}`, { method: 'DELETE' });
+    showToast('✓ Expense deleted');
+    renderPCMExpenses();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ═══════ PCM SUMMARY FUNCTIONS ═══════ */
+async function renderPCMSummary() {
+  setLoading(true);
+  try {
+    const period = document.getElementById('pcm-summary-period').value || 'monthly';
+    const res = await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/summary?period=${period}`);
+    const summary = await res.json();
+    
+    const html = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">${summary.totalMeets || 0}</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:4px;text-transform:uppercase;">Total Meets</div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">${summary.totalAttendees || 0}</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:4px;text-transform:uppercase;">Attendees</div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">${summary.totalKYC || 0}</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:4px;text-transform:uppercase;">KYC Enrolled</div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">${summary.conversions || 0}</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:4px;text-transform:uppercase;">Conversions</div>
+        </div>
+      </div>
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="font-weight:600;color:var(--dark);margin-bottom:8px;font-size:13px;">💰 Expense Summary</div>
+        <div style="display:grid;gap:8px;font-size:14px;">
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0;">
+            <span style="font-weight:600">Total Expenses:</span>
+            <span style="font-weight:700;color:var(--red);font-family:'Rajdhani',sans-serif;">₹${(summary.totalExpenses || 0).toLocaleString('en-IN')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0;">
+            <span>PCM Costs:</span>
+            <span style="font-weight:600">₹${(summary.pcmCosts || 0).toLocaleString('en-IN')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0;">
+            <span>Gift Disbursements:</span>
+            <span style="font-weight:600">₹${(summary.giftDisburse || 0).toLocaleString('en-IN')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;color:var(--gray);">
+            <span>Cost per Conversion:</span>
+            <span style="font-weight:600">₹${summary.conversions && summary.totalExpenses ? Math.round(summary.totalExpenses / summary.conversions).toLocaleString('en-IN') : '—'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('pcm-summary-content').innerHTML = html;
+  } catch(e) {
+    showToast('⚠️ Error: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function exportPCMSummary() {
+  try {
+    const period = document.getElementById('pcm-summary-period').value || 'monthly';
+    const res = await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/summary?period=${period}`);
+    const summary = await res.json();
+    
+    const csv = "Metric,Value\nTotal Meets Conducted," + summary.totalMeets + "\nTotal Attendees," + summary.totalAttendees + "\nKYC Enrolled," + summary.totalKYC + "\nConversions Achieved," + summary.conversions + "\nTotal Expenses (₹)," + summary.totalExpenses + "\nPCM Costs (₹)," + summary.pcmCosts + "\nGift Disbursements (₹)," + summary.giftDisburse + "\nCost per Conversion (₹)," + (summary.conversions && summary.totalExpenses ? Math.round(summary.totalExpenses / summary.conversions) : 0);
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PCM_Summary_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    showToast('✓ Summary exported');
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+}
+
+/* ═══════ PCM APPROVAL FUNCTIONS ═══════ */
+async function renderPCMApprovals() {
+  setLoading(true);
+  try {
+    const status = document.getElementById('pcm-approval-status').value || 'pending';
+    const res = await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/approvals?status=${status}`);
+    const approvals = await res.json();
+    
+    const html = approvals.length ? approvals.map(a => `
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;color:var(--dark)">Submitted by: ${a.submittedBy}</div>
+          <div style="font-size:12px;color:var(--gray);margin-top:2px">PCM: ${a.dealerName || '—'} • Submitted: ${new Date(a.submittedAt).toLocaleDateString('en-IN')}</div>
+          <div style="margin-top:6px;">
+            ${a.status === 'pending' ? '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">⏳ Pending</span>' : ''}
+            ${a.status === 'approved' ? '<span style="background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">✓ Approved</span>' : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          ${a.status === 'pending' ? `
+            <button class="btn-sm btn-green" onclick="approvePCMSubmission('${a.id}')">Approve</button>
+            <button class="btn-sm btn-red" onclick="rejectPCMSubmission('${a.id}')">Reject</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('') : emptyState('🔖', 'No submissions', 'Expenses and claims will appear here for approval');
+    
+    document.getElementById('pcm-approval-list').innerHTML = html;
+  } catch(e) {
+    showToast('⚠️ Error: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function approvePCMSubmission(subId) {
+  if (!confirm('Approve this submission?')) return;
+  setLoading(true);
+  try {
+    await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/approval/${subId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved', approvedBy: currentUser.name })
+    });
+    showToast('✓ Submission approved');
+    renderPCMApprovals();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function rejectPCMSubmission(subId) {
+  const reason = prompt('Rejection reason:');
+  if (!reason) return;
+  setLoading(true);
+  try {
+    await fetch(`https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/approval/${subId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected', reason, rejectedBy: currentUser.name })
+    });
+    showToast('✓ Submission rejected');
+    renderPCMApprovals();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
 function togglePwd(id, btn) {
   const input = document.getElementById(id);
