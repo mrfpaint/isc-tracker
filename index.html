@@ -792,6 +792,25 @@
     </div>
   </div>
 
+  <!-- ═══ EMPLOYEE ACTIVITY TAB (Admin / RSM / ASM own team) ═══ -->
+  <div id="tab-activity" class="main-content" style="display:none">
+    <div class="page-title">Employee Activity</div>
+    <div class="page-subtitle">Attendance vs actual field work — spot who's really working</div>
+    <div style="position:relative;margin-bottom:12px">
+      <input id="act-search" placeholder="🔍 Type a name to search (ISC / ST / BDO)..." autocomplete="off" oninput="actSearchInput()" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;box-sizing:border-box">
+      <div id="act-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--border);border-radius:10px;max-height:260px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.12)"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+      <input type="date" id="act-date" onchange="renderActivityReport()" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif">
+      <select id="act-range" onchange="renderActivityReport()" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif">
+        <option value="1">Selected day only</option>
+        <option value="7">Last 7 days (ending on date)</option>
+        <option value="30">Last 30 days (ending on date)</option>
+      </select>
+    </div>
+    <div id="act-result"><div style="text-align:center;color:#999;padding:40px 10px;font-size:13px">Search and select an employee above to see their activity.</div></div>
+  </div>
+
   <div id="tab-dashboard" class="main-content" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <div class="page-title">📊 Dashboard</div>
@@ -2341,20 +2360,20 @@ function buildNav() {
   if (currentUser.role==='isc') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='asm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
 }
 
 function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active'); showTab(tab); }
 
 function showTab(tab) {
-  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
+  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
   document.getElementById('tab-'+tab).style.display='block';
   if (tab==='mysites') renderMyEntries();
   if (tab==='allsites') renderAllEntries();
@@ -2368,12 +2387,167 @@ function showTab(tab) {
   if (tab==='profile') renderProfile();
   if (tab==='admin') renderAdminPanel();
   if (tab==='dashboard') renderDashboard();
+  if (tab==='activity') renderActivityTab();
   if (tab==='pcm') {
     // Approvals are for managers only (ASM / RSM / Admin)
     const ab = document.getElementById('pcm-approvals-tab-btn');
     if (ab) ab.style.display = ['asm','rsm','admin'].includes(currentUser.role) ? '' : 'none';
     renderPCMPlans();
   }
+}
+
+// ═══════════════════════════════════════════════
+//  EMPLOYEE ACTIVITY REPORT (Admin / RSM / ASM own team)
+// ═══════════════════════════════════════════════
+let _actPeople = [];      // people this viewer is allowed to see
+let _actSelected = null;  // currently selected person
+
+function _actTime(v){ if(!v) return ''; const s=String(v); if(/^\d{4}-\d{2}-\d{2}T/.test(s)){ try{ return new Date(s).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} } return s; }
+function _actRecDate(r){ return String(r.date||r.visitDate||r.createdAt||'').slice(0,10); }
+
+async function loadActivityPeople() {
+  const [iscs, sts, bdos, asms] = await Promise.all([DATA_getISCs(), DATA_getST(), DATA_getBDO(), DATA_getASMs()]);
+  let people = [
+    ...iscs.map(p=>({...p, _role:'ISC'})),
+    ...sts.map(p=>({...p, _role:'ST'})),
+    ...bdos.map(p=>({...p, _role:'BDO'}))
+  ];
+  if (currentUser.role==='asm') {
+    people = people.filter(p=>String(p.asmId||'')===String(currentUser.id));       // ASM: own team only
+  } else if (currentUser.role==='rsm') {
+    const myAsmIds = new Set(asms.filter(a=>String(a.rsmId||'')===String(currentUser.id)).map(a=>String(a.id)));
+    people = people.filter(p=>myAsmIds.has(String(p.asmId||'')));                  // RSM: everyone under their ASMs
+  }
+  return people;                                                                    // Admin: everyone
+}
+
+async function renderActivityTab() {
+  const df = document.getElementById('act-date');
+  if (df && !df.value) df.value = todayStr();
+  if (!_actPeople.length) {
+    setLoading(true,'Loading employees...');
+    try { _actPeople = await loadActivityPeople(); }
+    catch(e){ showToast('⚠️ '+e.message); }
+    finally { setLoading(false); }
+  }
+}
+
+function actSearchInput() {
+  const q = document.getElementById('act-search').value.trim().toLowerCase();
+  const box = document.getElementById('act-search-results');
+  if (q.length < 2) { box.style.display='none'; return; }
+  const matches = _actPeople.map((p,idx)=>({p,idx})).filter(x=>String(x.p.name||'').toLowerCase().includes(q)).slice(0,12);
+  if (!matches.length) { box.innerHTML = `<div style="padding:12px;color:#999;font-size:13px">No matching employee found</div>`; box.style.display='block'; return; }
+  box.innerHTML = matches.map(x=>`<div onclick="actSelectPerson(${x.idx})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px"><strong>${x.p.name}</strong> <span style="color:#999">· ${x.p._role}${x.p.region?' · '+x.p.region:''}</span></div>`).join('');
+  box.style.display='block';
+}
+
+function actSelectPerson(idx) {
+  _actSelected = _actPeople[idx];
+  document.getElementById('act-search').value = `${_actSelected.name} (${_actSelected._role})`;
+  document.getElementById('act-search-results').style.display='none';
+  renderActivityReport();
+}
+
+function _actDatesInRange() {
+  const endStr = document.getElementById('act-date').value || todayStr();
+  const days = parseInt(document.getElementById('act-range').value||'1',10);
+  const end = new Date(endStr+'T00:00:00');
+  const list = [];
+  for (let i=0;i<days;i++){ const d=new Date(end); d.setDate(end.getDate()-i); list.push(d.toISOString().slice(0,10)); }
+  return list;   // newest first
+}
+
+async function renderActivityReport() {
+  if (!_actSelected) return;
+  const p = _actSelected;
+  const pid = String(p.id||'');
+  const dates = _actDatesInRange();
+  const dateSet = new Set(dates);
+  setLoading(true,'Building activity report...');
+  try {
+    // ── attendance (checks both Attendance and Attendance_All sheets) ──
+    const [att1, att2] = await Promise.all([DATA_getAttendance(), DATA_getAttendanceAll().catch(()=>[])]);
+    const attAll = [...att1, ...att2].filter(a=>String(a.iscId||a.userId||a.empId||'')===pid);
+    const attByDate = {}; attAll.forEach(a=>{ const d=String(a.date||'').slice(0,10); if(!attByDate[d]) attByDate[d]=a; });
+
+    // ── field activities, depending on role ──
+    let acts = [];
+    if (p._role==='ISC') {
+      const entries = await DATA_getEntries();
+      entries.filter(e=>String(e.iscId||'')===pid).forEach(e=>{
+        const cd = String(e.createdAt||'').slice(0,10);
+        const ud = String(e.updatedAt||'').slice(0,10);
+        if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🏗️', text:`New site: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
+        else if (ud && dateSet.has(ud)) acts.push({date:ud, time:_actTime(e.updatedAt), icon:'📝', text:`Site updated: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
+      });
+    } else {
+      // ST / BDO — their own visit sheets
+      const visits = p._role==='ST' ? await DATA_getSTVisits() : await DATA_getBDOVisits();
+      visits.filter(v=>String(v.stId||v.bdoId||v.userId||v.iscId||'')===pid
+                     || String(v.stName||v.bdoName||v.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
+        .forEach(v=>{
+          const d = _actRecDate(v);
+          if (dateSet.has(d)) acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`Visit: ${v.siteName||v.customer||v.purpose||v.dealerName||'(site)'}`, place:v.address||v.location||''});
+        });
+      // ...plus any ISC site entries where they were tagged
+      const entries = await DATA_getEntries();
+      const nameKey = p._role==='ST' ? 'stName' : 'bdoName';
+      entries.filter(e=>String(e[nameKey]||'').trim() && String(e[nameKey]).trim().toLowerCase()===String(p.name||'').trim().toLowerCase()).forEach(e=>{
+        const cd = String(e.createdAt||'').slice(0,10);
+        if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🤝', text:`Tagged on site: ${e.siteName||e.customer||'(unnamed)'} (entered by ${e.iscName||'ISC'})`, place:e.address||''});
+      });
+    }
+
+    // ── PCM meets executed by this person (any role) ──
+    try {
+      const pcmRes = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions');
+      const pcms = await pcmRes.json();
+      (Array.isArray(pcms)?pcms:[]).filter(e=>String(e.executedBy||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase()).forEach(e=>{
+        const d = String(e.datetime||e.createdAt||'').slice(0,10);
+        if (dateSet.has(d)) acts.push({date:d, time:_actTime(e.datetime||e.createdAt), icon:'🎨', text:`PCM meet: ${e.dealerName||''} (${e.attendeesAttended||0} attended${e.kycEnrolled?', '+e.kycEnrolled+' KYC':''})`, place:[e.town,e.area].filter(Boolean).join(', ')});
+      });
+    } catch(e) { console.warn('PCM fetch for activity failed:', e.message); }
+
+    // ── summary numbers ──
+    const totalActs = acts.length;
+    const presentDays = dates.filter(d=>attByDate[d]?.status==='Present').length;
+    const ghostDays = dates.filter(d=>attByDate[d]?.status==='Present' && !acts.some(a=>a.date===d)).length;
+
+    let html = `
+      <div style="background:linear-gradient(135deg,var(--dark),var(--dark2));border-radius:16px;padding:16px 20px;color:white;margin-bottom:14px">
+        <div style="font-size:18px;font-weight:700;font-family:'Rajdhani',sans-serif">${p.name} <span style="font-size:12px;opacity:.7">· ${p._role}${p.region?' · '+p.region:''}${p.phone?' · 📞 '+p.phone:''}</span></div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card green"><div class="stat-value">${presentDays}</div><div class="stat-label">Present days</div></div>
+        <div class="stat-card"><div class="stat-value">${totalActs}</div><div class="stat-label">Field activities</div></div>
+        <div class="stat-card red"><div class="stat-value">${ghostDays}</div><div class="stat-label">Present, 0 activity</div></div>
+      </div>`;
+
+    html += dates.map(d=>{
+      const a = attByDate[d];
+      const dayActs = acts.filter(x=>x.date===d).sort((x,y)=>String(x.time).localeCompare(String(y.time)));
+      const attHtml = a
+        ? (a.status==='Present'
+            ? `<span style="color:#10b981;font-weight:600">✅ Present</span> <span style="color:#999;font-size:11px">${a.checkInTime||''}${a.gps?' · 📍 '+a.gps:''}</span>`
+            : `<span style="color:#f59e0b;font-weight:600">🏖️ ${a.status}</span>`)
+        : `<span style="color:#ef4444;font-weight:600">✖ Not marked</span>`;
+      const flag = (a?.status==='Present' && !dayActs.length)
+        ? `<div style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-top:8px">⚠️ Marked Present but NO field activity recorded</div>` : '';
+      const actsHtml = dayActs.length
+        ? dayActs.map(x=>`<div style="display:flex;gap:8px;padding:6px 0;font-size:13px;border-top:1px dashed var(--border)"><span>${x.icon}</span><div><div>${x.time?`<strong>${x.time}</strong> — `:''}${x.text}</div>${x.place?`<div style="color:#999;font-size:11px">📍 ${x.place}</div>`:''}</div></div>`).join('')
+        : `<div style="color:#bbb;font-size:12px;padding:4px 0">No site activity</div>`;
+      return `<div style="background:white;border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+          <strong style="font-size:13px">${new Date(d+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}</strong>
+          <div style="font-size:12px">${attHtml}</div>
+        </div>
+        <div style="margin-top:6px">${actsHtml}</div>${flag}</div>`;
+    }).join('');
+
+    document.getElementById('act-result').innerHTML = html;
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
 }
 
 async function renderBDOSites() {
