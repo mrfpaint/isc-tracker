@@ -1755,6 +1755,7 @@ async function sheetsGet(sheet) {
 }
 
 async function sheetsAppend(sheet, rowObj) {
+  if (currentUser && currentUser.viewOnly) throw new Error('View-only account — changes are not allowed');
   const hResp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet+'!1:1')}`);
   if (!hResp.ok) throw new Error(`Cannot read headers from ${sheet}`);
   const hData = await hResp.json();
@@ -1770,6 +1771,7 @@ async function sheetsAppend(sheet, rowObj) {
 }
 
 async function sheetsUpdate(sheet, matchField, matchVal, updates) {
+  if (currentUser && currentUser.viewOnly) throw new Error('View-only account — changes are not allowed');
   const resp = await fetch(`${WORKER_URL}/sheets/update`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2245,18 +2247,26 @@ async function doRSMLogin() {
 }
 
 async function doAdminLogin() {
-  const u=gv('admin-login-user').trim().toLowerCase(), p=gv('admin-login-pass').trim().toLowerCase();
+  const u=gv('admin-login-user').trim().toLowerCase(), p=gv('admin-login-pass').trim();
   if (!u||!p) return showAlert('alert-admin-login','Please enter credentials.','error');
   setLoading(true,'Signing in...');
   try {
-    let admins = LDB.arr('admins');
+    // 1) Try central admin list from the Google Sheet (sheet name: Admins)
+    let admins = [];
+    try { admins = (await sheetsGet('Admins')).filter(a=>String(a.username||'').trim() && String(a.status||'Active')!=='Inactive'); }
+    catch(e) { console.warn('Admins sheet not reachable:', e.message); }
+    // 2) Fallback to local default ONLY if the sheet has no admins (first-time setup / offline)
     if (!admins.length) {
-      LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
+      if (!LDB.arr('admins').length) LDB.set('admins',[{username:'admin',password:'admin123',name:'System Admin',role:'admin'}]);
       admins = LDB.arr('admins');
     }
-    const admin = admins.find(a=>(a.username||'').toLowerCase()===u&&(a.password||'').toLowerCase()===p);
-    if (admin) { currentUser={...admin}; launchApp(); return; }
-    showAlert('alert-admin-login','Invalid credentials. Default: admin / admin123','error');
+    const admin = admins.find(a=>(a.username||'').toLowerCase().trim()===u && String(a.password||'').trim()===p);
+    if (admin) {
+      const isViewer = String(admin.role||'').trim().toLowerCase()==='viewer';
+      currentUser = {...admin, role:'admin', viewOnly:isViewer};   // viewer = admin eyes, no hands
+      launchApp(); return;
+    }
+    showAlert('alert-admin-login','Invalid credentials.','error');
   } catch(e) { showAlert('alert-admin-login','Error: '+e.message,'error'); }
   finally { setLoading(false); }
 }
@@ -2352,6 +2362,7 @@ function launchApp() {
   else if (currentUser.role==='asm') { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
   else if (currentUser.role==='bdo') { showTab('bdosites'); document.getElementById('fab-btn').style.display='none'; }
   else if (currentUser.role==='rsm') { showTab('rsmsites'); document.getElementById('fab-btn').style.display='none'; }
+  else if (currentUser.viewOnly) { showTab('team-attendance'); document.getElementById('fab-btn').style.display='none'; }
   else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
 }
 
@@ -2365,6 +2376,8 @@ function buildNav() {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+  } else if (currentUser.viewOnly) {
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
   } else {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
