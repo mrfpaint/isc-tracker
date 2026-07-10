@@ -811,6 +811,31 @@
     <div id="act-result"><div style="text-align:center;color:#999;padding:40px 10px;font-size:13px">Search and select an employee above to see their activity.</div></div>
   </div>
 
+  <!-- ═══ REPORTS TAB (Admin / RSM / Viewer) ═══ -->
+  <div id="tab-reports" class="main-content" style="display:none">
+    <div class="page-title">Reports</div>
+    <div class="page-subtitle">Organisation-wide reports for any date range</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+      <input type="date" id="rep-from" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif">
+      <span style="font-size:12px;color:#999">to</span>
+      <input type="date" id="rep-to" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif">
+      <select id="rep-type" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif">
+        <option value="ghost">⚠️ Present but NO activity</option>
+        <option value="attendance">📅 Attendance summary</option>
+        <option value="activity">🏗️ Field activity summary</option>
+      </select>
+      <button onclick="runReport()" style="padding:10px 18px;background:var(--red);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Run Report</button>
+      <button id="rep-export-btn" onclick="exportReportCSV()" style="display:none;padding:10px 14px;background:white;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif">⬇ Export</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      <button onclick="repQuickRange(0)" style="padding:6px 12px;background:#f3f4f6;border:none;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Today</button>
+      <button onclick="repQuickRange(6)" style="padding:6px 12px;background:#f3f4f6;border:none;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Last 7 days</button>
+      <button onclick="repQuickRange(29)" style="padding:6px 12px;background:#f3f4f6;border:none;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Last 30 days</button>
+      <button onclick="repQuickRange('month')" style="padding:6px 12px;background:#f3f4f6;border:none;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">This month</button>
+    </div>
+    <div id="rep-result"><div style="text-align:center;color:#999;padding:40px 10px;font-size:13px">Pick a date range and report type, then tap Run Report.</div></div>
+  </div>
+
   <div id="tab-dashboard" class="main-content" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <div class="page-title">📊 Dashboard</div>
@@ -2375,18 +2400,18 @@ function buildNav() {
   } else if (currentUser.role==='bdo') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
   } else {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
 }
 
 function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active'); showTab(tab); }
 
 function showTab(tab) {
-  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
+  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
   document.getElementById('tab-'+tab).style.display='block';
   if (tab==='mysites') renderMyEntries();
   if (tab==='allsites') renderAllEntries();
@@ -2401,6 +2426,7 @@ function showTab(tab) {
   if (tab==='admin') renderAdminPanel();
   if (tab==='dashboard') renderDashboard();
   if (tab==='activity') renderActivityTab();
+  if (tab==='reports') renderReportsTab();
   if (tab==='pcm') {
     // Approvals are for managers only (ASM / RSM / Admin)
     const ab = document.getElementById('pcm-approvals-tab-btn');
@@ -2561,6 +2587,152 @@ async function renderActivityReport() {
     document.getElementById('act-result').innerHTML = html;
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
+}
+
+// ═══════════════════════════════════════════════
+//  REPORTS (Admin / RSM / Viewer) — org-wide, date range
+// ═══════════════════════════════════════════════
+let _repRows = [];   // last computed rows, for CSV export
+let _repCols = [];
+
+function renderReportsTab() {
+  const f=document.getElementById('rep-from'), t=document.getElementById('rep-to');
+  if (f && !f.value) { const d=new Date(); d.setDate(d.getDate()-6); f.value=d.toISOString().slice(0,10); }
+  if (t && !t.value) t.value = todayStr();
+}
+
+function repQuickRange(k) {
+  const f=document.getElementById('rep-from'), t=document.getElementById('rep-to');
+  t.value = todayStr();
+  if (k==='month') { f.value = todayStr().slice(0,7)+'-01'; }
+  else { const d=new Date(); d.setDate(d.getDate()-k); f.value=d.toISOString().slice(0,10); }
+  runReport();
+}
+
+function _repDates(fromStr, toStr) {
+  const out=[]; let d=new Date(fromStr+'T00:00:00'); const end=new Date(toStr+'T00:00:00');
+  while (d<=end) { out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+  return out;
+}
+
+// Loads everything once and builds a per-person map: attendance by date + activity dates/counts
+async function _repLoadData(dates) {
+  const dateSet = new Set(dates);
+  const people = await loadActivityPeople();   // same role-based scoping as the Activity tab
+  const [att1, att2, entries] = await Promise.all([
+    DATA_getAttendance(), DATA_getAttendanceAll().catch(()=>[]), DATA_getEntries()
+  ]);
+  let stVisits=[], bdoVisits=[], pcms=[];
+  try { stVisits = await DATA_getSTVisits(); } catch(e){}
+  try { bdoVisits = await DATA_getBDOVisits(); } catch(e){}
+  try { const r = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions'); const j = await r.json(); pcms = Array.isArray(j)?j:[]; } catch(e){}
+
+  const map = {};   // pid -> {p, att:{date:status}, actDates:Set, newSites, updates, visits, pcm}
+  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, updates:0, visits:0, pcm:0}; });
+  const byName = {}; people.forEach(p=>{ byName[String(p.name||'').trim().toLowerCase()] = String(p.id); });
+
+  [...att1, ...att2].forEach(a=>{
+    const pid = String(a.iscId||a.userId||a.empId||''); const d = String(a.date||'').slice(0,10);
+    if (map[pid] && dateSet.has(d) && !map[pid].att[d]) map[pid].att[d] = a.status||'Present';
+  });
+  entries.forEach(e=>{
+    const cd=String(e.createdAt||'').slice(0,10), ud=String(e.updatedAt||'').slice(0,10);
+    const pid=String(e.iscId||'');
+    if (map[pid]) {
+      if (dateSet.has(cd)) { map[pid].newSites++; map[pid].actDates.add(cd); }
+      else if (ud && dateSet.has(ud)) { map[pid].updates++; map[pid].actDates.add(ud); }
+    }
+    // ST/BDO tagged on the entry
+    if (dateSet.has(cd)) ['stName','bdoName'].forEach(k=>{
+      const tid = byName[String(e[k]||'').trim().toLowerCase()];
+      if (tid && map[tid]) { map[tid].visits++; map[tid].actDates.add(cd); }
+    });
+  });
+  [...stVisits, ...bdoVisits].forEach(v=>{
+    const d=_actRecDate(v); if (!dateSet.has(d)) return;
+    let pid = String(v.stId||v.bdoId||v.userId||v.iscId||'');
+    if (!map[pid]) pid = byName[String(v.stName||v.bdoName||v.name||'').trim().toLowerCase()]||'';
+    if (map[pid]) { map[pid].visits++; map[pid].actDates.add(d); }
+  });
+  pcms.forEach(e=>{
+    const d=String(e.datetime||e.createdAt||'').slice(0,10); if (!dateSet.has(d)) return;
+    const pid = byName[String(e.executedBy||'').trim().toLowerCase()];
+    if (pid && map[pid]) { map[pid].pcm++; map[pid].actDates.add(d); }
+  });
+  return map;
+}
+
+function _repTable(cols, rows) {
+  _repCols = cols; _repRows = rows;
+  document.getElementById('rep-export-btn').style.display = rows.length ? '' : 'none';
+  if (!rows.length) return '<div style="text-align:center;color:#999;padding:30px;font-size:13px">No records found for this range 🎉</div>';
+  return `<div style="overflow-x:auto;background:white;border:1.5px solid var(--border);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">
+    <tr>${cols.map(c=>`<th style="text-align:left;padding:9px 10px;background:#f9fafb;border-bottom:1.5px solid var(--border);white-space:nowrap">${c}</th>`).join('')}</tr>
+    ${rows.map(r=>`<tr>${r.map((c,i)=>`<td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;${i===0?'font-weight:600;':''}white-space:${i===r.length-1?'normal':'nowrap'}">${c}</td>`).join('')}</tr>`).join('')}
+  </table></div>`;
+}
+
+async function runReport() {
+  const from=document.getElementById('rep-from').value, to=document.getElementById('rep-to').value;
+  const type=document.getElementById('rep-type').value;
+  if (!from||!to||from>to) return showToast('⚠️ Please pick a valid From and To date');
+  const dates=_repDates(from,to);
+  if (dates.length>92) return showToast('⚠️ Range too large — please keep it within 3 months');
+  setLoading(true,'Crunching the numbers...');
+  try {
+    const map = await _repLoadData(dates);
+    const persons = Object.values(map);
+    let html='';
+
+    if (type==='ghost') {
+      const rows=[];
+      persons.forEach(x=>{
+        const ghostDates = dates.filter(d=>{
+          if (x.p._role==='ISC' && !iscActiveOn(x.p,d)) return false;   // skip after relieved date
+          return x.att[d]==='Present' && !x.actDates.has(d);
+        });
+        if (ghostDates.length) rows.push([x.p.name, x.p._role, x.p.region||'', Object.values(x.att).filter(s=>s==='Present').length, x.actDates.size, `<strong style="color:#ef4444">${ghostDates.length}</strong>`, ghostDates.map(d=>d.slice(8)+'/'+d.slice(5,7)).join(', ')]);
+      });
+      rows.sort((a,b)=>parseInt(String(b[5]).replace(/\D/g,''))-parseInt(String(a[5]).replace(/\D/g,'')));
+      html = `<div class="stats-row"><div class="stat-card red"><div class="stat-value">${rows.length}</div><div class="stat-label">People with ghost days</div></div><div class="stat-card"><div class="stat-value">${rows.reduce((s,r)=>s+parseInt(String(r[5]).replace(/\D/g,'')),0)}</div><div class="stat-label">Total ghost days</div></div><div class="stat-card green"><div class="stat-value">${persons.length-rows.length}</div><div class="stat-label">Clean records</div></div></div>`
+        + _repTable(['Name','Role','Region','Present days','Active days','Ghost days','Ghost dates'], rows);
+    }
+
+    else if (type==='attendance') {
+      const rows = persons.map(x=>{
+        const myDates = x.p._role==='ISC' ? dates.filter(d=>iscActiveOn(x.p,d)) : dates;
+        const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length, H=myDates.filter(d=>x.att[d]==='Holiday').length;
+        const U=myDates.length-P-L-H;
+        const pct = myDates.length? Math.round((P+L+H)*100/myDates.length):0;
+        return [x.p.name, x.p._role, x.p.region||'', P, L, H, U, pct+'%'];
+      }).sort((a,b)=>parseInt(a[7])-parseInt(b[7]));
+      const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[7]),0)/rows.length):0;
+      html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Employees</div></div><div class="stat-card green"><div class="stat-value">${avg}%</div><div class="stat-label">Avg marked</div></div><div class="stat-card red"><div class="stat-value">${rows.filter(r=>parseInt(r[7])<50).length}</div><div class="stat-label">Below 50%</div></div></div>`
+        + _repTable(['Name','Role','Region','Present','Leave','Holiday','Unmarked','% marked'], rows);
+    }
+
+    else if (type==='activity') {
+      const rows = persons.map(x=>[x.p.name, x.p._role, x.p.region||'', x.newSites, x.updates, x.visits, x.pcm, x.newSites+x.updates+x.visits+x.pcm])
+        .sort((a,b)=>b[7]-a[7]);
+      const tot=(i)=>rows.reduce((s,r)=>s+r[i],0);
+      html = `<div class="stats-row"><div class="stat-card green"><div class="stat-value">${tot(3)}</div><div class="stat-label">New sites</div></div><div class="stat-card"><div class="stat-value">${tot(5)}</div><div class="stat-label">Visits</div></div><div class="stat-card"><div class="stat-value">${tot(6)}</div><div class="stat-label">PCM meets</div></div></div>`
+        + _repTable(['Name','Role','Region','New sites','Site updates','Visits','PCM meets','Total'], rows);
+    }
+
+    document.getElementById('rep-result').innerHTML = html;
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
+function exportReportCSV() {
+  if (!_repRows.length) return;
+  const strip = s => String(s).replace(/<[^>]*>/g,'');
+  const csv = [_repCols.join(','), ..._repRows.map(r=>r.map(c=>`"${strip(c).replace(/"/g,'""')}"`).join(','))].join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `FIELD-ONE-report-${document.getElementById('rep-type').value}-${document.getElementById('rep-from').value}-to-${document.getElementById('rep-to').value}.csv`;
+  a.click();
 }
 
 async function renderBDOSites() {
