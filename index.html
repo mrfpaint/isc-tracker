@@ -4842,6 +4842,60 @@ async function markSelfAttendance(status) {
   finally { setLoading(false); }
 }
 
+// ═══ ATTENDANCE CORRECTION (Admin + ASM own team) ═══
+let _tattRows = [];   // rows currently shown in Team Attendance
+let _tattDate = '';   // date currently selected there
+
+function openAttCorrection(idx) {
+  const r = _tattRows[idx]; if (!r) return;
+  const dateNice = new Date(_tattDate+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  const old = document.getElementById('att-correct-overlay'); if (old) old.remove();
+  const ov = document.createElement('div');
+  ov.id = 'att-correct-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:20px;max-width:340px;width:100%;font-family:'DM Sans',sans-serif">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">Correct attendance</div>
+      <div style="font-size:12px;color:#666;margin-bottom:14px">${r.isc.name} · ${dateNice} · currently <strong>${r.status}</strong></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="applyAttCorrection(${idx},'Present')" style="padding:11px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">✅ Present</button>
+        <button onclick="applyAttCorrection(${idx},'Leave')" style="padding:11px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🏖️ Leave</button>
+        <button onclick="applyAttCorrection(${idx},'Holiday')" style="padding:11px;background:#6366f1;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🎉 Holiday</button>
+        <button onclick="applyAttCorrection(${idx},'Absent')" style="padding:11px;background:#ef4444;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🚫 Absent (marked by mistake)</button>
+        <button onclick="document.getElementById('att-correct-overlay').remove()" style="padding:10px;background:#f3f4f6;color:#333;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px">Cancel</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e=>{ if (e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+async function applyAttCorrection(idx, newStatus) {
+  const r = _tattRows[idx]; if (!r) return;
+  document.getElementById('att-correct-overlay')?.remove();
+  if (r.status===newStatus) return showToast('Already '+newStatus+' — nothing to change');
+  setLoading(true,'Saving correction...');
+  try {
+    if (r.att && r.att.id) {
+      // Existing record → update its status
+      await sheetsUpdate('Attendance','id',r.att.id,{status:newStatus, gpsRaw:`Corrected to ${newStatus} by ${currentUser.name} on ${todayStr()}`});
+    } else if (r.att && !r.att.id) {
+      throw new Error('This old record has no id — please correct it directly in the Google Sheet');
+    } else {
+      // Was Unmarked → create a record on their behalf
+      await sheetsAppend('Attendance',{
+        id:'ATT-C-'+Date.now(), iscId:r.isc.id, iscName:r.isc.name,
+        asmId:r.isc.asmId||'', asmName:r.isc.asmName||'', region:r.isc.region||'',
+        date:_tattDate, status:newStatus, checkInTime:'',
+        gps:'', gpsRaw:`Marked as ${newStatus} by ${currentUser.name} (correction)`,
+        createdAt:new Date().toISOString()
+      });
+    }
+    showToast(`✅ ${r.isc.name} → ${newStatus} for ${_tattDate}`);
+    renderTeamAttendance();
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
 async function renderTeamAttendance() {
   // Set default date to today
   const df = document.getElementById('team-att-date');
@@ -4881,6 +4935,7 @@ async function renderTeamAttendance() {
       status: attMap[isc.id]?.status||'Unmarked'
     }));
     if (statusFilter!=='all') displayList = displayList.filter(r=>r.status===statusFilter);
+    _tattRows = displayList; _tattDate = selectedDate;   // stash for attendance correction
 
     const el = document.getElementById('team-att-list');
     if (!displayList.length) { el.innerHTML=emptyState('📅','No records found'); setLoading(false); return; }
@@ -4889,11 +4944,13 @@ async function renderTeamAttendance() {
       Present:'background:#d1fae5;color:#065f46',
       Leave:'background:#fef3c7;color:#92400e',
       Holiday:'background:#ede9fe;color:#4c1d95',
+      Absent:'background:#fee2e2;color:#991b1b',
       Unmarked:'background:#fee2e2;color:#991b1b'
     };
-    const statusIcon = {Present:'✅',Leave:'🏖️',Holiday:'🎉',Unmarked:'❌'};
+    const statusIcon = {Present:'✅',Leave:'🏖️',Holiday:'🎉',Absent:'🚫',Unmarked:'❌'};
+    const canCorrect = (currentUser.role==='asm') || (currentUser.role==='admin' && !currentUser.viewOnly);
 
-    el.innerHTML = displayList.map(({isc,att,status})=>`
+    el.innerHTML = displayList.map(({isc,att,status},i)=>`
       <div class="entry-card" style="cursor:default">
         <div class="entry-card-top">
           <div>
@@ -4901,7 +4958,10 @@ async function renderTeamAttendance() {
             <div class="entry-sub">👤 ${isc.username} · 🗺️ ${isc.region||'—'}</div>
             ${att?`<div class="entry-sub">🕐 ${att.checkInTime||'—'} ${att.gps?'· 📍 '+att.gps:''}</div>`:''}
           </div>
-          <span class="status-badge" style="${statusStyle[status]||''}">${statusIcon[status]||''} ${status}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="status-badge" style="${statusStyle[status]||''}">${statusIcon[status]||''} ${status}</span>
+            ${canCorrect?`<button onclick="openAttCorrection(${i})" title="Correct this entry" style="border:1.5px solid var(--border);background:white;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:13px">✏️</button>`:''}
+          </div>
         </div>
       </div>`).join('');
   } catch(e) { showToast('⚠️ '+e.message); }
