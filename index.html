@@ -233,7 +233,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.13</div>
+        <div class="auth-tagline">FIELD ONE · v4.14</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1065,6 +1065,14 @@
       <!-- STEP 1: CUSTOMER -->
       <div class="wizard-step active" id="wstep-0">
         <div class="step-section-title">👤 Customer Information</div>
+        <div class="form-group">
+          <label class="form-label">Site Status *</label>
+          <select class="form-select" id="entry-sitestatus">
+            <option value="">— Select —</option>
+            <option>New Site</option>
+            <option>Existing Site</option>
+          </select>
+        </div>
         <div class="form-group"><label class="form-label">Customer Name / Site Supervisor *</label><input type="text" class="form-input" id="entry-customer" placeholder="e.g. Mr. Ramesh Kumar"></div>
         <div class="form-group"><label class="form-label">Customer Phone</label><input type="tel" class="form-input" id="entry-custphone" placeholder="10-digit mobile number"></div>
         <div class="form-group">
@@ -1168,13 +1176,7 @@
             <option>Floor Coating</option>
           </select>
         </div>
-        <div id="product-rows">
-          <div class="product-row" id="pr-0">
-            <div class="form-group" style="margin:0"><label class="form-label">Product Name</label><input type="text" class="form-input" placeholder="e.g. Vapocure 2K Epoxy"></div>
-            <div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50"></div>
-            <button class="btn-remove-row" onclick="removeProductRow(0)" style="margin-top:20px">×</button>
-          </div>
-        </div>
+        <div id="product-rows"></div>
         <button class="btn-add-row" onclick="addProductRow()">+ Add Another Product</button>
         <div class="form-group" style="margin-top:16px"><label class="form-label">Estimated Site Value (₹)</label><input type="number" class="form-input" id="entry-sitevalue" placeholder="e.g. 150000"></div>
 
@@ -2044,7 +2046,7 @@ const ENTRIES_HEADERS = ['id','iscId','iscName','asmId','asmName','stName','bdoN
   'buildType','siteStage','area','paintDate','competitor','leadDate','sampleDate','conversionDate',
   'paintSystem','products','sampleMaterials','orderDetails',
   'siteValue','dealerCode','dealerName','contractor','contractorPhone','painter','painterPhone','status','remarks','sapRef',
-  'createdAt','updatedAt'];
+  'createdAt','updatedAt','siteStatus'];
 
 async function repairSheetHeaders(sheetName, headers) {
   if (!isConfigured()) return;
@@ -2992,6 +2994,7 @@ const WIZARD_STEPS = 6;
 
 function openWizard() {
   document.getElementById('wizard-entry').classList.add('show');
+  loadProductMaster();   // fills Category/Group/SKU dropdowns (cached after first load)
   autoCapureGPS();
 }
 
@@ -3091,11 +3094,14 @@ function showNewEntryModal() {
   const gpsStatus=document.getElementById('gps-status'); if(gpsStatus) gpsStatus.textContent='';
   const gpsBtn=document.getElementById('gps-btn'); if(gpsBtn){gpsBtn.textContent='📍';gpsBtn.style.background='var(--dark)';}
   sv('entry-custtype','');sv('entry-reftype','');sv('entry-status','Pending');
+  sv('entry-sitestatus','');
   sv('entry-edit-id','');
   document.getElementById('wizard-title').textContent='Log Site Visit';
   document.getElementById('wizard-next-btn').textContent='Next →';
   // Reset product rows
-  document.getElementById('product-rows').innerHTML=`<div class="product-row" id="pr-0"><div class="form-group" style="margin:0"><label class="form-label">Product Name</label><input type="text" class="form-input" placeholder="e.g. Vapocure 2K Epoxy" id="pname-0"></div><div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50" id="pqty-0"></div><button class="btn-remove-row" onclick="removeProductRow(0)" style="margin-top:20px">×</button></div>`;
+  document.getElementById('product-rows').innerHTML='';
+  _wizardProductCount=1;
+  addProductRowWithData(0,'','');
   sv('entry-dealercode','');
   renderWizardStep();
   openWizard();
@@ -3107,6 +3113,7 @@ function showEditModal(id) {
   _wizardStep = 0;
   sv('entry-edit-id',id);
   sv('entry-customer',e.customer);sv('entry-custphone',e.custPhone||'');
+  sv('entry-sitestatus',e.siteStatus||'');
   sv('entry-custtype',e.custType);sv('entry-reftype',e.refType);
   sv('entry-sitename',e.siteName||'');sv('entry-address',e.address);sv('entry-gps',e.gps||'');
   sv('entry-buildtype',e.buildType||'');sv('entry-sitestage',e.siteStage||'');
@@ -3138,12 +3145,99 @@ function showEditModal(id) {
   openWizard();
 }
 
+// ══════════ PRODUCT MASTER (Category → Product Group → SKU) ══════════
+// Loaded live from the SCM Insurance Tracker (same website), so both apps
+// always share one product list. Cached in localStorage for offline use.
+let _prodMaster = null;
+
+async function loadProductMaster(forceRefresh=false) {
+  if (_prodMaster && !forceRefresh) { populateAllCategorySelects(); return _prodMaster; }
+  if (!forceRefresh) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('prod_master_v1')||'null');
+      if (cached && cached.groups) {
+        _prodMaster = cached; populateAllCategorySelects();
+        if (Date.now()-(cached.savedAt||0) > 86400000) loadProductMaster(true); // silent daily refresh
+        return cached;
+      }
+    } catch(e) {}
+  }
+  try {
+    const t = await (await fetch('https://mrfpaint.github.io/insurance-tracker/index.html', {cache:'no-store'})).text();
+    const grab = (name) => {
+      const s = t.indexOf('const '+name+' =');
+      if (s < 0) throw new Error(name+' not found in SCM tracker');
+      const o = t.indexOf('{', s);
+      let d = 0, i = o;
+      for (; i < t.length; i++) { const c = t[i]; if (c==='{'||c==='[') d++; else if (c==='}'||c===']') { d--; if (!d) break; } }
+      return t.slice(o, i+1);
+    };
+    const groups = JSON.parse(grab('PRODUCT_GROUPS'));
+    const data   = JSON.parse(grab('PRODUCT_DATA'));
+    const order  = ['Wall','Wood','Metal','Others'];
+    const cats   = [...order.filter(c=>groups[c]), ...Object.keys(groups).filter(c=>!order.includes(c))];
+    _prodMaster = { cats, groups, data, savedAt: Date.now() };
+    try { localStorage.setItem('prod_master_v1', JSON.stringify(_prodMaster)); } catch(e) {}
+    populateAllCategorySelects();
+    return _prodMaster;
+  } catch(e) { console.warn('Product master load failed:', e.message); return _prodMaster; }
+}
+
+function populateAllCategorySelects() {
+  if (!_prodMaster) return;
+  document.querySelectorAll('select[id^="pcat-"]').forEach(sel=>{
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Select Category —</option>' + _prodMaster.cats.map(c=>`<option>${c}</option>`).join('');
+    if (cur && _prodMaster.cats.includes(cur)) sel.value = cur;
+  });
+}
+
+function pcatChange(idx) {
+  const cat = gv('pcat-'+idx);
+  const grpSel = document.getElementById('pgrp-'+idx), skuSel = document.getElementById('psku-'+idx);
+  sv('pname-'+idx,'');                                  // selection changed — clear stored product
+  document.getElementById('plegacy-'+idx)?.remove();    // remove "current product" note if editing
+  skuSel.innerHTML = '<option value="">— Select Product Group first —</option>'; skuSel.disabled = true;
+  if (!cat || !_prodMaster) { grpSel.innerHTML = '<option value="">— Select Category first —</option>'; grpSel.disabled = true; return; }
+  grpSel.innerHTML = '<option value="">— Select Product Group —</option>' + (_prodMaster.groups[cat]||[]).map(g=>`<option>${g}</option>`).join('');
+  grpSel.disabled = false;
+}
+
+function pgrpChange(idx) {
+  const cat = gv('pcat-'+idx), grp = gv('pgrp-'+idx);
+  const skuSel = document.getElementById('psku-'+idx);
+  sv('pname-'+idx,'');
+  document.getElementById('plegacy-'+idx)?.remove();
+  if (!grp || !_prodMaster) { skuSel.innerHTML = '<option value="">— Select Product Group first —</option>'; skuSel.disabled = true; return; }
+  const skus = (_prodMaster.data[cat]||{})[grp] || [];
+  skuSel.innerHTML = '<option value="">— Select SKU —</option>' + skus.map(s=>{
+    const label = `${s.desc} · ${s.pack} (${s.code})`;
+    return `<option value="${label.replace(/"/g,'&quot;')}">${label}</option>`;
+  }).join('');
+  skuSel.disabled = false;
+}
+
+function pskuChange(idx) {
+  sv('pname-'+idx, gv('psku-'+idx));
+  document.getElementById('plegacy-'+idx)?.remove();
+}
+
 function addProductRowWithData(idx, name, qty) {
   const rows=document.getElementById('product-rows');
   const div=document.createElement('div');
   div.className='product-row'; div.id=`pr-${idx}`;
-  div.innerHTML=`<div class="form-group" style="margin:0"><label class="form-label">Product Name</label><input type="text" class="form-input" placeholder="e.g. Vapocure 2K Epoxy" id="pname-${idx}" value="${name}"></div><div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50" id="pqty-${idx}" value="${qty}"></div><button class="btn-remove-row" onclick="removeProductRow(${idx})" style="margin-top:20px">×</button>`;
+  div.style.cssText='display:block;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;position:relative';
+  const legacyNote = name ? `<div id="plegacy-${idx}" style="font-size:11px;color:var(--gray);margin-bottom:8px">Current product: <b>${String(name).replace(/</g,'&lt;')}</b> — use the dropdowns below only if you want to change it</div>` : '';
+  div.innerHTML=`
+    <button class="btn-remove-row" onclick="removeProductRow(${idx})" style="position:absolute;top:8px;right:8px">×</button>
+    ${legacyNote}
+    <div class="form-group" style="margin:0 0 8px 0"><label class="form-label">Product Category *</label><select class="form-select" id="pcat-${idx}" onchange="pcatChange(${idx})"><option value="">— Loading products… —</option></select></div>
+    <div class="form-group" style="margin:0 0 8px 0"><label class="form-label">Product Group *</label><select class="form-select" id="pgrp-${idx}" onchange="pgrpChange(${idx})" disabled><option value="">— Select Category first —</option></select></div>
+    <div class="form-group" style="margin:0 0 8px 0"><label class="form-label">SKU *</label><select class="form-select" id="psku-${idx}" onchange="pskuChange(${idx})" disabled><option value="">— Select Product Group first —</option></select></div>
+    <div class="form-group" style="margin:0"><label class="form-label">Qty (Ltrs)</label><input type="number" class="form-input" placeholder="50" id="pqty-${idx}" value="${qty}"></div>
+    <input type="hidden" id="pname-${idx}" value="${String(name||'').replace(/"/g,'&quot;')}">`;
   rows.appendChild(div);
+  populateAllCategorySelects();
 }
 
 function addProductRow() {
@@ -3245,6 +3339,7 @@ function wizardBack() {
 
 function validateWizardStep() {
   if (_wizardStep===0) {
+    if (!gv('entry-sitestatus')) { showToast('⚠️ Please select Site Status — New Site or Existing Site'); return false; }
     if (!gv('entry-customer').trim()) { showToast('⚠️ Customer name is required'); return false; }
     if (!gv('entry-custtype')) { showToast('⚠️ Please select customer type'); return false; }
     if (!gv('entry-reftype')) { showToast('⚠️ Please select referral type'); return false; }
@@ -3260,6 +3355,18 @@ function validateWizardStep() {
     if (!gv('entry-buildtype')) { showToast('⚠️ Please select building type'); return false; }
     if (!gv('entry-sitestage')) { showToast('⚠️ Please select site stage'); return false; }
     if (!gv('entry-leaddate')) { showToast('⚠️ Lead date is required'); return false; }
+  }
+  if (_wizardStep===2) {
+    if (!gv('entry-paintsystem')) { showToast('⚠️ Please select a Paint System'); return false; }
+    const rows=[...document.querySelectorAll('#product-rows .product-row')];
+    let complete=0;
+    for (const row of rows) {
+      const idx=row.id.split('-')[1];
+      const name=gv('pname-'+idx), cat=gv('pcat-'+idx), grp=gv('pgrp-'+idx), qty=gv('pqty-'+idx);
+      if (name) { complete++; continue; }                 // fully selected (or existing product on an old entry)
+      if (cat||grp||qty) { showToast('⚠️ Please select Category, Product Group and SKU for every product row'); return false; }
+    }
+    if (!complete) { showToast('⚠️ Please add at least one product (Category → Product Group → SKU)'); return false; }
   }
   if (_wizardStep===3) {
     if (!gv('entry-dealercode')) { showToast('⚠️ Please select a dealer code'); return false; }
@@ -3277,6 +3384,7 @@ function buildReview() {
   });
   document.getElementById('review-content').innerHTML=`
     <div class="review-section"><div class="review-section-title">👤 Customer</div>
+      <div class="review-row"><div class="review-label">Site Status</div><div class="review-value">${gv('entry-sitestatus')||'—'}</div></div>
       <div class="review-row"><div class="review-label">Name</div><div class="review-value">${gv('entry-customer')}</div></div>
       <div class="review-row"><div class="review-label">Type</div><div class="review-value">${gv('entry-custtype')}</div></div>
       <div class="review-row"><div class="review-label">Referral</div><div class="review-value">${gv('entry-reftype')}</div></div>
@@ -3322,6 +3430,7 @@ async function saveEntry() {
   setLoading(true,'Saving...');
   try {
     const entryData = {
+      siteStatus:gv('entry-sitestatus'),
       customer:gv('entry-customer').trim(), custPhone:gv('entry-custphone').trim(),
       custType:gv('entry-custtype'), refType:gv('entry-reftype'),
       siteName:gv('entry-sitename').trim(), address:gv('entry-address').trim(),
@@ -5068,7 +5177,7 @@ function exportEntries(scope) {
     if (!data.length) { showToast('⚠️ No data to export'); return; }
     const headers = [
       'Ref #', 'Date', 'ISC Name', 'ASM Name', 'Region', 'ST', 'BDO',
-      'Customer Name', 'Customer Phone', 'Customer Type', 'Referral Type',
+      'Customer Name', 'Customer Phone', 'Customer Type', 'Referral Type', 'Site Status',
       'Project Name', 'Site Address', 'GPS Location', 'GPS Coordinates',
       'Building Type', 'Site Stage', 'Area (sq.ft)', 'Expected Paint Date',
       'Competitor Brand', 'Lead Date', 'Sample Date', 'Conversion Date',
@@ -5086,7 +5195,7 @@ function exportEntries(scope) {
       return [
         String(e.id||'').slice(-6).toUpperCase(), fmtDate(e.createdAt),
         e.iscName||'', e.asmName||'', e.region||'', e.stName||'', e.bdoName||'',
-        e.customer||'', e.custPhone||'', e.custType||'', e.refType||'',
+        e.customer||'', e.custPhone||'', e.custType||'', e.refType||'', e.siteStatus||'',
         e.siteName||'', e.address||'', e.gps||'', e.gpsRaw||'',
         e.buildType||'', e.siteStage||'', e.area||'', e.paintDate||'',
         e.competitor||'', e.leadDate||'', e.sampleDate||'', e.conversionDate||'',
