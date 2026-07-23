@@ -1162,20 +1162,6 @@
       <!-- STEP 3: PRODUCTS -->
       <div class="wizard-step" id="wstep-2">
         <div class="step-section-title">🎨 Products Pitched</div>
-        <div class="form-group">
-          <label class="form-label">Paint System *</label>
-          <select class="form-select" id="entry-paintsystem">
-            <option value="">— Select —</option>
-            <option>Vapocure (2K Epoxy)</option>
-            <option>Vapocure (2K PU)</option>
-            <option>Damp Proof System</option>
-            <option>Waterproofing System</option>
-            <option>Decorative — Interior</option>
-            <option>Decorative — Exterior</option>
-            <option>Industrial Coating</option>
-            <option>Floor Coating</option>
-          </select>
-        </div>
         <div id="product-rows"></div>
         <button class="btn-add-row" onclick="addProductRow()">+ Add Another Product</button>
         <div class="form-group" style="margin-top:16px"><label class="form-label">Estimated Site Value (₹)</label><input type="number" class="form-input" id="entry-sitevalue" placeholder="e.g. 150000"></div>
@@ -3357,7 +3343,6 @@ function validateWizardStep() {
     if (!gv('entry-leaddate')) { showToast('⚠️ Lead date is required'); return false; }
   }
   if (_wizardStep===2) {
-    if (!gv('entry-paintsystem')) { showToast('⚠️ Please select a Paint System'); return false; }
     const rows=[...document.querySelectorAll('#product-rows .product-row')];
     let complete=0;
     for (const row of rows) {
