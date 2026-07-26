@@ -1022,6 +1022,20 @@
       </div>
     </div>
 
+    <!-- VACANT POSITIONS — every currently-open seat across RSM/ASM/ST/BDO, so a departure with no
+         immediate successor never gets lost in the regular per-role lists. One click here fills it. -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('vacant')" style="cursor:pointer">
+        <div class="section-title">⚠️ Vacant Positions <span id="vacant-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="collapse-btn open" id="toggle-vacant">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body" id="body-vacant" style="max-height:9999px">
+        <div class="section-body"><div id="vacant-list"></div></div>
+      </div>
+    </div>
+
     <!-- MANAGE RSMs -->
     <div class="section-card">
       <div class="section-header" onclick="toggleSection('rsms')" style="cursor:pointer">
@@ -1541,20 +1555,22 @@
   </div>
 </div>
 
-<!-- Replace Modal (Deactivate + bulk-reassign team to a replacement) — shared by RSM/ASM/ST/BDO -->
+<!-- Deactivate/Fill Modal — shared by RSM/ASM/ST/BDO. Mode 'deactivate': someone is leaving, pick a real
+     successor OR leave the seat vacant. Mode 'fill': a vacant seat is being filled by a (freshly added) new hire. -->
 <div class="modal-overlay" id="modal-replace">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Replace</div>
+    <div class="modal-title" id="replace-title">Deactivate</div>
     <div class="modal-subtitle" id="replace-subtitle">Pick who takes over their team</div>
     <input type="hidden" id="replace-role">
+    <input type="hidden" id="replace-mode">
     <input type="hidden" id="replace-outgoing-id">
     <input type="hidden" id="replace-outgoing-name">
-    <div class="form-group"><label class="form-label">Last Working Day *</label><input type="date" class="form-input" id="replace-relieved-date"></div>
-    <div class="form-group"><label class="form-label">Replacement *</label><select class="form-select" id="replace-select"><option value="">— Select —</option></select></div>
+    <div class="form-group" id="replace-lwd-group"><label class="form-label">Last Working Day *</label><input type="date" class="form-input" id="replace-relieved-date"></div>
+    <div class="form-group"><label class="form-label" id="replace-select-label">Replacement *</label><select class="form-select" id="replace-select"><option value="">— Select —</option></select></div>
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-replace')">Cancel</button>
-      <button class="btn-primary" style="flex:2" onclick="confirmReplace()">Deactivate &amp; Reassign</button>
+      <button class="btn-primary" style="flex:2" onclick="confirmDeactivateOrFill()" id="replace-confirm-btn">Deactivate &amp; Reassign</button>
     </div>
   </div>
 </div>
@@ -4181,7 +4197,7 @@ function renderAdminPanel() {
   if (cfg.sheetId) sv('cfg-sheetid',cfg.sheetId);
   if (cfg.apiKey) sv('cfg-apikey',cfg.apiKey);
   if (cfg.clientId) sv('cfg-gclientid',cfg.clientId||'');
-  renderAsmList(); renderAdminISCList(); renderSTList(); renderBDOList(); renderRSMList();
+  renderAsmList(); renderAdminISCList(); renderSTList(); renderBDOList(); renderRSMList(); renderVacantPositions();
   _contactsCache = null; // refresh directory data on every admin panel load
   renderContactDirectory();
 }
@@ -4200,6 +4216,7 @@ function toggleSection(id) {
     if (id==='sts') renderSTList();
     if (id==='bdos') renderBDOList();
     if (id==='rsms') renderRSMList();
+    if (id==='vacant') renderVacantPositions();
   } else {
     body.classList.add('collapsed');
     body.style.maxHeight = '0';
@@ -4298,7 +4315,7 @@ async function renderAsmList() {
   const el=document.getElementById('asm-list');
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const asms=await DATA_getASMs();
+    const asms=(await DATA_getASMs()).filter(a=>a.status!=='Vacant'); // vacant seats live in the dedicated Vacant Positions section, not here
     const countEl=document.getElementById('asm-count');
     if(countEl) countEl.textContent=`(${asms.length} total)`;
     if (!asms.length){el.innerHTML=emptyState('👥','No ASMs yet');return;}
@@ -4315,8 +4332,7 @@ async function renderAsmList() {
       </div>
       <div class="isc-actions" style="margin-top:8px">
         <button class="btn-sm btn-blue" onclick="openAssignRSMModal('${a.id}','${(a.name||'').replace(/'/g,"\\'")}','${a.rsmId||''}')">🌐 Assign RSM</button>
-        ${isActive?`<button class="btn-sm btn-red" onclick="toggleRoleStatus('asm','${a.id}','Inactive')">🔴 Deactivate</button>
-        <button class="btn-sm" style="background:#fef3c7;color:#92400e" onclick="openReplaceModal('asm','${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">🔁 Replace</button>`
+        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('asm','${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('asm','${a.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -4329,7 +4345,7 @@ async function renderRSMList() {
   if(!el) return;
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const rsms=await DATA_getRSMs();
+    const rsms=(await DATA_getRSMs()).filter(r=>r.status!=='Vacant');
     const countEl=document.getElementById('rsm-count');
     if(countEl) countEl.textContent=`(${rsms.length} total)`;
     if (!rsms.length){el.innerHTML=emptyState('🌐','No RSMs yet','Click + Add to add an RSM');return;}
@@ -4340,8 +4356,7 @@ async function renderRSMList() {
       <div class="entry-sub">📧 ${r.email||'—'} · 📞 ${r.phone||'—'}</div>
       <div class="entry-sub" style="margin-top:4px">👤 @${r.username} ${r.region?'· 🗺️ '+r.region:''}</div>
       <div class="isc-actions" style="margin-top:8px">
-        ${isActive?`<button class="btn-sm btn-red" onclick="toggleRoleStatus('rsm','${r.id}','Inactive')">🔴 Deactivate</button>
-        <button class="btn-sm" style="background:#fef3c7;color:#92400e" onclick="openReplaceModal('rsm','${r.id}','${(r.name||'').replace(/'/g,"\\'")}')">🔁 Replace</button>`
+        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('rsm','${r.id}','${(r.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('rsm','${r.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -4447,7 +4462,7 @@ async function renderSTList() {
   if(!el) return;
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const sts=await DATA_getSTs();
+    const sts=(await DATA_getSTs()).filter(s=>s.status!=='Vacant');
     const countEl=document.getElementById('st-count');
     if(countEl) countEl.textContent=`(${sts.length} total)`;
     if (!sts.length){el.innerHTML=emptyState('🧑‍💼','No STs yet','Click + Add ST to add');return;}
@@ -4458,8 +4473,7 @@ async function renderSTList() {
       <div class="entry-sub">${s.email?'📧 '+s.email+' · ':''}${s.phone?'📞 '+s.phone:''}</div>
       <div class="entry-sub" style="margin-top:4px">${s.region?'🗺️ '+s.region+' · ':''}🌐 ASM: <strong>${s.asmName||'Not assigned'}</strong></div>
       <div class="isc-actions" style="margin-top:8px">
-        ${isActive?`<button class="btn-sm btn-red" onclick="toggleRoleStatus('st','${s.id}','Inactive')">🔴 Deactivate</button>
-        <button class="btn-sm" style="background:#fef3c7;color:#92400e" onclick="openReplaceModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}')">🔁 Replace</button>`
+        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('st','${s.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -4472,7 +4486,7 @@ async function renderBDOList() {
   if(!el) return;
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const bdos=await DATA_getBDOs();
+    const bdos=(await DATA_getBDOs()).filter(b=>b.status!=='Vacant');
     const countEl=document.getElementById('bdo-count');
     if(countEl) countEl.textContent=`(${bdos.length} total)`;
     if (!bdos.length){el.innerHTML=emptyState('📈','No BDOs yet','Click + Add BDO to add');return;}
@@ -4483,8 +4497,7 @@ async function renderBDOList() {
       <div class="entry-sub">${b.email?'📧 '+b.email+' · ':''}${b.phone?'📞 '+b.phone:''}</div>
       <div class="entry-sub" style="margin-top:4px">${b.region?'🗺️ '+b.region+' · ':''}${b.location?'📌 '+b.location+' · ':''}🌐 ASM: <strong>${b.asmName||'Not assigned'}</strong></div>
       <div class="isc-actions" style="margin-top:8px">
-        ${isActive?`<button class="btn-sm btn-red" onclick="toggleRoleStatus('bdo','${b.id}','Inactive')">🔴 Deactivate</button>
-        <button class="btn-sm" style="background:#fef3c7;color:#92400e" onclick="openReplaceModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}')">🔁 Replace</button>`
+        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('bdo','${b.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -4586,55 +4599,37 @@ async function saveBDO() {
 }
 
 // ══════════════════════════════════════════════
-//  OFFBOARDING — Deactivate / Replace for RSM, ASM, ST, BDO
-//  (same status+relievedDate pattern already used for ISCs via toggleISCStatus,
-//  plus a "Replace" flow that bulk-moves the outgoing person's direct reports
-//  to whoever is picked as their replacement, so nobody's team is left orphaned.)
+//  OFFBOARDING — Deactivate / Vacant Seats / Fill for RSM, ASM, ST, BDO
+//  A departure doesn't always have a successor lined up the same day, so
+//  "Deactivate" gives a choice: hand off to a real person now, or leave the
+//  seat vacant. Leaving it vacant creates a per-seat placeholder (not one
+//  shared bucket per role — multiple seats in the same role can be open at
+//  once, e.g. several ASM territories, and each needs its own bucket so
+//  filling one later doesn't sweep in another vacancy's reports too) and
+//  moves that person's direct reports onto it. The placeholder shows up in
+//  the dedicated Vacant Positions list until someone "Fill"s it, at which
+//  point its reports move to the new hire and the placeholder is cleared.
 // ══════════════════════════════════════════════
 const ROLE_SHEET = {rsm:'RSMs', asm:'ASMs', st:'STs', bdo:'BDOs'};
 const ROLE_GETTER = {rsm:DATA_getRSMs, asm:DATA_getASMs, st:DATA_getSTs, bdo:DATA_getBDOs};
+const ROLE_ADDER = {rsm:DATA_addRSM, asm:DATA_addASM, st:DATA_addST, bdo:DATA_addBDO};
 const ROLE_RENDER = {rsm:renderRSMList, asm:renderAsmList, st:renderSTList, bdo:renderBDOList};
+const ROLE_LABEL = {rsm:'RSM', asm:'ASM', st:'ST', bdo:'BDO'};
+const VACANT_SENTINEL = '__VACANT__';
 
-// Activates/deactivates an RSM/ASM/ST/BDO. Deactivating prompts for a "last working day", mirroring toggleISCStatus.
+// Activates an Inactive RSM/ASM/ST/BDO directly (no modal needed — reactivating doesn't touch anyone's reports).
 async function toggleRoleStatus(role, id, newStatus) {
-  const updates = {status:newStatus};
-  if (newStatus === 'Inactive') {
-    let rd = prompt(`Last working day of this ${role.toUpperCase()}? (format: YYYY-MM-DD)`, todayStr());
-    if (rd === null) return;
-    rd = rd.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(rd)) { showToast('⚠️ Please enter the date as YYYY-MM-DD, e.g. 2026-06-15'); return; }
-    updates.relievedDate = rd;
-  } else {
-    updates.relievedDate = '';
-  }
-  setLoading(true, `${newStatus==='Inactive'?'Deactivating':'Activating'}...`);
+  const updates = {status:newStatus, relievedDate:''};
+  setLoading(true, 'Activating...');
   try {
     await sheetsUpdate(ROLE_SHEET[role], 'id', id, updates);
-    showToast(`✅ ${newStatus==='Inactive'?'Deactivated':'Activated'}!`);
+    showToast('✅ Activated!');
     ROLE_RENDER[role]();
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
 }
 
-// Opens the shared "Replace" modal, pre-populated with every other Active person in the same role as the pick-list.
-async function openReplaceModal(role, id, name) {
-  document.getElementById('replace-role').value = role;
-  document.getElementById('replace-outgoing-id').value = id;
-  document.getElementById('replace-outgoing-name').value = name;
-  document.getElementById('replace-subtitle').textContent = `Replacing ${name} — deactivates them and moves their team to whoever you pick below`;
-  document.getElementById('replace-relieved-date').value = todayStr();
-  const sel = document.getElementById('replace-select');
-  sel.innerHTML = '<option value="">— Select —</option>';
-  try {
-    const people = await ROLE_GETTER[role]();
-    people.filter(p=>p.id!==id && String(p.status||'Active')!=='Inactive').forEach(p=>{
-      const opt=document.createElement('option'); opt.value=p.id; opt.textContent=p.name; sel.appendChild(opt);
-    });
-  } catch(e){ showToast('⚠️ Could not load replacement list'); return; }
-  openModal('modal-replace');
-}
-
-// Finds every row in `sheet` whose `matchField` currently points at the outgoing person and repoints it at the replacement — this is what keeps a team from being orphaned when their manager leaves.
+// Finds every row in `sheet` whose `matchField` points at `matchVal` and repoints it at `updates` — the mechanism that keeps a team from being orphaned, reused whether reports are moving to a real successor or to a fresh vacant placeholder.
 async function bulkReassign(sheet, matchField, matchVal, updates) {
   const rows = await sheetsGet(sheet);
   const targets = rows.filter(r => r[matchField] && String(r[matchField]) === String(matchVal));
@@ -4642,42 +4637,159 @@ async function bulkReassign(sheet, matchField, matchVal, updates) {
   return targets.length;
 }
 
-// Deactivates the outgoing person and reassigns whatever reports to them, one sheet at a time: RSM->ASMs, ASM->ISCs/STs/BDOs, ST->ISCs, BDO->ISCs.
-async function replacePerson(role, outgoingId, relievedDate, replacement) {
-  await sheetsUpdate(ROLE_SHEET[role], 'id', outgoingId, {status:'Inactive', relievedDate});
+// Moves every direct report from `sourceId` (an outgoing person OR a vacant placeholder) onto `target` — same reassignment map either way: RSM->ASMs, ASM->ISCs/STs/BDOs, ST->ISCs, BDO->ISCs.
+async function reassignReports(role, sourceId, target) {
   const counts = {};
   if (role === 'rsm') {
-    counts['ASM(s)'] = await bulkReassign('ASMs','rsmId',outgoingId,{rsmId:replacement.id, rsmName:replacement.name});
+    counts['ASM(s)'] = await bulkReassign('ASMs','rsmId',sourceId,{rsmId:target.id, rsmName:target.name});
   } else if (role === 'asm') {
-    counts['ISC(s)'] = await bulkReassign('Users','asmId',outgoingId,{asmId:replacement.id, asmName:replacement.name, asmEmail:replacement.email||'', asmPhone:replacement.phone||''});
-    counts['ST(s)'] = await bulkReassign('STs','asmId',outgoingId,{asmId:replacement.id, asmName:replacement.name});
-    counts['BDO(s)'] = await bulkReassign('BDOs','asmId',outgoingId,{asmId:replacement.id, asmName:replacement.name});
+    counts['ISC(s)'] = await bulkReassign('Users','asmId',sourceId,{asmId:target.id, asmName:target.name, asmEmail:target.email||'', asmPhone:target.phone||''});
+    counts['ST(s)'] = await bulkReassign('STs','asmId',sourceId,{asmId:target.id, asmName:target.name});
+    counts['BDO(s)'] = await bulkReassign('BDOs','asmId',sourceId,{asmId:target.id, asmName:target.name});
   } else if (role === 'st') {
-    counts['ISC(s)'] = await bulkReassign('Users','stId',outgoingId,{stId:replacement.id, stName:replacement.name});
+    counts['ISC(s)'] = await bulkReassign('Users','stId',sourceId,{stId:target.id, stName:target.name});
   } else if (role === 'bdo') {
-    counts['ISC(s)'] = await bulkReassign('Users','bdoId',outgoingId,{bdoId:replacement.id, bdoName:replacement.name});
+    counts['ISC(s)'] = await bulkReassign('Users','bdoId',sourceId,{bdoId:target.id, bdoName:target.name});
   }
   return counts;
 }
 
-async function confirmReplace() {
-  const role = gv('replace-role');
-  const outgoingId = gv('replace-outgoing-id');
-  const relievedDate = gv('replace-relieved-date');
-  const replacementId = gv('replace-select');
-  if (!replacementId) return showToast('⚠️ Please select a replacement');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(relievedDate)) return showToast('⚠️ Please enter a valid last working day');
-  setLoading(true, 'Reassigning team...');
+// Blanks out a row entirely (no delete-row endpoint exists on the Worker, so every column is overwritten with '' — sheetsGet already treats a fully-blank row as "no data" and skips it). Used to clear a vacant placeholder once it's been filled, since it has no further purpose.
+async function blankRoleRecord(role, id) {
+  const sheet = ROLE_SHEET[role];
+  const resp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet)}`);
+  const data = await resp.json();
+  const rowIdx = data.values.findIndex(r => r[0] === id); // 0-based index into values[]; row 1 (index 0) is the header
+  if (rowIdx < 1) return false;
+  const width = data.values[0].length;
+  await fetch(`${WORKER_URL}/sheets/writerow`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({sheet, rowNum: rowIdx+1, row: Array(width).fill('')})
+  });
+  return true;
+}
+
+// Opens the Deactivate modal for someone currently Active: pick a real successor now, or leave the seat vacant.
+async function openDeactivateModal(role, id, name) {
+  document.getElementById('replace-role').value = role;
+  document.getElementById('replace-mode').value = 'deactivate';
+  document.getElementById('replace-outgoing-id').value = id;
+  document.getElementById('replace-outgoing-name').value = name;
+  document.getElementById('replace-title').textContent = 'Deactivate';
+  document.getElementById('replace-subtitle').textContent = `${name} is leaving — pick a successor now, or leave the seat vacant until someone joins`;
+  document.getElementById('replace-select-label').textContent = 'Replacement';
+  document.getElementById('replace-lwd-group').style.display = '';
+  document.getElementById('replace-relieved-date').value = todayStr();
+  document.getElementById('replace-confirm-btn').textContent = 'Confirm';
+  const sel = document.getElementById('replace-select');
+  sel.innerHTML = `<option value="${VACANT_SENTINEL}">— Leave vacant for now —</option>`;
   try {
     const people = await ROLE_GETTER[role]();
-    const replacement = people.find(p=>p.id===replacementId);
-    const counts = await replacePerson(role, outgoingId, relievedDate, replacement);
+    people.filter(p=>p.id!==id && String(p.status||'Active')==='Active').forEach(p=>{
+      const opt=document.createElement('option'); opt.value=p.id; opt.textContent=p.name; sel.appendChild(opt);
+    });
+  } catch(e){ showToast('⚠️ Could not load replacement list'); return; }
+  openModal('modal-replace');
+}
+
+// Opens the Fill modal for an existing vacant seat: pick who's taking it over (they must already exist — add them via +Add first, then come back here to move the interim team onto them).
+async function openFillModal(role, id, name) {
+  document.getElementById('replace-role').value = role;
+  document.getElementById('replace-mode').value = 'fill';
+  document.getElementById('replace-outgoing-id').value = id;
+  document.getElementById('replace-outgoing-name').value = name;
+  document.getElementById('replace-title').textContent = 'Fill Position';
+  document.getElementById('replace-subtitle').textContent = `${name} — pick who's taking over this seat`;
+  document.getElementById('replace-select-label').textContent = 'New person';
+  document.getElementById('replace-lwd-group').style.display = 'none';
+  document.getElementById('replace-confirm-btn').textContent = 'Fill Position';
+  const sel = document.getElementById('replace-select');
+  sel.innerHTML = '<option value="">— Select —</option>';
+  try {
+    const people = await ROLE_GETTER[role]();
+    people.filter(p=>p.id!==id && String(p.status||'Active')==='Active').forEach(p=>{
+      const opt=document.createElement('option'); opt.value=p.id; opt.textContent=p.name; sel.appendChild(opt);
+    });
+  } catch(e){ showToast('⚠️ Could not load candidate list'); return; }
+  openModal('modal-replace');
+}
+
+async function confirmDeactivateOrFill() {
+  const role = gv('replace-role');
+  const mode = gv('replace-mode');
+  const outgoingId = gv('replace-outgoing-id');
+  const outgoingName = gv('replace-outgoing-name');
+  const replacementId = gv('replace-select');
+
+  if (mode === 'fill') {
+    if (!replacementId) return showToast('⚠️ Please select who is filling this position');
+    setLoading(true, 'Filling position...');
+    try {
+      const people = await ROLE_GETTER[role]();
+      const replacement = people.find(p=>p.id===replacementId);
+      const counts = await reassignReports(role, outgoingId, replacement);
+      await blankRoleRecord(role, outgoingId);
+      const parts = Object.entries(counts).filter(([k,v])=>v>0).map(([k,v])=>`${v} ${k}`);
+      showToast(`✅ Position filled! Moved: ${parts.join(', ')||'nothing to reassign'}`);
+      closeModal('modal-replace');
+      ROLE_RENDER[role]();
+      renderVacantPositions();
+    } catch(e){ showToast('⚠️ '+e.message); }
+    finally { setLoading(false); }
+    return;
+  }
+
+  // mode === 'deactivate'
+  const relievedDate = gv('replace-relieved-date');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(relievedDate)) return showToast('⚠️ Please enter a valid last working day');
+  setLoading(true, 'Deactivating...');
+  try {
+    let counts;
+    if (!replacementId || replacementId === VACANT_SENTINEL) {
+      // No successor yet — spin up a placeholder scoped to just this seat and move this person's reports onto it
+      const placeholder = {id:`vacant_${role}_${Date.now()}`, name:`Vacant (was ${outgoingName})`, status:'Vacant', email:'', phone:'', username:'', password:''};
+      await ROLE_ADDER[role](placeholder);
+      await sheetsUpdate(ROLE_SHEET[role], 'id', outgoingId, {status:'Inactive', relievedDate});
+      counts = await reassignReports(role, outgoingId, placeholder);
+    } else {
+      const people = await ROLE_GETTER[role]();
+      const replacement = people.find(p=>p.id===replacementId);
+      await sheetsUpdate(ROLE_SHEET[role], 'id', outgoingId, {status:'Inactive', relievedDate});
+      counts = await reassignReports(role, outgoingId, replacement);
+    }
     const parts = Object.entries(counts).filter(([k,v])=>v>0).map(([k,v])=>`${v} ${k}`);
-    showToast(`✅ Replaced! Moved: ${parts.join(', ')||'nothing to reassign'}`);
+    showToast(`✅ Deactivated. Moved: ${parts.join(', ')||'nothing to reassign'}`);
     closeModal('modal-replace');
     ROLE_RENDER[role]();
+    renderVacantPositions();
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
+}
+
+// Dedicated cross-role list of every currently-vacant seat (RSM/ASM/ST/BDO), so a departure with no
+// immediate successor is easy to find and fill later instead of hiding inside each role's regular list.
+async function renderVacantPositions() {
+  const el = document.getElementById('vacant-list');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const [rsms, asms, sts, bdos] = await Promise.all([DATA_getRSMs(), DATA_getASMs(), DATA_getSTs(), DATA_getBDOs()]);
+    const vacancies = [
+      ...rsms.filter(r=>r.status==='Vacant').map(r=>({...r, role:'rsm'})),
+      ...asms.filter(a=>a.status==='Vacant').map(a=>({...a, role:'asm'})),
+      ...sts.filter(s=>s.status==='Vacant').map(s=>({...s, role:'st'})),
+      ...bdos.filter(b=>b.status==='Vacant').map(b=>({...b, role:'bdo'})),
+    ];
+    const countEl = document.getElementById('vacant-count');
+    if (countEl) countEl.textContent = `(${vacancies.length})`;
+    if (!vacancies.length) { el.innerHTML = emptyState('✅','No vacant positions right now'); return; }
+    el.innerHTML = vacancies.map(v=>`<div class="entry-card" style="cursor:default">
+      <div class="entry-name">${v.name} <span class="status-badge" style="background:#fef3c7;color:#92400e">🕳️ Vacant · ${ROLE_LABEL[v.role]}</span></div>
+      <div class="isc-actions" style="margin-top:8px">
+        <button class="btn-sm btn-green" onclick="openFillModal('${v.role}','${v.id}','${(v.name||'').replace(/'/g,"\\'")}')">✅ Fill Position</button>
+      </div>
+    </div>`).join('');
+  } catch(e){ el.innerHTML = `<div class="alert alert-error">Could not load: ${e.message}</div>`; }
 }
 
 // ══════════════════════════════════════════════
