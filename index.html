@@ -1041,7 +1041,7 @@
       <div class="section-header" onclick="toggleSection('rsms')" style="cursor:pointer">
         <div class="section-title">🌐 Manage RSMs <span id="rsm-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn-sm btn-green" onclick="event.stopPropagation();openModal('modal-rsm')">+ Add</button>
+          <button class="btn-sm btn-green" onclick="event.stopPropagation();openAddRSMModal()">+ Add</button>
           <button class="collapse-btn" id="toggle-rsms">▼</button>
         </div>
       </div>
@@ -1455,7 +1455,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Add RSM</div>
-    <div class="modal-subtitle">Add a new Regional Sales Manager</div>
+    <div class="modal-subtitle" id="modal-rsm-subtitle">Add a new Regional Sales Manager</div>
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="rsm-name" placeholder="Full name"></div>
     <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="rsm-email" placeholder="rsm@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="rsm-phone" placeholder="10-digit number"></div>
@@ -1466,7 +1466,7 @@
       <button class="pwd-eye" type="button" onclick="togglePwd('rsm-password',this)" tabindex="-1">👁</button>
     </div></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-rsm')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-rsm')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveRSM()">Save RSM</button>
     </div>
   </div>
@@ -1497,7 +1497,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Add ASM</div>
-    <div class="modal-subtitle">Add a new Area Sales Manager</div>
+    <div class="modal-subtitle" id="modal-asm-subtitle">Add a new Area Sales Manager</div>
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="asm-name" placeholder="Full name"></div>
     <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="asm-email" placeholder="asm@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="asm-phone" placeholder="10-digit number"></div>
@@ -1508,7 +1508,7 @@
       </div></div>
     <div class="form-group"><label class="form-label">Reports to (RSM)</label><select class="form-select" id="asm-rsm-select"><option value="">— Not assigned yet —</option></select></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-asm')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-asm')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveAsm()">Save ASM</button>
     </div>
   </div>
@@ -1519,6 +1519,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Add Sales Technologist</div>
+    <div class="modal-subtitle" id="modal-st-subtitle">Add a new ST/SE</div>
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="st-name" placeholder="ST full name"></div>
     <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="st-email" placeholder="st@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="st-phone" placeholder="10-digit number"></div>
@@ -1528,7 +1529,7 @@
     <div class="form-group"><label class="form-label">Region</label><select class="form-select" id="st-region"></select></div>
     <div class="form-group"><label class="form-label">Reports to (ASM)</label><select class="form-select" id="st-asm-select"><option value="">— Not assigned yet —</option></select></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-st')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-st')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveST()">Save ST</button>
     </div>
   </div>
@@ -1539,6 +1540,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Add BDO</div>
+    <div class="modal-subtitle" id="modal-bdo-subtitle">Add a new BDO/BDE</div>
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="bdo-name" placeholder="BDO full name"></div>
     <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bdo-email" placeholder="bdo@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bdo-phone" placeholder="10-digit number"></div>
@@ -1549,7 +1551,7 @@
     <div class="form-group"><label class="form-label">Location (City)</label><input type="text" class="form-input" id="bdo-location" placeholder="e.g. Chennai HO"></div>
     <div class="form-group"><label class="form-label">Reports to (ASM)</label><select class="form-select" id="bdo-asm-select"><option value="">— Not assigned yet —</option></select></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-bdo')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-bdo')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveBDO()">Save BDO</button>
     </div>
   </div>
@@ -1567,6 +1569,10 @@
     <input type="hidden" id="replace-outgoing-id">
     <input type="hidden" id="replace-outgoing-name">
     <div class="form-group" id="replace-lwd-group"><label class="form-label">Last Working Day *</label><input type="date" class="form-input" id="replace-relieved-date"></div>
+    <div id="replace-newhire-group" style="display:none">
+      <button class="btn-primary" style="width:100%;margin-bottom:14px" onclick="startFillWithNewHire()">➕ Add New Hire For This Position</button>
+      <div style="text-align:center;color:var(--gray);font-size:12px;margin-bottom:14px">— or assign someone already in the system —</div>
+    </div>
     <div class="form-group"><label class="form-label" id="replace-select-label">Replacement *</label><select class="form-select" id="replace-select"><option value="">— Select —</option></select></div>
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-replace')">Cancel</button>
@@ -4364,6 +4370,12 @@ async function renderRSMList() {
   } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
 }
 
+// Populates the Add RSM modal (also resets the subtitle in case it was last opened via "fill vacancy", which repurposes it).
+function openAddRSMModal() {
+  document.getElementById('modal-rsm-subtitle').textContent = 'Add a new Regional Sales Manager';
+  openModal('modal-rsm');
+}
+
 async function saveRSM() {
   const name=gv('rsm-name').trim(),email=gv('rsm-email').trim(),phone=gv('rsm-phone').trim();
   const region=gv('rsm-region').trim(),username=gv('rsm-username').trim(),password=gv('rsm-password').trim();
@@ -4372,9 +4384,12 @@ async function saveRSM() {
   try {
     const rsms=await DATA_getRSMs();
     if (rsms.find(r=>(r.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
-    await DATA_addRSM({id:'rsm'+Date.now(),name,email,phone,region,username,password});
+    const newRsm = {id:'rsm'+Date.now(),name,email,phone,region,username,password,status:'Active'};
+    await DATA_addRSM(newRsm);
     _regionsCache = null; // new region may have been introduced — refresh on next dropdown open
-    showToast('✅ RSM added!');closeModal('modal-rsm');renderRSMList();
+    closeModal('modal-rsm');renderRSMList();
+    if (_pendingFill && _pendingFill.role==='rsm') { await resolvePendingFill('rsm', newRsm); }
+    else { showToast('✅ RSM added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
 }
@@ -4507,6 +4522,7 @@ async function renderBDOList() {
 
 // Populates the RSM dropdown, then opens the Add ASM modal.
 async function openAddAsmModal() {
+  document.getElementById('modal-asm-subtitle').textContent = 'Add a new Area Sales Manager';
   const sel = document.getElementById('asm-rsm-select');
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
@@ -4520,6 +4536,7 @@ async function openAddAsmModal() {
 
 // Populates the ASM + region dropdowns, then opens the Add ST modal.
 async function openAddSTModal() {
+  document.getElementById('modal-st-subtitle').textContent = 'Add a new ST/SE';
   const sel = document.getElementById('st-asm-select');
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
@@ -4534,6 +4551,7 @@ async function openAddSTModal() {
 
 // Populates the ASM + region dropdowns, then opens the Add BDO modal.
 async function openAddBDOModal() {
+  document.getElementById('modal-bdo-subtitle').textContent = 'Add a new BDO/BDE';
   const sel = document.getElementById('bdo-asm-select');
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
@@ -4556,8 +4574,11 @@ async function saveAsm() {
     if (asms.find(a=>(a.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
     const rsms=await DATA_getRSMs();
     const rsm=rsms.find(r=>r.id===rsmId);
-    await DATA_addASM({id:'asm'+Date.now(),name,email,phone,username,password,rsmId:rsmId||'',rsmName:rsm?.name||'',status:'Active'});
-    showToast('✅ ASM added!');closeModal('modal-asm');renderAsmList();
+    const newAsm = {id:'asm'+Date.now(),name,email,phone,username,password,rsmId:rsmId||'',rsmName:rsm?.name||'',status:'Active'};
+    await DATA_addASM(newAsm);
+    closeModal('modal-asm');renderAsmList();
+    if (_pendingFill && _pendingFill.role==='asm') { await resolvePendingFill('asm', newAsm); }
+    else { showToast('✅ ASM added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
 }
@@ -4572,9 +4593,12 @@ async function saveST() {
   try {
     const asms=await DATA_getASMs();
     const asm=asms.find(a=>a.id===asmId);
-    await DATA_addST({id:'st'+Date.now(),name,email,phone,username,password,empNo:username,role,region,
-      asmId:asmId||'',asmName:asm?.name||'',status:'Active'});
-    showToast('✅ ST added!');closeModal('modal-st');renderSTList();
+    const newSt = {id:'st'+Date.now(),name,email,phone,username,password,empNo:username,role,region,
+      asmId:asmId||'',asmName:asm?.name||'',status:'Active'};
+    await DATA_addST(newSt);
+    closeModal('modal-st');renderSTList();
+    if (_pendingFill && _pendingFill.role==='st') { await resolvePendingFill('st', newSt); }
+    else { showToast('✅ ST added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
 }
@@ -4591,9 +4615,12 @@ async function saveBDO() {
     if (bdos.find(b=>(b.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
     const asms=await DATA_getASMs();
     const asm=asms.find(a=>a.id===asmId);
-    await DATA_addBDO({id:'bdo'+Date.now(),name,email,phone,username,password,empNo:username,role,region,location,
-      asmId:asmId||'',asmName:asm?.name||'',status:'Active'});
-    showToast('✅ BDO added!');closeModal('modal-bdo');renderBDOList();
+    const newBdo = {id:'bdo'+Date.now(),name,email,phone,username,password,empNo:username,role,region,location,
+      asmId:asmId||'',asmName:asm?.name||'',status:'Active'};
+    await DATA_addBDO(newBdo);
+    closeModal('modal-bdo');renderBDOList();
+    if (_pendingFill && _pendingFill.role==='bdo') { await resolvePendingFill('bdo', newBdo); }
+    else { showToast('✅ BDO added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
 }
@@ -4679,6 +4706,7 @@ async function openDeactivateModal(role, id, name) {
   document.getElementById('replace-subtitle').textContent = `${name} is leaving — pick a successor now, or leave the seat vacant until someone joins`;
   document.getElementById('replace-select-label').textContent = 'Replacement';
   document.getElementById('replace-lwd-group').style.display = '';
+  document.getElementById('replace-newhire-group').style.display = 'none';
   document.getElementById('replace-relieved-date').value = todayStr();
   document.getElementById('replace-confirm-btn').textContent = 'Confirm';
   const sel = document.getElementById('replace-select');
@@ -4692,16 +4720,23 @@ async function openDeactivateModal(role, id, name) {
   openModal('modal-replace');
 }
 
-// Opens the Fill modal for an existing vacant seat: pick who's taking it over (they must already exist — add them via +Add first, then come back here to move the interim team onto them).
+// Set (while the corresponding Add modal is open) when "Add New Hire For This Position" is chosen from
+// the Fill flow — {role, vacantId, vacantName}. Checked by each save*() after it creates the new record.
+let _pendingFill = null;
+
+// Opens the Fill modal for an existing vacant seat. Leads with "Add New Hire" (the common case — the
+// position is open because nobody, new or old, is filling it yet) and also offers the dropdown of
+// already-existing Active people, for the rarer case of someone already in the system stepping into it.
 async function openFillModal(role, id, name) {
   document.getElementById('replace-role').value = role;
   document.getElementById('replace-mode').value = 'fill';
   document.getElementById('replace-outgoing-id').value = id;
   document.getElementById('replace-outgoing-name').value = name;
   document.getElementById('replace-title').textContent = 'Fill Position';
-  document.getElementById('replace-subtitle').textContent = `${name} — pick who's taking over this seat`;
-  document.getElementById('replace-select-label').textContent = 'New person';
+  document.getElementById('replace-subtitle').textContent = `${name} — add a new hire, or assign someone already in the system`;
+  document.getElementById('replace-select-label').textContent = 'Assign existing person (optional)';
   document.getElementById('replace-lwd-group').style.display = 'none';
+  document.getElementById('replace-newhire-group').style.display = '';
   document.getElementById('replace-confirm-btn').textContent = 'Fill Position';
   const sel = document.getElementById('replace-select');
   sel.innerHTML = '<option value="">— Select —</option>';
@@ -4712,6 +4747,38 @@ async function openFillModal(role, id, name) {
     });
   } catch(e){ showToast('⚠️ Could not load candidate list'); return; }
   openModal('modal-replace');
+}
+
+// Triggered by "Add New Hire For This Position" inside the Fill modal: stashes which vacant seat is being
+// filled, then opens the normal Add modal for that role. The save*() function picks up _pendingFill once
+// the new person is actually created and moves the vacant seat's reports onto them automatically.
+async function startFillWithNewHire() {
+  const role = gv('replace-role');
+  const vacantId = gv('replace-outgoing-id');
+  const vacantName = gv('replace-outgoing-name');
+  _pendingFill = {role, vacantId, vacantName};
+  closeModal('modal-replace');
+  const subtitleText = `Adding a new ${ROLE_LABEL[role]} to fill: ${vacantName}`;
+  if (role==='rsm') { openModal('modal-rsm'); document.getElementById('modal-rsm-subtitle').textContent = subtitleText; }
+  else if (role==='asm') { await openAddAsmModal(); document.getElementById('modal-asm-subtitle').textContent = subtitleText; }
+  else if (role==='st') { await openAddSTModal(); document.getElementById('modal-st-subtitle').textContent = subtitleText; }
+  else if (role==='bdo') { await openAddBDOModal(); document.getElementById('modal-bdo-subtitle').textContent = subtitleText; }
+}
+
+// Called by each save*() right after it successfully creates a new person. If that Add was opened via
+// "Add New Hire For This Position", move the vacant seat's reports onto the new record and clear the
+// now-unneeded placeholder — same reassignment used by Fill-with-an-existing-person and by Deactivate.
+async function resolvePendingFill(role, newRecord) {
+  if (!_pendingFill || _pendingFill.role !== role) return;
+  const {vacantId} = _pendingFill;
+  _pendingFill = null;
+  try {
+    const counts = await reassignReports(role, vacantId, newRecord);
+    await blankRoleRecord(role, vacantId);
+    const parts = Object.entries(counts).filter(([k,v])=>v>0).map(([k,v])=>`${v} ${k}`);
+    showToast(`✅ ${newRecord.name} added and now filling the position — moved: ${parts.join(', ')||'nothing to reassign'}`);
+    renderVacantPositions();
+  } catch(e) { showToast('⚠️ Added, but reassigning the vacant seat failed: '+e.message); }
 }
 
 async function confirmDeactivateOrFill() {
