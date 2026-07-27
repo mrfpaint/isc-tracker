@@ -83,6 +83,10 @@
   /* STATS — the row of 3 small summary number cards (e.g. totals) shown
      near the top of list/dashboard screens. */
   .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+  /* 4-up variant for the site lists, which show Total / Pending / Converted / Not Converted.
+     Wraps to 2x2 on narrow phones so the numbers stay readable. */
+  .stats-row.s4{grid-template-columns:repeat(2,1fr);}
+  @media(min-width:520px){ .stats-row.s4{grid-template-columns:repeat(4,1fr);} }
   .stat-card{background:white;border-radius:14px;padding:14px 12px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border);}
   .stat-value{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:var(--dark);line-height:1;}
   .stat-label{font-size:10px;color:var(--gray);margin-top:4px;font-weight:500;text-transform:uppercase;}
@@ -109,6 +113,7 @@
   .status-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
   .badge-pending{background:#fef3c7;color:#92400e;}
   .badge-confirmed{background:#d1fae5;color:#065f46;}
+  .badge-notconverted{background:#fee2e2;color:#991b1b;}
   .badge-active{background:#d1fae5;color:#065f46;}
   .badge-inactive{background:#fee2e2;color:#991b1b;}
   /* FAB — the floating "+" action button fixed near the bottom-right of
@@ -559,15 +564,17 @@
       <button onclick="exportEntries('my')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
     </div>
     <div class="page-subtitle" id="mysites-subtitle">Your site visits</div>
-    <div class="stats-row">
+    <div class="stats-row s4">
       <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
-      <div class="stat-card green"><div class="stat-value" id="stat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
       <div class="stat-card gold"><div class="stat-value" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card green"><div class="stat-value" id="stat-confirmed">0</div><div class="stat-label">Converted</div></div>
+      <div class="stat-card red"><div class="stat-value" id="stat-notconverted">0</div><div class="stat-label">Not Converted</div></div>
     </div>
     <div class="filter-row">
       <button class="filter-btn active" onclick="filterEntries('all',this)">All</button>
-      <button class="filter-btn" onclick="filterEntries('Pending',this)">Pending</button>
-      <button class="filter-btn" onclick="filterEntries('Confirmed',this)">Confirmed</button>
+      <button class="filter-btn" onclick="filterEntries('Pending',this)">⏳ Pending</button>
+      <button class="filter-btn" onclick="filterEntries('Confirmed',this)">✅ Converted</button>
+      <button class="filter-btn" onclick="filterEntries('NotConverted',this)">❌ Not Converted</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="date" class="form-input" id="my-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderMyEntries()" placeholder="From">
@@ -671,15 +678,17 @@
       <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
     </div>
     <div class="page-subtitle" id="allsites-subtitle">All ISC activity</div>
-    <div class="stats-row">
+    <div class="stats-row s4">
       <div class="stat-card"><div class="stat-value" id="astat-total">0</div><div class="stat-label">Total</div></div>
-      <div class="stat-card green"><div class="stat-value" id="astat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
       <div class="stat-card gold"><div class="stat-value" id="astat-pending">0</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card green"><div class="stat-value" id="astat-confirmed">0</div><div class="stat-label">Converted</div></div>
+      <div class="stat-card red"><div class="stat-value" id="astat-notconverted">0</div><div class="stat-label">Not Converted</div></div>
     </div>
     <div class="filter-row">
       <button class="filter-btn active" onclick="filterAllEntries('all',this)">All</button>
-      <button class="filter-btn" onclick="filterAllEntries('Pending',this)">Pending</button>
-      <button class="filter-btn" onclick="filterAllEntries('Confirmed',this)">Confirmed</button>
+      <button class="filter-btn" onclick="filterAllEntries('Pending',this)">⏳ Pending</button>
+      <button class="filter-btn" onclick="filterAllEntries('Confirmed',this)">✅ Converted</button>
+      <button class="filter-btn" onclick="filterAllEntries('NotConverted',this)">❌ Not Converted</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="date" class="form-input" id="all-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderAllEntries()" placeholder="From">
@@ -696,15 +705,17 @@
       <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export</button>
     </div>
     <div class="page-subtitle" id="bdosites-subtitle">All site visits in your region</div>
-    <div class="stats-row">
+    <div class="stats-row s4">
       <div class="stat-card"><div class="stat-value" id="bstat-total">0</div><div class="stat-label">Total</div></div>
-      <div class="stat-card green"><div class="stat-value" id="bstat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
       <div class="stat-card gold"><div class="stat-value" id="bstat-pending">0</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card green"><div class="stat-value" id="bstat-confirmed">0</div><div class="stat-label">Converted</div></div>
+      <div class="stat-card red"><div class="stat-value" id="bstat-notconverted">0</div><div class="stat-label">Not Converted</div></div>
     </div>
     <div class="filter-row">
-      <button class="filter-btn active" onclick="filterAllEntries('all',this)">All</button>
-      <button class="filter-btn" onclick="filterAllEntries('Pending',this)">Pending</button>
-      <button class="filter-btn" onclick="filterAllEntries('Confirmed',this)">Confirmed</button>
+      <button class="filter-btn active" onclick="filterBDOEntries('all',this)">All</button>
+      <button class="filter-btn" onclick="filterBDOEntries('Pending',this)">⏳ Pending</button>
+      <button class="filter-btn" onclick="filterBDOEntries('Confirmed',this)">✅ Converted</button>
+      <button class="filter-btn" onclick="filterBDOEntries('NotConverted',this)">❌ Not Converted</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="date" class="form-input" id="bdo-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderBDOSites()" placeholder="From">
@@ -783,15 +794,17 @@
       <button onclick="exportEntries('rsm')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export</button>
     </div>
     <div class="page-subtitle" id="rsmsites-subtitle">All site visits under your ASMs</div>
-    <div class="stats-row">
+    <div class="stats-row s4">
       <div class="stat-card"><div class="stat-value" id="rstat-total">0</div><div class="stat-label">Total</div></div>
-      <div class="stat-card green"><div class="stat-value" id="rstat-confirmed">0</div><div class="stat-label">Confirmed</div></div>
       <div class="stat-card gold"><div class="stat-value" id="rstat-pending">0</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card green"><div class="stat-value" id="rstat-confirmed">0</div><div class="stat-label">Converted</div></div>
+      <div class="stat-card red"><div class="stat-value" id="rstat-notconverted">0</div><div class="stat-label">Not Converted</div></div>
     </div>
     <div class="filter-row">
       <button class="filter-btn active" onclick="filterRSMEntries('all',this)">All</button>
-      <button class="filter-btn" onclick="filterRSMEntries('Pending',this)">Pending</button>
-      <button class="filter-btn" onclick="filterRSMEntries('Confirmed',this)">Confirmed</button>
+      <button class="filter-btn" onclick="filterRSMEntries('Pending',this)">⏳ Pending</button>
+      <button class="filter-btn" onclick="filterRSMEntries('Confirmed',this)">✅ Converted</button>
+      <button class="filter-btn" onclick="filterRSMEntries('NotConverted',this)">❌ Not Converted</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <select class="form-select" id="rsm-asm-filter" style="flex:1;min-width:150px;font-size:13px" onchange="renderRSMSites()">
@@ -1323,17 +1336,18 @@
 
       <!-- STEP 5: ORDER STATUS -->
       <div class="wizard-step" id="wstep-4">
-        <div class="step-section-title">📦 Order Status</div>
+        <div class="step-section-title">📦 Site Outcome</div>
         <div class="form-group">
           <label class="form-label">Current Status *</label>
           <select class="form-select" id="entry-status">
-            <option value="Pending">Pending — Follow up required</option>
-            <option value="Confirmed">Order Confirmed ✅</option>
+            <option value="Pending">⏳ Site Pending</option>
+            <option value="Confirmed">✅ Site Converted</option>
+            <option value="NotConverted">❌ Site Not Converted</option>
           </select>
         </div>
         <div class="form-group"><label class="form-label">Remarks / Notes</label><textarea class="form-input" id="entry-remarks" rows="3" placeholder="Any additional notes about this site visit..."></textarea></div>
         <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;margin-top:8px" id="order-confirm-section" style="display:none">
-          <div style="font-size:11px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✅ Order Confirmed — Additional Details</div>
+          <div style="font-size:11px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✅ Site Converted — Additional Details</div>
           <div class="form-group"><label class="form-label">Sales Order SAP Ref # (if available)</label><input type="text" class="form-input" id="entry-sapref" placeholder="SAP order reference number"></div>
         </div>
       </div>
@@ -3100,19 +3114,21 @@ function exportReportCSV() {
 }
 
 // Populates the BDO's "My Region Sites" tab: all entries in the BDO's region, grouped by ISC, with stats and optional date-range filtering.
-async function renderBDOSites() {
+async function renderBDOSites(filter='all') {
   setLoading(true,'Loading...');
   try {
     let all = await DATA_getEntries();
     // Filter by BDO's region
     if (currentUser.region) all = all.filter(e=>e.region===currentUser.region || e.bdoName===currentUser.name);
     _allEntriesCache = all;
+    const bc = siteStatusCounts(all);
     document.getElementById('bstat-total').textContent = all.length;
-    document.getElementById('bstat-confirmed').textContent = all.filter(e=>e.status==='Confirmed').length;
-    document.getElementById('bstat-pending').textContent = all.filter(e=>e.status==='Pending').length;
+    document.getElementById('bstat-pending').textContent = bc.Pending;
+    document.getElementById('bstat-confirmed').textContent = bc.Confirmed;
+    document.getElementById('bstat-notconverted').textContent = bc.NotConverted;
     document.getElementById('bdosites-subtitle').textContent = `${currentUser.name} · Region: ${currentUser.region||'—'} 🟢`;
-    // Date filter
-    let shown = all;
+    // Status + date filters
+    let shown = all.filter(e=>matchesSiteStatus(e.status, filter));
     const df=document.getElementById('bdo-date-from')?.value;
     const dt=document.getElementById('bdo-date-to')?.value;
     if (df) shown=shown.filter(e=>e.createdAt&&e.createdAt.slice(0,10)>=df);
@@ -3399,6 +3415,43 @@ async function renderMyActivity() {
 }
 
 // ══════════════════════════════════════════════
+//  SITE OUTCOME STATUS
+//  Users see "Site Pending / Site Converted / Site Not Converted", but the values written to the sheet
+//  stay 'Pending'/'Confirmed' so the 8,000+ rows already logged keep working untouched — only
+//  'NotConverted' is new. A blank status counts as Pending, which is how those older rows have always
+//  displayed anyway, and a handful of legacy rows carry junk in this column (product names, invoice
+//  refs from a misaligned import) — those also fall back to Pending rather than showing as their own
+//  bogus status.
+// ══════════════════════════════════════════════
+const SITE_STATUS = {
+  Pending:      {label:'Site Pending',       badge:'badge-pending',      icon:'⏳'},
+  Confirmed:    {label:'Site Converted',     badge:'badge-confirmed',    icon:'✅'},
+  NotConverted: {label:'Site Not Converted', badge:'badge-notconverted', icon:'❌'},
+};
+// Maps any stored status onto one of the three canonical keys above.
+function siteStatusKey(status) {
+  const s = String(status||'').trim();
+  if (s==='Confirmed' || s==='Site Converted') return 'Confirmed';
+  if (s==='NotConverted' || s==='Site Not Converted') return 'NotConverted';
+  return 'Pending';
+}
+function siteStatusLabel(status) { return SITE_STATUS[siteStatusKey(status)].label; }
+function siteStatusBadge(status) {
+  const c = SITE_STATUS[siteStatusKey(status)];
+  return `<span class="status-badge ${c.badge}">${c.icon} ${c.label}</span>`;
+}
+// Filter-pill predicate — compares canonical keys so blank-status rows correctly land under Site Pending.
+function matchesSiteStatus(entryStatus, filterKey) {
+  return filterKey==='all' || siteStatusKey(entryStatus)===filterKey;
+}
+// Counts entries per canonical status in one pass, for the stat cards.
+function siteStatusCounts(entries) {
+  const c = {Pending:0, Confirmed:0, NotConverted:0};
+  entries.forEach(e=>c[siteStatusKey(e.status)]++);
+  return c;
+}
+
+// ══════════════════════════════════════════════
 //  ENTRIES
 // ══════════════════════════════════════════════
 let _myEntriesCache=[], _allEntriesCache=[];
@@ -3410,15 +3463,17 @@ async function renderMyEntries(filter='all') {
     const all = await DATA_getEntries();
     _myEntriesCache = all.filter(e=>e.iscId===currentUser.id);
     document.getElementById('stat-total').textContent=_myEntriesCache.length;
-    document.getElementById('stat-confirmed').textContent=_myEntriesCache.filter(e=>e.status==='Confirmed').length;
-    document.getElementById('stat-pending').textContent=_myEntriesCache.filter(e=>e.status==='Pending').length;
+    const mc = siteStatusCounts(_myEntriesCache);
+    document.getElementById('stat-pending').textContent=mc.Pending;
+    document.getElementById('stat-confirmed').textContent=mc.Confirmed;
+    document.getElementById('stat-notconverted').textContent=mc.NotConverted;
     document.getElementById('mysites-subtitle').textContent=`Welcome, ${currentUser.name} 👋 ${isConfigured()?'🟢':'🟡'}`;
     // Offline banner
     const offlineQ = LDB.arr('offline_queue');
     const banner = document.getElementById('offline-banner');
     if (offlineQ.length && banner) { document.getElementById('offline-count').textContent=offlineQ.length; banner.style.display='flex'; }
     else if (banner) banner.style.display='none';
-    let shown = filter==='all'?_myEntriesCache:_myEntriesCache.filter(e=>e.status===filter);
+    let shown = _myEntriesCache.filter(e=>matchesSiteStatus(e.status, filter));
     // Date filter
     const df=document.getElementById('my-date-from')?.value;
     const dt=document.getElementById('my-date-to')?.value;
@@ -3446,11 +3501,13 @@ async function renderAllEntries(filter='all') {
     }
     _allEntriesCache=all;
     document.getElementById('astat-total').textContent=all.length;
-    document.getElementById('astat-confirmed').textContent=all.filter(e=>e.status==='Confirmed').length;
-    document.getElementById('astat-pending').textContent=all.filter(e=>e.status==='Pending').length;
+    const ac = siteStatusCounts(all);
+    document.getElementById('astat-pending').textContent=ac.Pending;
+    document.getElementById('astat-confirmed').textContent=ac.Confirmed;
+    document.getElementById('astat-notconverted').textContent=ac.NotConverted;
     document.getElementById('allsites-title').textContent=currentUser.role==='asm'?"My Team's Sites":'All ISC Sites';
     document.getElementById('allsites-subtitle').textContent=`${currentUser.role==='asm'?currentUser.name:'All Regions'} ${isConfigured()?'🟢':'🟡'}`;
-    let shown=filter==='all'?all:all.filter(e=>e.status===filter);
+    let shown=all.filter(e=>matchesSiteStatus(e.status, filter));
     // Date filter
     const df=document.getElementById('all-date-from')?.value;
     const dt=document.getElementById('all-date-to')?.value;
@@ -3605,7 +3662,7 @@ function showContactDetail(index) {
       <div class="entry-card" onclick="closeModal('modal-contact-detail');showDetail('${v.id}')" style="margin-bottom:8px">
         <div class="entry-card-top">
           <div><div class="entry-name">${escapeHtml(v.customer||'—')}</div><div class="entry-sub">📍 ${escapeHtml(v.siteName||v.address||'—')} · 👤 ${escapeHtml(v.iscName||'—')}</div></div>
-          <span class="status-badge ${v.status==='Confirmed'?'badge-confirmed':'badge-pending'}">${v.status||'—'}</span>
+          ${siteStatusBadge(v.status)}
         </div>
         <div class="entry-meta"><span class="meta-tag">📅 ${fmtDate(v.createdAt)}</span>${v.siteValue?`<span class="meta-tag">₹${Number(v.siteValue).toLocaleString('en-IN')}</span>`:''}</div>
       </div>
@@ -3616,13 +3673,15 @@ function showContactDetail(index) {
 
 // Renders one site-visit entry as an "entry-card" HTML snippet (used by every entries list: My Sites, All Sites, BDO/RSM views).
 function entryCard(e) {
-  const badge=e.status==='Confirmed'?`<span class="status-badge badge-confirmed">✅ Confirmed</span>`:`<span class="status-badge badge-pending">⏳ Pending</span>`;
+  const badge=siteStatusBadge(e.status);
   return `<div class="entry-card" onclick="showDetail('${e.id}')"><div class="entry-card-top"><div><div class="entry-ref">${String(e.id).slice(-6).toUpperCase()}</div><div class="entry-name">${e.customer}</div><div class="entry-sub">📍 ${e.siteName||e.address}</div></div>${badge}</div><div class="entry-meta"><span class="meta-tag">🏗️ ${e.buildType||e.custType||'—'}</span><span class="meta-tag">🎨 ${e.paintSystem||'—'}</span><span class="meta-tag">📅 ${fmtDate(e.createdAt)}</span>${e.siteValue?`<span class="meta-tag">₹${Number(e.siteValue).toLocaleString('en-IN')}</span>`:''}</div></div>`;
 }
 
 // Status filter pill click handlers: highlight the clicked pill and re-render the list filtered to that status ('all'/'Pending'/'Confirmed').
 function filterEntries(f,el){document.querySelectorAll('#tab-mysites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderMyEntries(f);}
 function filterAllEntries(f,el){document.querySelectorAll('#tab-allsites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAllEntries(f);}
+// The BDO tab has its own pills — they used to call filterAllEntries(), which re-rendered a different tab.
+function filterBDOEntries(f,el){document.querySelectorAll('#tab-bdosites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBDOSites(f);}
 
 // ══════════════════════════════════════════════
 //  ENTRY FORM
@@ -3994,8 +4053,9 @@ function renderWizardStep() {
   if(_wizardStep===WIZARD_STEPS-1) buildReview();
   // Show/hide order confirm section
   if(_wizardStep===4){
-    document.getElementById('order-confirm-section').style.display=gv('entry-status')==='Confirmed'?'block':'none';
-    document.getElementById('entry-status').onchange=()=>{ document.getElementById('order-confirm-section').style.display=gv('entry-status')==='Confirmed'?'block':'none'; };
+    const syncConvertedSection=()=>{ document.getElementById('order-confirm-section').style.display=gv('entry-status')==='Confirmed'?'block':'none'; };
+    syncConvertedSection();
+    document.getElementById('entry-status').onchange=syncConvertedSection;
   }
 }
 
@@ -4089,7 +4149,7 @@ function buildReview() {
       ${gv('entry-painter')?`<div class="review-row"><div class="review-label">Painter</div><div class="review-value">${gv('entry-painter')}${gv('entry-painterphone')?' · '+gv('entry-painterphone'):''}</div></div>`:''}
     </div>
     <div class="review-section"><div class="review-section-title">📦 Status</div>
-      <div class="review-row"><div class="review-label">Status</div><div class="review-value" style="color:${gv('entry-status')==='Confirmed'?'#065f46':'#92400e'}">${gv('entry-status')==='Confirmed'?'✅ Confirmed':'⏳ Pending'}</div></div>
+      <div class="review-row"><div class="review-label">Status</div><div class="review-value">${siteStatusBadge(gv('entry-status'))}</div></div>
       ${gv('entry-remarks')?`<div class="review-row"><div class="review-label">Remarks</div><div class="review-value">${gv('entry-remarks')}</div></div>`:''}
     </div>`;
 }
@@ -4148,7 +4208,6 @@ async function saveEntry() {
 function showDetail(id) {
   const e=[..._myEntriesCache,..._allEntriesCache].find(x=>x.id===id);
   if (!e) return;
-  const c=e.status==='Confirmed';
   const products=JSON.parse(e.products||'[]');
   document.getElementById('modal-detail-body').innerHTML=`
     <div class="detail-row"><div class="detail-label">Ref #</div><div class="detail-value" style="color:var(--red);font-family:'Rajdhani',sans-serif">${String(e.id).slice(-6).toUpperCase()}</div></div>
@@ -4174,7 +4233,7 @@ function showDetail(id) {
     <div class="detail-row"><div class="detail-label">Dealer Name</div><div class="detail-value">${e.dealerName||'—'}</div></div>
     ${e.contractor?`<div class="detail-row"><div class="detail-label">Contractor</div><div class="detail-value">${e.contractor}${e.contractorPhone?' · 📞 '+e.contractorPhone:''}</div></div>`:''}
     ${e.painter?`<div class="detail-row"><div class="detail-label">Painter</div><div class="detail-value">${e.painter}${e.painterPhone?' · 📞 '+e.painterPhone:''}</div></div>`:''}
-    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${c?'✅ Confirmed':'⏳ Pending'}</div></div>
+    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${siteStatusBadge(e.status)}</div></div>
     <div class="detail-row"><div class="detail-label">ISC</div><div class="detail-value">${e.iscName}</div></div>
     <div class="detail-row"><div class="detail-label">ASM · Region</div><div class="detail-value">${e.asmName||'—'} · ${e.region||'—'}</div></div>
     <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
@@ -4924,8 +4983,10 @@ async function renderRSMSites(filter='all') {
     let all = await DATA_getEntries();
     all = all.filter(e=>myISCIds.has(e.iscId));
     document.getElementById('rstat-total').textContent=all.length;
-    document.getElementById('rstat-confirmed').textContent=all.filter(e=>e.status==='Confirmed').length;
-    document.getElementById('rstat-pending').textContent=all.filter(e=>e.status==='Pending').length;
+    const rc = siteStatusCounts(all);
+    document.getElementById('rstat-pending').textContent=rc.Pending;
+    document.getElementById('rstat-confirmed').textContent=rc.Confirmed;
+    document.getElementById('rstat-notconverted').textContent=rc.NotConverted;
     document.getElementById('rsmsites-subtitle').textContent=`${currentUser.name} · ${myAsms.length} ASM${myAsms.length!==1?'s':''}`;
     // Populate ASM filter dropdown
     const asmSel=document.getElementById('rsm-asm-filter');
@@ -4934,7 +4995,7 @@ async function renderRSMSites(filter='all') {
       asmSel.innerHTML=`<option value="">👥 All ASMs</option>`+myAsms.map(a=>`<option value="${a.id}" ${a.id===selVal?'selected':''}>${a.name}</option>`).join('');
     }
     // Apply filters
-    let shown=filter==='all'?all:all.filter(e=>e.status===filter);
+    let shown=all.filter(e=>matchesSiteStatus(e.status, filter));
     if(selVal) shown=shown.filter(e=>e.asmId===selVal);
     const df=document.getElementById('rsm-date-from')?.value;
     const dt=document.getElementById('rsm-date-to')?.value;
@@ -5537,13 +5598,16 @@ async function renderDashboard() {
     const filteredEntries=dashDateFilter(entries);
     const month=new Date().toISOString().slice(0,7);
     const monthAtt=attendance.filter(a=>a.date&&a.date.startsWith(month));
-    const total=filteredEntries.length,confirmed=filteredEntries.filter(e=>e.status==='Confirmed').length,pending=filteredEntries.filter(e=>e.status==='Pending').length;
+    const total=filteredEntries.length;
+    const sc=siteStatusCounts(filteredEntries);
+    const confirmed=sc.Confirmed, pending=sc.Pending, notConverted=sc.NotConverted;
     const convRate=total>0?Math.round(confirmed/total*100):0;
 
     html+=`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       ${dashCard('Total Sites',total,periodLabel,'#1565C0','🏗️')}
-      ${dashCard('Confirmed',confirmed,`${convRate}% rate`,'#065f46','✅')}
+      ${dashCard('Converted',confirmed,`${convRate}% rate`,'#065f46','✅')}
       ${dashCard('Pending',pending,'follow up','#92400e','⏳')}
+      ${dashCard('Not Converted',notConverted,'lost','#991b1b','❌')}
     </div>`;
 
     if(role==='isc'){
@@ -5555,7 +5619,7 @@ async function renderDashboard() {
     }
 
     const withLead=filteredEntries.filter(e=>e.leadDate).length,withSample=filteredEntries.filter(e=>e.sampleDate).length,withConversion=filteredEntries.filter(e=>e.conversionDate).length,funnelTotal=Math.max(total,1);
-    html+=dashSection('🔄 Conversion Funnel',funnelBar('Lead',withLead||total,funnelTotal,'#1565C0')+funnelBar('Sample',withSample,funnelTotal,'#f59e0b')+funnelBar('Confirmed',confirmed,funnelTotal,'#10b981')+funnelBar('Converted',withConversion,funnelTotal,'#C8102E'));
+    html+=dashSection('🔄 Conversion Funnel',funnelBar('Lead',withLead||total,funnelTotal,'#1565C0')+funnelBar('Sample',withSample,funnelTotal,'#f59e0b')+funnelBar('Site Converted',confirmed,funnelTotal,'#10b981')+funnelBar('Conversion Dated',withConversion,funnelTotal,'#C8102E'));
 
     const compMap={};filteredEntries.forEach(e=>{if(e.competitor?.trim())compMap[e.competitor.trim()]=(compMap[e.competitor.trim()]||0)+1;});
     const compEntries=Object.entries(compMap).sort((a,b)=>b[1]-a[1]).slice(0,6),compMax=compEntries[0]?.[1]||1;
@@ -5563,11 +5627,11 @@ async function renderDashboard() {
     if(compEntries.length) html+=dashSection('🏷️ Competitor Brands',compEntries.map(([name,cnt],i)=>miniBar(name,cnt,compMax,compColors[i%compColors.length])).join(''));
 
     if(role!=='isc'){
-      const regionMap={};filteredEntries.forEach(e=>{if(!e.region)return;if(!regionMap[e.region])regionMap[e.region]={total:0,confirmed:0};regionMap[e.region].total++;if(e.status==='Confirmed')regionMap[e.region].confirmed++;});
+      const regionMap={};filteredEntries.forEach(e=>{if(!e.region)return;if(!regionMap[e.region])regionMap[e.region]={total:0,confirmed:0};regionMap[e.region].total++;if(siteStatusKey(e.status)==='Confirmed')regionMap[e.region].confirmed++;});
       const regionEntries=Object.entries(regionMap).sort((a,b)=>b[1].total-a[1].total).slice(0,8),regionMax=regionEntries[0]?.[1].total||1;
       if(regionEntries.length) html+=dashSection('🗺️ Region-wise Sites',regionEntries.map(([r,d])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600;color:#333">${r}</span><span style="color:#666">${d.confirmed}/${d.total} confirmed</span></div><div style="background:#f0f0f0;border-radius:99px;height:8px"><div style="background:#1565C0;width:${Math.round(d.total/regionMax*100)}%;height:8px;border-radius:99px"></div></div></div>`).join(''));
 
-      const iscMap={};filteredEntries.forEach(e=>{if(!e.iscName)return;if(!iscMap[e.iscId])iscMap[e.iscId]={name:e.iscName,total:0,confirmed:0,value:0};iscMap[e.iscId].total++;if(e.status==='Confirmed')iscMap[e.iscId].confirmed++;iscMap[e.iscId].value+=Number(e.siteValue||0);});
+      const iscMap={};filteredEntries.forEach(e=>{if(!e.iscName)return;if(!iscMap[e.iscId])iscMap[e.iscId]={name:e.iscName,total:0,confirmed:0,value:0};iscMap[e.iscId].total++;if(siteStatusKey(e.status)==='Confirmed')iscMap[e.iscId].confirmed++;iscMap[e.iscId].value+=Number(e.siteValue||0);});
       const iscList=Object.values(iscMap).sort((a,b)=>b.total-a.total).slice(0,10);
       if(iscList.length) html+=dashSection('👤 ISC Performance',`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f8f8f8"><th style="padding:8px 6px;text-align:left;color:#555;font-weight:600">ISC</th><th style="padding:8px 6px;text-align:center;color:#555;font-weight:600">Sites</th><th style="padding:8px 6px;text-align:center;color:#555;font-weight:600">✅</th><th style="padding:8px 6px;text-align:right;color:#555;font-weight:600">Value</th></tr>${iscList.map((i,idx)=>`<tr style="border-top:1px solid #f0f0f0;background:${idx%2?'#fafafa':'white'}"><td style="padding:7px 6px;font-weight:500;color:#333;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.name}</td><td style="padding:7px 6px;text-align:center;color:#1565C0;font-weight:700">${i.total}</td><td style="padding:7px 6px;text-align:center;color:#065f46;font-weight:700">${i.confirmed}</td><td style="padding:7px 6px;text-align:right;color:#C8102E;font-weight:600">${i.value?'₹'+Math.round(i.value/1000)+'K':'-'}</td></tr>`).join('')}</table></div>`);
     }
@@ -5580,7 +5644,7 @@ async function renderDashboard() {
 
     // ── LEAD SOURCE PERFORMANCE (refType → conversion rate) ──────────
     try {
-      const refMap={};filteredEntries.forEach(e=>{const r=e.refType?.trim();if(!r)return;if(!refMap[r])refMap[r]={total:0,confirmed:0};refMap[r].total++;if(e.status==='Confirmed')refMap[r].confirmed++;});
+      const refMap={};filteredEntries.forEach(e=>{const r=e.refType?.trim();if(!r)return;if(!refMap[r])refMap[r]={total:0,confirmed:0};refMap[r].total++;if(siteStatusKey(e.status)==='Confirmed')refMap[r].confirmed++;});
       const refEntries=Object.entries(refMap).sort((a,b)=>b[1].total-a[1].total).slice(0,9);
       if(refEntries.length) html+=dashSection('🎯 Lead Source Performance',refEntries.map(([name,d])=>{const rate=d.total>0?Math.round(d.confirmed/d.total*100):0;const color=rate>=50?'#10b981':rate>=25?'#f59e0b':'#ef4444';return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600;color:#333">${name}</span><span style="color:${color};font-weight:700">${rate}% conv · ${d.total} leads</span></div><div style="background:#f0f0f0;border-radius:99px;height:8px"><div style="background:${color};width:${Math.max(rate,3)}%;height:8px;border-radius:99px"></div></div></div>`;}).join(''));
     } catch(e) { console.warn('Lead source error:',e.message); }
@@ -6286,7 +6350,7 @@ function exportEntries(scope) {
         e.competitor||'', e.leadDate||'', e.sampleDate||'', e.conversionDate||'',
         e.paintSystem||'', products, sampleMats, orderDets, e.siteValue||'',
         e.dealerCode||'', e.dealerName||'', e.contractor||'', e.contractorPhone||'', e.painter||'', e.painterPhone||'',
-        e.status||'', e.remarks||'', e.sapRef||'',
+        siteStatusLabel(e.status), e.remarks||'', e.sapRef||'',
         e.updatedAt ? fmtDate(e.updatedAt) : ''
       ];
     });
