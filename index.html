@@ -714,6 +714,30 @@
     <div id="bdo-entries-list"></div>
   </div>
 
+  <!-- MY ACTIVITY (ST / SE / BDO / BDE) — their own logged field activity -->
+  <div id="tab-myactivity" class="main-content" style="display:none">
+    <div class="page-title">My Activity</div>
+    <div class="page-subtitle" id="myactivity-subtitle">Dealer, site, influencer &amp; contractor visits you logged</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" id="myact-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat-card green"><div class="stat-value" id="myact-month">0</div><div class="stat-label">This Month</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="myact-today">0</div><div class="stat-label">Today</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterMyActivity('all',this)">All</button>
+      <button class="filter-btn" onclick="filterMyActivity('Dealer',this)">🏪 Dealer</button>
+      <button class="filter-btn" onclick="filterMyActivity('Site',this)">🏗️ Site</button>
+      <button class="filter-btn" onclick="filterMyActivity('Influencer',this)">🎨 Influencer</button>
+      <button class="filter-btn" onclick="filterMyActivity('Contractor/Painter',this)">👷 Contractor</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="form-input" id="act-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderMyActivity()">
+      <input type="date" class="form-input" id="act-date-to" style="flex:1;min-width:130px;font-size:12px" onchange="renderMyActivity()">
+      <button onclick="document.getElementById('act-date-from').value='';document.getElementById('act-date-to').value='';renderMyActivity();" style="padding:8px 10px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;white-space:nowrap">✕ Clear</button>
+    </div>
+    <div id="myactivity-list"></div>
+  </div>
+
   <!-- MY ISCs (ASM) -->
   <div id="tab-myiscs" class="main-content" style="display:none">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
@@ -1115,7 +1139,7 @@
   </div>
 
   <div class="bottom-nav" id="bottom-nav"></div>
-  <button class="fab" id="fab-btn" onclick="showNewEntryModal()" style="display:none">+</button>
+  <button class="fab" id="fab-btn" onclick="onFabClick()" style="display:none">+</button>
 </div>
 
 <!-- ══════ MODALS ══════ -->
@@ -1577,6 +1601,139 @@
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-replace')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="confirmDeactivateOrFill()" id="replace-confirm-btn">Deactivate &amp; Reassign</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ ST/BDO ACTIVITY LOGGING ══════ -->
+
+<!-- Step 1: which kind of activity is being logged -->
+<div class="modal-overlay" id="modal-activity-picker">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Log Activity</div>
+    <div class="modal-subtitle">What did you visit?</div>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Dealer')">🏪 &nbsp;Dealer</button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Site')">🏗️ &nbsp;Site</button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Influencer')">🎨 &nbsp;Influencer <span style="font-size:11px;color:var(--gray)">(architect / interior / engineer)</span></button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:16px;font-size:15px" onclick="openActivityForm('Contractor/Painter')">👷 &nbsp;Contractor / Painter <span style="font-size:11px;color:var(--gray)">(incl. builder)</span></button>
+    <button class="btn-secondary" style="width:100%" onclick="closeModal('modal-activity-picker')">Cancel</button>
+  </div>
+</div>
+
+<!-- Step 2a: Dealer / Influencer / Contractor-Painter share one form — labels, sub-types and the
+     master sheet behind "Existing" all swap based on which type was picked. -->
+<div class="modal-overlay" id="modal-activity-party">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="ap-title">Log Visit</div>
+    <div class="modal-subtitle" id="ap-subtitle"></div>
+    <input type="hidden" id="ap-type">
+    <input type="hidden" id="ap-mode" value="new">
+    <input type="hidden" id="ap-party-id">
+
+    <div class="form-group">
+      <label class="form-label">New or existing? *</label>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="filter-btn active" id="ap-btn-new" style="flex:1" onclick="setPartyMode('new')">➕ New</button>
+        <button type="button" class="filter-btn" id="ap-btn-existing" style="flex:1" onclick="setPartyMode('existing')">🔍 Existing</button>
+      </div>
+    </div>
+
+    <div class="form-group" id="ap-existing-group" style="display:none">
+      <label class="form-label">Search &amp; select *</label>
+      <input type="text" class="form-input" id="ap-search" placeholder="Type name, code or mobile..." oninput="renderPartyOptions()" style="margin-bottom:8px">
+      <select class="form-select" id="ap-existing-select" size="5" onchange="applyExistingParty()"></select>
+      <div style="font-size:11px;color:var(--gray);margin-top:4px">Picking someone fills their details below — you can still correct them.</div>
+    </div>
+
+    <div class="form-group"><label class="form-label" id="ap-code-label">Code</label><input type="text" class="form-input" id="ap-code" placeholder=""></div>
+    <div class="form-group"><label class="form-label" id="ap-name-label">Name *</label><input type="text" class="form-input" id="ap-name" placeholder="Full name"></div>
+    <div class="form-group" id="ap-firm-group"><label class="form-label" id="ap-firm-label">Firm Name</label><input type="text" class="form-input" id="ap-firm" placeholder="Firm / company"></div>
+    <div class="form-group"><label class="form-label">Mobile</label><input type="tel" class="form-input" id="ap-mobile" placeholder="10-digit mobile"></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="ap-email" placeholder="name@example.com"></div>
+    <div class="form-group"><label class="form-label" id="ap-subtype-label">Type</label><select class="form-select" id="ap-subtype"></select></div>
+
+    <div class="form-group"><label class="form-label">Visit Date *</label><input type="date" class="form-input" id="ap-visitdate"></div>
+    <div class="form-group">
+      <label class="form-label">GPS Location</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="ap-gps" placeholder="Tap 📍 to capture" readonly style="flex:1;background:#f9fafb;font-size:12px">
+        <button type="button" onclick="captureGPSInto('ap-gps','ap-gps-status','ap-gps-btn')" id="ap-gps-btn" style="padding:10px 14px;background:var(--dark);color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0">📍</button>
+      </div>
+      <div id="ap-gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Purpose</label><select class="form-select" id="ap-purpose">
+      <option value="">— Select —</option>
+      <option>Introduction / First Visit</option>
+      <option>Follow-up</option>
+      <option>Product Demo</option>
+      <option>Order Discussion</option>
+      <option>Payment Follow-up</option>
+      <option>Complaint / Service</option>
+      <option>Other</option>
+    </select></div>
+    <div class="form-group"><label class="form-label">Remarks</label><textarea class="form-input" id="ap-remarks" rows="2" placeholder="Notes from the visit"></textarea></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-activity-party')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveActivityParty()">Save Activity</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2b: Site activity — the core ISC site-visit fields, logged against the ST/BDO instead of an ISC. -->
+<div class="modal-overlay" id="modal-activity-site">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Log Site Visit</div>
+    <div class="modal-subtitle">Site details, same as an ISC site visit</div>
+
+    <div class="form-group"><label class="form-label">Site Status *</label><select class="form-select" id="as-sitestatus">
+      <option value="">— Select —</option><option>New Site</option><option>Existing Site</option>
+    </select></div>
+    <div class="form-group"><label class="form-label">Customer / Site Supervisor *</label><input type="text" class="form-input" id="as-custname" placeholder="e.g. Mr. Ramesh Kumar"></div>
+    <div class="form-group"><label class="form-label">Customer Phone</label><input type="tel" class="form-input" id="as-custphone" placeholder="10-digit mobile"></div>
+    <div class="form-group"><label class="form-label">Customer Type</label><select class="form-select" id="as-custtype">
+      <option value="">— Select —</option>
+      <option>Individual Home Owner</option><option>Builder / Developer</option><option>Contractor</option>
+      <option>Architect / Interior Designer</option><option>Commercial / Industrial</option><option>Government / Institution</option>
+    </select></div>
+    <div class="form-group"><label class="form-label">Site / Project Name *</label><input type="text" class="form-input" id="as-sitename" placeholder="e.g. Sai Residency, Block B"></div>
+    <div class="form-group"><label class="form-label">Site Address *</label><input type="text" class="form-input" id="as-address" placeholder="Full site address"></div>
+    <div class="form-group">
+      <label class="form-label">GPS Location</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="as-gps" placeholder="Tap 📍 to capture" readonly style="flex:1;background:#f9fafb;font-size:12px">
+        <button type="button" onclick="captureGPSInto('as-gps','as-gps-status','as-gps-btn')" id="as-gps-btn" style="padding:10px 14px;background:var(--dark);color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0">📍</button>
+      </div>
+      <div id="as-gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Building Type</label><select class="form-select" id="as-buildtype">
+      <option value="">— Select —</option>
+      <option>Residential — Villa / Bungalow</option><option>Residential — Apartment</option>
+      <option>Commercial — Office</option><option>Commercial — Mall / Retail</option>
+      <option>Industrial — Factory</option><option>Industrial — Warehouse</option>
+      <option>Infrastructure — Road / Bridge</option><option>Other</option>
+    </select></div>
+    <div class="form-group"><label class="form-label">Site Stage</label><select class="form-select" id="as-sitestage">
+      <option value="">— Select —</option>
+      <option>Foundation</option><option>Structure / RCC</option><option>Plastering</option>
+      <option>Putty / Primer</option><option>Painting In Progress</option><option>Completed</option>
+    </select></div>
+    <div class="form-group"><label class="form-label">Area (sq ft)</label><input type="number" class="form-input" id="as-area" placeholder="e.g. 2500"></div>
+    <div class="form-group"><label class="form-label">Products Discussed</label><textarea class="form-input" id="as-products" rows="2" placeholder="e.g. Vapocure 2K Epoxy — 50 L, Damp Proof — 20 L"></textarea></div>
+    <div class="form-group"><label class="form-label">Approx. Site Value (₹)</label><input type="number" class="form-input" id="as-sitevalue" placeholder="e.g. 100000"></div>
+    <div class="form-group"><label class="form-label">Dealer Code</label><input type="text" class="form-input" id="as-dealercode" placeholder="6-digit dealer code" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"></div>
+    <div class="form-group"><label class="form-label">Dealer Name</label><input type="text" class="form-input" id="as-dealername" placeholder="Dealer shop name"></div>
+    <div class="form-group"><label class="form-label">Competitor Used</label><input type="text" class="form-input" id="as-competitor" placeholder="e.g. Asian Paints"></div>
+    <div class="form-group"><label class="form-label">Lead Date</label><input type="date" class="form-input" id="as-leaddate"></div>
+    <div class="form-group"><label class="form-label">Visit Date *</label><input type="date" class="form-input" id="as-visitdate"></div>
+    <div class="form-group"><label class="form-label">Remarks</label><textarea class="form-input" id="as-remarks" rows="2" placeholder="Notes from the visit"></textarea></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-activity-site')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveActivitySite()">Save Activity</button>
     </div>
   </div>
 </div>
@@ -2166,6 +2323,46 @@ async function DATA_getBDOVisits() {
 }
 
 // ══════════════════════════════════════════════
+//  ST/BDO ACTIVITY DATA LAYER
+//  ST and SE both log into ST_Visits; BDO and BDE both log into BDO_Visits (the `role` column on each
+//  row tells them apart). Dealers/Influencers/Painters are master directories that grow as people are
+//  logged as "New", so the next visit can pick them as "Existing" instead of retyping their details.
+// ══════════════════════════════════════════════
+
+// Which visits sheet a given user writes to — STs and SEs share one, BDOs and BDEs the other.
+function activitySheetFor(user) { return user.isST ? 'ST_Visits' : 'BDO_Visits'; }
+
+// Master sheet + local-cache key for each party type the activity forms can create.
+const PARTY_MASTER = {
+  'Dealer':             {sheet:'Dealers',     cache:'dealers_master'},
+  'Influencer':         {sheet:'Influencers', cache:'influencers_master'},
+  'Contractor/Painter': {sheet:'Painters',    cache:'painters_master'},
+};
+
+async function DATA_getPartyMaster(partyType) {
+  const m = PARTY_MASTER[partyType];
+  if (!m) return [];
+  if (!isConfigured()) return LDB.arr(m.cache) || [];
+  try { const remote = await sheetsGet(m.sheet); LDB.set(m.cache, remote); return remote; }
+  catch(e) { console.warn(`${m.sheet} fetch failed:`, e.message); return LDB.arr(m.cache) || []; }
+}
+
+async function DATA_addPartyMaster(partyType, rec) {
+  const m = PARTY_MASTER[partyType];
+  if (!m) return;
+  if (isConfigured()) await sheetsAppend(m.sheet, rec);
+  const arr = LDB.arr(m.cache); arr.push(rec); LDB.set(m.cache, arr);
+}
+
+// Saves one activity row. Writes locally first so it shows immediately, then syncs — same
+// resilience pattern DATA_addEntry() uses for ISC site visits.
+async function DATA_addActivity(sheet, rec) {
+  const cache = sheet === 'ST_Visits' ? 'st_visits' : 'bdo_visits';
+  const arr = LDB.arr(cache); arr.push(rec); LDB.set(cache, arr);
+  if (isConfigured()) await sheetsAppend(sheet, rec);
+}
+
+// ══════════════════════════════════════════════
 //  SHEET HEADER REPAIR
 // ══════════════════════════════════════════════
 // Full correct headers for Entries sheet (including gps, gpsRaw)
@@ -2456,10 +2653,10 @@ async function doBDOLogin() {
     // Check local cache — BDOs first, then STs
     const localBDO = LDB.arr('bdos_login');
     const lb = localBDO.find(b=>(b.username||'').toLowerCase()===u&&(b.password||'').toLowerCase()===p);
-    if (lb) { currentUser={...lb,role:'bdo',isST:false}; launchApp(); return; }
+    if (lb) { currentUser={...lb,empRole:(lb.role||'BDO').toUpperCase(),role:'bdo',isST:false}; launchApp(); return; }
     const localST = LDB.arr('sts_login');
     const ls = localST.find(s=>(s.username||'').toLowerCase()===u&&(s.password||'').toLowerCase()===p);
-    if (ls) { currentUser={...ls,role:'bdo',isST:true}; launchApp(); return; }
+    if (ls) { currentUser={...ls,empRole:(ls.role||'ST').toUpperCase(),role:'bdo',isST:true}; launchApp(); return; }
 
     if (isConfigured()) {
       // Check Google Sheets BDOs sheet
@@ -2470,7 +2667,7 @@ async function doBDOLogin() {
         const idx=arr.findIndex(x=>x.id===bdo.id);
         if(idx>-1) arr[idx]={...bdo}; else arr.push({...bdo});
         LDB.set('bdos_login',arr);
-        currentUser={...bdo,role:'bdo',isST:false}; launchApp(); return;
+        currentUser={...bdo,empRole:(bdo.role||'BDO').toUpperCase(),role:'bdo',isST:false}; launchApp(); return;
       }
       // Check Google Sheets STs sheet — same login screen, same role/permissions
       const sts = await sheetsGet('STs');
@@ -2480,7 +2677,7 @@ async function doBDOLogin() {
         const idx=arr.findIndex(x=>x.id===st.id);
         if(idx>-1) arr[idx]={...st}; else arr.push({...st});
         LDB.set('sts_login',arr);
-        currentUser={...st,role:'bdo',isST:true}; launchApp(); return;
+        currentUser={...st,empRole:(st.role||'ST').toUpperCase(),role:'bdo',isST:true}; launchApp(); return;
       }
     }
     showAlert('alert-bdo-login','Invalid credentials. Username = Emp No, Password = Emp No.','error');
@@ -2540,7 +2737,7 @@ function launchApp() {
   buildNav();
   if (currentUser.role==='isc') { showTab('mysites'); document.getElementById('fab-btn').style.display='flex'; }
   else if (currentUser.role==='asm') { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
-  else if (currentUser.role==='bdo') { showTab('bdosites'); document.getElementById('fab-btn').style.display='none'; }
+  else if (currentUser.role==='bdo') { showTab('myactivity'); document.getElementById('fab-btn').style.display='flex'; }
   else if (currentUser.role==='rsm') { showTab('rsmsites'); document.getElementById('fab-btn').style.display='none'; }
   else if (currentUser.viewOnly) { showTab('team-attendance'); document.getElementById('fab-btn').style.display='none'; }
   else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
@@ -2554,7 +2751,7 @@ function buildNav() {
   } else if (currentUser.role==='asm') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
@@ -2569,11 +2766,12 @@ function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n
 
 // Hides all tab panels, shows only #tab-<tab>, and kicks off that tab's data-loading/render function so it always shows fresh data.
 function showTab(tab) {
-  ['tab-mysites','tab-allsites','tab-bdosites','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
+  ['tab-mysites','tab-allsites','tab-bdosites','tab-myactivity','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
   document.getElementById('tab-'+tab).style.display='block';
   if (tab==='mysites') renderMyEntries();
   if (tab==='allsites') renderAllEntries();
   if (tab==='bdosites') renderBDOSites();
+  if (tab==='myactivity') renderMyActivity();
   if (tab==='rsmsites') renderRSMSites();
   if (tab==='myiscs') renderMyISCs();
   if (tab==='myteam') renderMyTeam();
@@ -2929,6 +3127,278 @@ async function renderBDOSites() {
 }
 
 // ══════════════════════════════════════════════
+//  ST/BDO ACTIVITY LOGGING (UI)
+//  One picker → four activity types. Dealer/Influencer/Contractor-Painter all share a single form
+//  (#modal-activity-party) whose labels, sub-types and backing master sheet swap per type; Site gets
+//  its own form carrying the core ISC site-visit fields.
+// ══════════════════════════════════════════════
+
+// Per-type form configuration: what to call things, and what the sub-type dropdown offers.
+const PARTY_CONFIG = {
+  'Dealer': {
+    title:'Log Dealer Visit', noun:'dealer',
+    codeLabel:'Dealer Code', codePlaceholder:'6-digit dealer code',
+    nameLabel:'Contact Person Name *', firmLabel:'Dealer Shop Name',
+    subTypeLabel:'Dealer Type', subTypes:['Machine Dealer','Non-Machine Dealer'],
+  },
+  'Influencer': {
+    title:'Log Influencer Visit', noun:'influencer',
+    codeLabel:'Influencer Code (IN)', codePlaceholder:'e.g. IN1234 — leave blank if not yet assigned',
+    nameLabel:'Name *', firmLabel:'Firm Name',
+    subTypeLabel:'Influencer Type', subTypes:['Architect','Interior Designer','Engineer'],
+  },
+  'Contractor/Painter': {
+    title:'Log Contractor / Painter Visit', noun:'contractor / painter',
+    codeLabel:'Painter Code (PT)', codePlaceholder:'e.g. PT1234 — leave blank if not yet assigned',
+    nameLabel:'Name *', firmLabel:'Firm Name',
+    subTypeLabel:'Type', subTypes:['Contractor','Painter','Builder'],
+  },
+};
+
+let _partyMasterCache = [];   // the loaded master list for whichever type is currently open
+
+// The master sheets don't share column names (Dealers store shopName/contactName/dealerType, while
+// Influencers and Painters store name/firmName/subType), so these two translate between the shared
+// form fields and whichever shape that type's sheet actually uses.
+function partyToMaster(partyType, f) {
+  if (partyType === 'Dealer') return {code:f.code, shopName:f.firm, contactName:f.name, mobile:f.mobile, email:f.email, dealerType:f.subType};
+  return {code:f.code, name:f.name, firmName:f.firm, mobile:f.mobile, email:f.email, subType:f.subType};
+}
+function masterToParty(partyType, r) {
+  if (partyType === 'Dealer') return {code:r.code||'', name:r.contactName||'', firm:r.shopName||'', mobile:r.mobile||'', email:r.email||'', subType:r.dealerType||''};
+  return {code:r.code||'', name:r.name||'', firm:r.firmName||'', mobile:r.mobile||'', email:r.email||'', subType:r.subType||''};
+}
+
+// FAB handler for ST/BDO.
+function openActivityPicker() { openModal('modal-activity-picker'); }
+
+// Opens the right form for the chosen activity type, blanked and dated today.
+async function openActivityForm(type) {
+  closeModal('modal-activity-picker');
+  if (type === 'Site') {
+    ['as-sitestatus','as-custname','as-custphone','as-custtype','as-sitename','as-address','as-gps',
+     'as-buildtype','as-sitestage','as-area','as-products','as-sitevalue','as-dealercode','as-dealername',
+     'as-competitor','as-leaddate','as-remarks'].forEach(id=>sv(id,''));
+    const g=document.getElementById('as-gps'); if(g) delete g.dataset.raw;
+    document.getElementById('as-gps-status').textContent='';
+    sv('as-visitdate', todayStr());
+    openModal('modal-activity-site');
+    return;
+  }
+
+  const cfg = PARTY_CONFIG[type];
+  if (!cfg) return;
+  sv('ap-type', type);
+  sv('ap-party-id', '');
+  document.getElementById('ap-title').textContent = cfg.title;
+  document.getElementById('ap-subtitle').textContent = `Record a visit to a ${cfg.noun}`;
+  document.getElementById('ap-code-label').textContent = cfg.codeLabel;
+  document.getElementById('ap-code').placeholder = cfg.codePlaceholder;
+  document.getElementById('ap-name-label').textContent = cfg.nameLabel;
+  document.getElementById('ap-firm-label').textContent = cfg.firmLabel;
+  document.getElementById('ap-subtype-label').textContent = cfg.subTypeLabel;
+  document.getElementById('ap-subtype').innerHTML = '<option value="">— Select —</option>' + cfg.subTypes.map(s=>`<option>${s}</option>`).join('');
+  ['ap-code','ap-name','ap-firm','ap-mobile','ap-email','ap-purpose','ap-remarks','ap-gps','ap-search'].forEach(id=>sv(id,''));
+  const g=document.getElementById('ap-gps'); if(g) delete g.dataset.raw;
+  document.getElementById('ap-gps-status').textContent='';
+  sv('ap-visitdate', todayStr());
+  setPartyMode('new');
+
+  _partyMasterCache = [];
+  openModal('modal-activity-party');
+  try { _partyMasterCache = await DATA_getPartyMaster(type); renderPartyOptions(); }
+  catch(e) { showToast('⚠️ Could not load existing list'); }
+}
+
+// Switches between "New" (blank form, will create a master record) and "Existing" (pick from the master).
+function setPartyMode(mode) {
+  sv('ap-mode', mode);
+  document.getElementById('ap-btn-new').classList.toggle('active', mode==='new');
+  document.getElementById('ap-btn-existing').classList.toggle('active', mode==='existing');
+  document.getElementById('ap-existing-group').style.display = mode==='existing' ? '' : 'none';
+  if (mode==='new') {
+    sv('ap-party-id','');
+    ['ap-code','ap-name','ap-firm','ap-mobile','ap-email'].forEach(id=>sv(id,''));
+    sv('ap-subtype','');
+  } else {
+    renderPartyOptions();
+  }
+}
+
+// Fills the "Existing" picker with master records matching whatever's typed in the search box.
+function renderPartyOptions() {
+  const sel = document.getElementById('ap-existing-select');
+  if (!sel) return;
+  const type = gv('ap-type');
+  const q = gv('ap-search').trim().toLowerCase();
+  const matches = _partyMasterCache.filter(r=>{
+    if (!r.id) return false;
+    if (!q) return true;
+    const p = masterToParty(type, r);
+    return [p.name,p.firm,p.code,p.mobile].some(v=>String(v||'').toLowerCase().includes(q));
+  }).slice(0, 200);   // cap the rendered list — the search box is how you narrow a long master
+  if (!matches.length) { sel.innerHTML = '<option value="" disabled>No matches</option>'; return; }
+  sel.innerHTML = matches.map(r=>{
+    const p = masterToParty(type, r);
+    const bits = [p.firm, p.code, p.mobile].filter(Boolean).join(' · ');
+    return `<option value="${escapeHtml(r.id)}">${escapeHtml(p.name||'(no name)')}${bits?' — '+escapeHtml(bits):''}</option>`;
+  }).join('');
+}
+
+// Copies the picked master record into the form fields (still editable — edits write back on save).
+function applyExistingParty() {
+  const type = gv('ap-type');
+  const id = gv('ap-existing-select');
+  const rec = _partyMasterCache.find(r=>r.id===id);
+  if (!rec) return;
+  const p = masterToParty(type, rec);
+  sv('ap-party-id', rec.id);
+  sv('ap-code', p.code); sv('ap-name', p.name); sv('ap-firm', p.firm);
+  sv('ap-mobile', p.mobile); sv('ap-email', p.email); sv('ap-subtype', p.subType);
+}
+
+// Fields every activity row carries regardless of type.
+function baseActivityRow(activityType) {
+  return {
+    id: 'act'+Date.now(),
+    activityType,
+    role: currentUser.empRole || (currentUser.isST ? 'ST' : 'BDO'),
+    empId: currentUser.id||'', empName: currentUser.name||'',
+    asmId: currentUser.asmId||'', asmName: currentUser.asmName||'',
+    region: currentUser.region||'',
+    status: 'Logged',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function saveActivityParty() {
+  const type = gv('ap-type'), mode = gv('ap-mode');
+  const f = {code:gv('ap-code').trim(), name:gv('ap-name').trim(), firm:gv('ap-firm').trim(),
+             mobile:gv('ap-mobile').trim(), email:gv('ap-email').trim(), subType:gv('ap-subtype')};
+  const visitDate = gv('ap-visitdate');
+  if (!f.name) return showToast('⚠️ Name is required');
+  if (!visitDate) return showToast('⚠️ Visit date is required');
+  if (mode==='existing' && !gv('ap-party-id')) return showToast('⚠️ Please select someone from the list');
+
+  setLoading(true,'Saving activity...');
+  try {
+    let partyId = gv('ap-party-id');
+    if (mode==='new') {
+      partyId = 'p'+Date.now();
+      await DATA_addPartyMaster(type, {id:partyId, ...partyToMaster(type,f),
+        region:currentUser.region||'', createdBy:currentUser.name||'', createdAt:new Date().toISOString()});
+    } else if (isConfigured()) {
+      // Existing party whose details were corrected on the form — push the fix back to the master
+      const orig = _partyMasterCache.find(r=>r.id===partyId);
+      const updates = partyToMaster(type, f);
+      const changed = orig && Object.keys(updates).some(k=>String(orig[k]||'')!==String(updates[k]||''));
+      if (changed) { try { await sheetsUpdate(PARTY_MASTER[type].sheet,'id',partyId,updates); } catch(e){ console.warn('Master update failed:', e.message); } }
+    }
+
+    await DATA_addActivity(activitySheetFor(currentUser), {
+      ...baseActivityRow(type),
+      visitDate,
+      gps: gv('ap-gps'), gpsRaw: document.getElementById('ap-gps')?.dataset.raw || '',
+      purpose: gv('ap-purpose'), remarks: gv('ap-remarks').trim(),
+      partyId, partyCode:f.code, partyName:f.name, partyFirm:f.firm,
+      partyMobile:f.mobile, partyEmail:f.email, partySubType:f.subType,
+      isNewParty: mode==='new' ? 'Yes' : 'No',
+    });
+    showToast('✅ Activity logged!');
+    closeModal('modal-activity-party');
+    renderMyActivity();
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
+async function saveActivitySite() {
+  const siteName = gv('as-sitename').trim(), address = gv('as-address').trim();
+  const custName = gv('as-custname').trim(), visitDate = gv('as-visitdate');
+  if (!gv('as-sitestatus')) return showToast('⚠️ Please select site status');
+  if (!custName) return showToast('⚠️ Customer name is required');
+  if (!siteName) return showToast('⚠️ Site / project name is required');
+  if (!address) return showToast('⚠️ Site address is required');
+  if (!visitDate) return showToast('⚠️ Visit date is required');
+
+  setLoading(true,'Saving activity...');
+  try {
+    await DATA_addActivity(activitySheetFor(currentUser), {
+      ...baseActivityRow('Site'),
+      visitDate,
+      gps: gv('as-gps'), gpsRaw: document.getElementById('as-gps')?.dataset.raw || '',
+      remarks: gv('as-remarks').trim(),
+      partySubType: gv('as-sitestatus'),
+      siteName, address,
+      buildType: gv('as-buildtype'), siteStage: gv('as-sitestage'), area: gv('as-area'),
+      custName, custPhone: gv('as-custphone'), custType: gv('as-custtype'),
+      products: gv('as-products').trim(), siteValue: gv('as-sitevalue'),
+      dealerCode: gv('as-dealercode'), dealerName: gv('as-dealername').trim(),
+      leadDate: gv('as-leaddate'), competitor: gv('as-competitor').trim(),
+    });
+    showToast('✅ Site activity logged!');
+    closeModal('modal-activity-site');
+    renderMyActivity();
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
+let _myActivityFilter = 'all';
+function filterMyActivity(f, el) {
+  document.querySelectorAll('#tab-myactivity .filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  _myActivityFilter = f;
+  renderMyActivity();
+}
+
+const ACTIVITY_ICON = {'Dealer':'🏪','Site':'🏗️','Influencer':'🎨','Contractor/Painter':'👷'};
+
+// The ST/BDO's own log of everything they've recorded, newest first.
+async function renderMyActivity() {
+  const el = document.getElementById('myactivity-list');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const all = (currentUser.isST ? await DATA_getSTVisits() : await DATA_getBDOVisits())
+      .filter(a=>a.id && String(a.empId)===String(currentUser.id));
+    const today = todayStr(), month = today.slice(0,7);
+    document.getElementById('myact-total').textContent = all.length;
+    document.getElementById('myact-month').textContent = all.filter(a=>String(a.visitDate||'').startsWith(month)).length;
+    document.getElementById('myact-today').textContent = all.filter(a=>a.visitDate===today).length;
+    document.getElementById('myactivity-subtitle').textContent = `${currentUser.name} · ${currentUser.empRole||(currentUser.isST?'ST':'BDO')}${currentUser.region?' · '+currentUser.region:''}`;
+
+    let shown = _myActivityFilter==='all' ? all : all.filter(a=>a.activityType===_myActivityFilter);
+    const df = gv('act-date-from'), dt = gv('act-date-to');
+    if (df) shown = shown.filter(a=>a.visitDate && a.visitDate>=df);
+    if (dt) shown = shown.filter(a=>a.visitDate && a.visitDate<=dt);
+    if (!shown.length) { el.innerHTML = emptyState('📋','No activity yet','Tap + to log a visit'); return; }
+
+    shown.sort((a,b)=>String(b.visitDate||'').localeCompare(String(a.visitDate||'')) || String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    el.innerHTML = shown.map(a=>{
+      const isSite = a.activityType==='Site';
+      const heading = isSite ? (a.siteName||'(unnamed site)') : (a.partyName||'(no name)');
+      const sub = isSite
+        ? [a.custName, a.address].filter(Boolean).map(escapeHtml).join(' · ')
+        : [a.partyFirm, a.partyCode, a.partyMobile].filter(Boolean).map(escapeHtml).join(' · ');
+      const extra = isSite
+        ? [a.buildType, a.siteStage, a.siteValue?('₹'+Number(a.siteValue).toLocaleString('en-IN')):''].filter(Boolean).map(escapeHtml).join(' · ')
+        : [a.partySubType, a.purpose].filter(Boolean).map(escapeHtml).join(' · ');
+      return `<div class="entry-card" style="cursor:default">
+        <div class="entry-card-top">
+          <div style="flex:1">
+            <div class="entry-name">${ACTIVITY_ICON[a.activityType]||'📌'} ${escapeHtml(heading)}</div>
+            ${sub?`<div class="entry-sub">${sub}</div>`:''}
+            ${extra?`<div class="entry-sub" style="margin-top:4px">${extra}</div>`:''}
+          </div>
+          <span class="status-badge" style="background:#e0e7ff;color:#3730a3">${escapeHtml(a.activityType||'')}</span>
+        </div>
+        <div class="entry-sub" style="margin-top:8px">📅 ${escapeHtml(a.visitDate||'')}${a.isNewParty==='Yes'?' · 🆕 New':''}${a.gps?' · 📍 '+escapeHtml(a.gps):''}</div>
+        ${a.remarks?`<div class="entry-sub" style="margin-top:4px">📝 ${escapeHtml(a.remarks)}</div>`:''}
+      </div>`;
+    }).join('');
+  } catch(e){ el.innerHTML = `<div class="alert alert-error">Could not load: ${escapeHtml(e.message)}</div>`; }
+}
+
+// ══════════════════════════════════════════════
 //  ENTRIES
 // ══════════════════════════════════════════════
 let _myEntriesCache=[], _allEntriesCache=[];
@@ -3223,10 +3693,14 @@ function autoCapureGPS() {
 }
 
 // Manual "tap 📍 to capture location" handler — same geolocation + reverse-geocode flow as autoCapureGPS() but drives the button's own loading/success/error state.
-function captureGPS() {
+function captureGPS() { captureGPSInto(); }
+
+// Reverse-geocodes the device's current position into `inputId`, reporting progress in `statusId` and
+// swapping the `btnId` icon. Defaults target the ISC wizard; the ST/BDO activity forms pass their own ids.
+function captureGPSInto(inputId='entry-gps', statusId='gps-status', btnId='gps-btn') {
   if (!navigator.geolocation) { showToast('⚠️ GPS not supported on this device'); return; }
-  const status = document.getElementById('gps-status');
-  const btn = document.getElementById('gps-btn');
+  const status = document.getElementById(statusId);
+  const btn = document.getElementById(btnId);
   if (status) status.textContent = '📡 Getting your location...';
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
   navigator.geolocation.getCurrentPosition(
@@ -3234,14 +3708,14 @@ function captureGPS() {
       const lat = pos.coords.latitude.toFixed(6);
       const lng = pos.coords.longitude.toFixed(6);
       const acc = Math.round(pos.coords.accuracy);
-      document.getElementById('entry-gps').dataset.raw = `${lat},${lng}`;
+      document.getElementById(inputId).dataset.raw = `${lat},${lng}`;
       if (status) status.textContent = '🔍 Getting address...';
       const address = await reverseGeocode(lat, lng);
       if (address) {
-        sv('entry-gps', address);
+        sv(inputId, address);
         if (status) status.innerHTML = `✅ ${address} (±${acc}m) · <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" style="color:var(--red)">View map</a>`;
       } else {
-        sv('entry-gps', `${lat}, ${lng}`);
+        sv(inputId, `${lat}, ${lng}`);
         if (status) status.innerHTML = `✅ Captured (±${acc}m) · <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" style="color:var(--red)">View map</a>`;
       }
       if (btn) { btn.textContent = '✅'; btn.disabled = false; btn.style.background = '#065f46'; }
@@ -3255,6 +3729,12 @@ function captureGPS() {
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
+// The "+" button means different things per role: ISCs log a site visit, ST/BDO pick an activity type.
+function onFabClick() {
+  if (currentUser.role==='bdo') openActivityPicker();
+  else showNewEntryModal();
+}
+
 function closeWizard() { document.getElementById('wizard-entry').classList.remove('show'); }
 
 // Resets every wizard field/step back to blank and opens it fresh — this is the "+" FAB button's handler for logging a brand-new site visit.
