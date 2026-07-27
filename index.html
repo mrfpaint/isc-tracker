@@ -1654,8 +1654,9 @@
     <input type="hidden" id="ap-type">
     <input type="hidden" id="ap-mode" value="new">
     <input type="hidden" id="ap-party-id">
+    <input type="hidden" id="ap-activity-id">
 
-    <div class="form-group">
+    <div class="form-group" id="ap-modechoice-group">
       <label class="form-label">New or existing? *</label>
       <div style="display:flex;gap:8px">
         <button type="button" class="filter-btn active" id="ap-btn-new" style="flex:1" onclick="setPartyMode('new')">➕ New</button>
@@ -1709,8 +1710,9 @@
 <div class="modal-overlay" id="modal-activity-site">
   <div class="modal" style="max-height:90vh;overflow-y:auto">
     <div class="modal-handle"></div>
-    <div class="modal-title">Log Site Visit</div>
+    <div class="modal-title" id="as-title">Log Site Visit</div>
     <div class="modal-subtitle">Site details, same as an ISC site visit</div>
+    <input type="hidden" id="as-activity-id">
 
     <div class="form-group"><label class="form-label">Site Status *</label><select class="form-select" id="as-sitestatus">
       <option value="">— Select —</option><option>New Site</option><option>Existing Site</option>
@@ -2383,6 +2385,15 @@ async function DATA_addActivity(sheet, rec) {
   const cache = sheet === 'ST_Visits' ? 'st_visits' : 'bdo_visits';
   const arr = LDB.arr(cache); arr.push(rec); LDB.set(cache, arr);
   if (isConfigured()) await sheetsAppend(sheet, rec);
+}
+
+// Patches an existing activity row (matched by id) — local cache first for instant UI, then the sheet.
+async function DATA_updateActivity(sheet, id, updates) {
+  const cache = sheet === 'ST_Visits' ? 'st_visits' : 'bdo_visits';
+  const arr = LDB.arr(cache);
+  const i = arr.findIndex(r=>String(r.id)===String(id));
+  if (i >= 0) { arr[i] = {...arr[i], ...updates}; LDB.set(cache, arr); }
+  if (isConfigured()) await sheetsUpdate(sheet, 'id', id, updates);
 }
 
 // ══════════════════════════════════════════════
@@ -3158,27 +3169,42 @@ async function renderBDOSites(filter='all') {
 //  its own form carrying the core ISC site-visit fields.
 // ══════════════════════════════════════════════
 
-// Per-type form configuration: what to call things, and what the sub-type dropdown offers.
+// Per-type form configuration: what to call things, and what the sub-type/purpose dropdowns offer.
+// Dealer visits get their own purpose list (per business requirement for ST/SE/BDO/BDE dealer calls);
+// the other party types keep the generic visit purposes.
+const GENERIC_PURPOSES = ['Introduction / First Visit','Follow-up','Product Demo','Order Discussion','Payment Follow-up','Complaint / Service','Other'];
 const PARTY_CONFIG = {
   'Dealer': {
     title:'Log Dealer Visit', noun:'dealer',
     codeLabel:'Dealer Code', codePlaceholder:'6-digit dealer code',
     nameLabel:'Contact Person Name *', firmLabel:'Dealer Shop Name',
     subTypeLabel:'Dealer Type', subTypes:['Machine Dealer','Non-Machine Dealer'],
+    purposes:['New Order','Scheme Details','Collection – O/S','Machine conversion'],
   },
   'Influencer': {
     title:'Log Influencer Visit', noun:'influencer',
     codeLabel:'Influencer Code (IN)', codePlaceholder:'e.g. IN1234 — leave blank if not yet assigned',
     nameLabel:'Name *', firmLabel:'Firm Name',
     subTypeLabel:'Influencer Type', subTypes:['Architect','Interior Designer','Engineer'],
+    purposes:GENERIC_PURPOSES,
   },
   'Contractor/Painter': {
     title:'Log Contractor / Painter Visit', noun:'contractor / painter',
     codeLabel:'Painter Code (PT)', codePlaceholder:'e.g. PT1234 — leave blank if not yet assigned',
     nameLabel:'Name *', firmLabel:'Firm Name',
     subTypeLabel:'Type', subTypes:['Contractor','Painter','Builder'],
+    purposes:GENERIC_PURPOSES,
   },
 };
+
+// Rebuilds a purpose <select> from a per-type list. When editing an old row whose stored purpose
+// isn't in the current list, that value is appended so it still displays instead of silently blanking.
+function setPurposeOptions(purposes, current) {
+  const opts = purposes.slice();
+  if (current && !opts.includes(current)) opts.push(current);
+  document.getElementById('ap-purpose').innerHTML =
+    '<option value="">— Select —</option>' + opts.map(p=>`<option>${escapeHtml(p)}</option>`).join('');
+}
 
 let _partyMasterCache = [];   // the loaded master list for whichever type is currently open
 
@@ -3197,15 +3223,28 @@ function masterToParty(partyType, r) {
 // FAB handler for ST/BDO.
 function openActivityPicker() { openModal('modal-activity-picker'); }
 
+// Applies a type's labels + sub-type options to the shared party form (used for both new and edit).
+function applyPartyConfig(cfg, subTypeCurrent) {
+  document.getElementById('ap-code-label').textContent = cfg.codeLabel;
+  document.getElementById('ap-code').placeholder = cfg.codePlaceholder;
+  document.getElementById('ap-name-label').textContent = cfg.nameLabel;
+  document.getElementById('ap-firm-label').textContent = cfg.firmLabel;
+  document.getElementById('ap-subtype-label').textContent = cfg.subTypeLabel;
+  const subTypes = cfg.subTypes.slice();
+  if (subTypeCurrent && !subTypes.includes(subTypeCurrent)) subTypes.push(subTypeCurrent);
+  document.getElementById('ap-subtype').innerHTML = '<option value="">— Select —</option>' + subTypes.map(s=>`<option>${escapeHtml(s)}</option>`).join('');
+}
+
 // Opens the right form for the chosen activity type, blanked and dated today.
 async function openActivityForm(type) {
   closeModal('modal-activity-picker');
   if (type === 'Site') {
     ['as-sitestatus','as-custname','as-custphone','as-custtype','as-sitename','as-address','as-gps',
      'as-buildtype','as-sitestage','as-area','as-products','as-sitevalue','as-dealercode','as-dealername',
-     'as-competitor','as-leaddate','as-remarks'].forEach(id=>sv(id,''));
+     'as-competitor','as-leaddate','as-remarks','as-activity-id'].forEach(id=>sv(id,''));
     const g=document.getElementById('as-gps'); if(g) delete g.dataset.raw;
     document.getElementById('as-gps-status').textContent='';
+    document.getElementById('as-title').textContent = 'Log Site Visit';
     sv('as-visitdate', todayStr());
     openModal('modal-activity-site');
     return;
@@ -3215,14 +3254,12 @@ async function openActivityForm(type) {
   if (!cfg) return;
   sv('ap-type', type);
   sv('ap-party-id', '');
+  sv('ap-activity-id', '');
   document.getElementById('ap-title').textContent = cfg.title;
   document.getElementById('ap-subtitle').textContent = `Record a visit to a ${cfg.noun}`;
-  document.getElementById('ap-code-label').textContent = cfg.codeLabel;
-  document.getElementById('ap-code').placeholder = cfg.codePlaceholder;
-  document.getElementById('ap-name-label').textContent = cfg.nameLabel;
-  document.getElementById('ap-firm-label').textContent = cfg.firmLabel;
-  document.getElementById('ap-subtype-label').textContent = cfg.subTypeLabel;
-  document.getElementById('ap-subtype').innerHTML = '<option value="">— Select —</option>' + cfg.subTypes.map(s=>`<option>${s}</option>`).join('');
+  document.getElementById('ap-modechoice-group').style.display = '';
+  applyPartyConfig(cfg);
+  setPurposeOptions(cfg.purposes);
   ['ap-code','ap-name','ap-firm','ap-mobile','ap-email','ap-purpose','ap-remarks','ap-gps','ap-search'].forEach(id=>sv(id,''));
   const g=document.getElementById('ap-gps'); if(g) delete g.dataset.raw;
   document.getElementById('ap-gps-status').textContent='';
@@ -3233,6 +3270,50 @@ async function openActivityForm(type) {
   openModal('modal-activity-party');
   try { _partyMasterCache = await DATA_getPartyMaster(type); renderPartyOptions(); }
   catch(e) { showToast('⚠️ Could not load existing list'); }
+}
+
+// Reopens the matching form prefilled from an already-logged activity, in edit mode — saving
+// updates the original row (matched by id) instead of appending a new one.
+function editActivity(id) {
+  const a = _myActivityCache.find(r=>String(r.id)===String(id));
+  if (!a) return showToast('⚠️ Activity not found');
+
+  if (a.activityType === 'Site') {
+    sv('as-activity-id', a.id);
+    document.getElementById('as-title').textContent = 'Edit Site Visit';
+    sv('as-sitestatus', a.partySubType||''); sv('as-custname', a.custName||''); sv('as-custphone', a.custPhone||'');
+    sv('as-custtype', a.custType||''); sv('as-sitename', a.siteName||''); sv('as-address', a.address||'');
+    sv('as-buildtype', a.buildType||''); sv('as-sitestage', a.siteStage||''); sv('as-area', a.area||'');
+    sv('as-products', a.products||''); sv('as-sitevalue', a.siteValue||'');
+    sv('as-dealercode', a.dealerCode||''); sv('as-dealername', a.dealerName||'');
+    sv('as-competitor', a.competitor||''); sv('as-leaddate', a.leadDate||'');
+    sv('as-visitdate', a.visitDate||todayStr()); sv('as-remarks', a.remarks||'');
+    sv('as-gps', a.gps||'');
+    const g=document.getElementById('as-gps'); if(g){ if(a.gpsRaw) g.dataset.raw=a.gpsRaw; else delete g.dataset.raw; }
+    document.getElementById('as-gps-status').textContent='';
+    openModal('modal-activity-site');
+    return;
+  }
+
+  const cfg = PARTY_CONFIG[a.activityType];
+  if (!cfg) return showToast('⚠️ Unknown activity type');
+  sv('ap-type', a.activityType);
+  sv('ap-party-id', a.partyId||'');
+  sv('ap-activity-id', a.id);
+  document.getElementById('ap-title').textContent = cfg.title.replace('Log ','Edit ');
+  document.getElementById('ap-subtitle').textContent = `Update this ${cfg.noun} visit`;
+  document.getElementById('ap-modechoice-group').style.display = 'none';   // new/existing chooser doesn't apply when editing
+  document.getElementById('ap-existing-group').style.display = 'none';
+  applyPartyConfig(cfg, a.partySubType||'');
+  setPurposeOptions(cfg.purposes, a.purpose||'');
+  sv('ap-code', a.partyCode||''); sv('ap-name', a.partyName||''); sv('ap-firm', a.partyFirm||'');
+  sv('ap-mobile', a.partyMobile||''); sv('ap-email', a.partyEmail||''); sv('ap-subtype', a.partySubType||'');
+  sv('ap-visitdate', a.visitDate||todayStr());
+  sv('ap-purpose', a.purpose||''); sv('ap-remarks', a.remarks||'');
+  sv('ap-gps', a.gps||'');
+  const g=document.getElementById('ap-gps'); if(g){ if(a.gpsRaw) g.dataset.raw=a.gpsRaw; else delete g.dataset.raw; }
+  document.getElementById('ap-gps-status').textContent='';
+  openModal('modal-activity-party');
 }
 
 // Switches between "New" (blank form, will create a master record) and "Existing" (pick from the master).
@@ -3303,6 +3384,27 @@ async function saveActivityParty() {
   const visitDate = gv('ap-visitdate');
   if (!f.name) return showToast('⚠️ Name is required');
   if (!visitDate) return showToast('⚠️ Visit date is required');
+
+  // Edit mode — patch the original activity row and stop (master record is left untouched).
+  const editId = gv('ap-activity-id');
+  if (editId) {
+    setLoading(true,'Updating activity...');
+    try {
+      await DATA_updateActivity(activitySheetFor(currentUser), editId, {
+        visitDate,
+        gps: gv('ap-gps'), gpsRaw: document.getElementById('ap-gps')?.dataset.raw || '',
+        purpose: gv('ap-purpose'), remarks: gv('ap-remarks').trim(),
+        partyCode:f.code, partyName:f.name, partyFirm:f.firm,
+        partyMobile:f.mobile, partyEmail:f.email, partySubType:f.subType,
+      });
+      showToast('✅ Activity updated!');
+      closeModal('modal-activity-party');
+      renderMyActivity();
+    } catch(e){ showToast('⚠️ '+e.message); }
+    finally { setLoading(false); }
+    return;
+  }
+
   if (mode==='existing' && !gv('ap-party-id')) return showToast('⚠️ Please select someone from the list');
 
   setLoading(true,'Saving activity...');
@@ -3345,6 +3447,31 @@ async function saveActivitySite() {
   if (!address) return showToast('⚠️ Site address is required');
   if (!visitDate) return showToast('⚠️ Visit date is required');
 
+  // Edit mode — patch the original row instead of appending.
+  const editId = gv('as-activity-id');
+  if (editId) {
+    setLoading(true,'Updating activity...');
+    try {
+      await DATA_updateActivity(activitySheetFor(currentUser), editId, {
+        visitDate,
+        gps: gv('as-gps'), gpsRaw: document.getElementById('as-gps')?.dataset.raw || '',
+        remarks: gv('as-remarks').trim(),
+        partySubType: gv('as-sitestatus'),
+        siteName, address,
+        buildType: gv('as-buildtype'), siteStage: gv('as-sitestage'), area: gv('as-area'),
+        custName, custPhone: gv('as-custphone'), custType: gv('as-custtype'),
+        products: gv('as-products').trim(), siteValue: gv('as-sitevalue'),
+        dealerCode: gv('as-dealercode'), dealerName: gv('as-dealername').trim(),
+        leadDate: gv('as-leaddate'), competitor: gv('as-competitor').trim(),
+      });
+      showToast('✅ Site activity updated!');
+      closeModal('modal-activity-site');
+      renderMyActivity();
+    } catch(e){ showToast('⚠️ '+e.message); }
+    finally { setLoading(false); }
+    return;
+  }
+
   setLoading(true,'Saving activity...');
   try {
     await DATA_addActivity(activitySheetFor(currentUser), {
@@ -3377,6 +3504,8 @@ function filterMyActivity(f, el) {
 
 const ACTIVITY_ICON = {'Dealer':'🏪','Site':'🏗️','Influencer':'🎨','Contractor/Painter':'👷'};
 
+let _myActivityCache = [];   // last-loaded own activities, so the ✏️ Edit button can find the full record
+
 // The ST/BDO's own log of everything they've recorded, newest first.
 async function renderMyActivity() {
   const el = document.getElementById('myactivity-list');
@@ -3385,6 +3514,7 @@ async function renderMyActivity() {
   try {
     const all = (currentUser.isST ? await DATA_getSTVisits() : await DATA_getBDOVisits())
       .filter(a=>a.id && String(a.empId)===String(currentUser.id));
+    _myActivityCache = all;
     const today = todayStr(), month = today.slice(0,7);
     document.getElementById('myact-total').textContent = all.length;
     document.getElementById('myact-month').textContent = all.filter(a=>String(a.visitDate||'').startsWith(month)).length;
@@ -3414,7 +3544,10 @@ async function renderMyActivity() {
             ${sub?`<div class="entry-sub">${sub}</div>`:''}
             ${extra?`<div class="entry-sub" style="margin-top:4px">${extra}</div>`:''}
           </div>
-          <span class="status-badge" style="background:#e0e7ff;color:#3730a3">${escapeHtml(a.activityType||'')}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <span class="status-badge" style="background:#e0e7ff;color:#3730a3">${escapeHtml(a.activityType||'')}</span>
+            <button type="button" onclick="editActivity('${escapeHtml(String(a.id))}')" style="padding:4px 10px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px">✏️ Edit</button>
+          </div>
         </div>
         <div class="entry-sub" style="margin-top:8px">📅 ${escapeHtml(a.visitDate||'')}${a.isNewParty==='Yes'?' · 🆕 New':''}${a.gps?' · 📍 '+escapeHtml(a.gps):''}</div>
         ${a.remarks?`<div class="entry-sub" style="margin-top:4px">📝 ${escapeHtml(a.remarks)}</div>`:''}
