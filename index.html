@@ -1357,6 +1357,7 @@
             </select>
           </div>
           <div class="form-group"><label class="form-label" id="entry-docnum-label">Billing / Invoice Number</label><input type="text" class="form-input" id="entry-sapref" placeholder="Select a document type first"></div>
+          <div class="form-group"><label class="form-label" id="entry-docvalue-label">Billing / Invoice Value (₹)</label><input type="number" class="form-input" id="entry-docvalue" inputmode="numeric" placeholder="Select a document type first"></div>
         </div>
       </div>
 
@@ -2393,7 +2394,7 @@ const ENTRIES_HEADERS = ['id','iscId','iscName','asmId','asmName','stName','bdoN
   'buildType','siteStage','area','paintDate','competitor','leadDate','sampleDate','conversionDate',
   'paintSystem','products','sampleMaterials','orderDetails',
   'siteValue','dealerCode','dealerName','contractor','contractorPhone','painter','painterPhone','status','remarks','sapRef',
-  'createdAt','updatedAt','siteStatus','refDocType'];
+  'createdAt','updatedAt','siteStatus','refDocType','refDocValue'];
 
 // Overwrites row 1 of a sheet with the given header list — used to fix a sheet whose columns have drifted from what the app expects.
 async function repairSheetHeaders(sheetName, headers) {
@@ -3807,11 +3808,17 @@ function onFabClick() {
 // the document number, with the type alongside it in `refDocType`.
 function syncDocNumberField() {
   const t = gv('entry-doctype');
-  const input = document.getElementById('entry-sapref');
-  const label = document.getElementById('entry-docnum-label');
-  if (!input || !label) return;
-  label.textContent = t || 'Billing / Invoice Number';
-  input.placeholder = t ? ('Enter '+t.toLowerCase()) : 'Select a document type first';
+  const numInput = document.getElementById('entry-sapref');
+  const numLabel = document.getElementById('entry-docnum-label');
+  const valInput = document.getElementById('entry-docvalue');
+  const valLabel = document.getElementById('entry-docvalue-label');
+  if (!numInput || !numLabel || !valInput || !valLabel) return;
+  // "Invoice Number" -> "Invoice", so the value field reads "Invoice Value" rather than "Invoice Number Value"
+  const noun = t.replace(/ Number$/, '');
+  numLabel.textContent = t || 'Billing / Invoice Number';
+  numInput.placeholder = t ? ('Enter '+t.toLowerCase()) : 'Select a document type first';
+  valLabel.textContent = noun ? (noun+' Value (₹)') : 'Billing / Invoice Value (₹)';
+  valInput.placeholder = noun ? ('Enter '+noun.toLowerCase()+' value') : 'Select a document type first';
 }
 
 function closeWizard() { document.getElementById('wizard-entry').classList.remove('show'); }
@@ -3821,7 +3828,7 @@ function showNewEntryModal() {
   _wizardStep = 0;
   _wizardProductCount = 1;
   // Clear all fields
-  ['entry-customer','entry-custphone','entry-sitename','entry-address','entry-gps','entry-buildtype','entry-sitestage','entry-area','entry-paintdate','entry-competitor','entry-leaddate','entry-sampledate','entry-conversiondate','entry-paintsystem','entry-sitevalue','entry-dealername','entry-dealercode','entry-contractor','entry-contractorphone','entry-painter','entry-painterphone','entry-remarks','entry-sapref','entry-doctype'].forEach(id=>sv(id,''));
+  ['entry-customer','entry-custphone','entry-sitename','entry-address','entry-gps','entry-buildtype','entry-sitestage','entry-area','entry-paintdate','entry-competitor','entry-leaddate','entry-sampledate','entry-conversiondate','entry-paintsystem','entry-sitevalue','entry-dealername','entry-dealercode','entry-contractor','entry-contractorphone','entry-painter','entry-painterphone','entry-remarks','entry-sapref','entry-doctype','entry-docvalue'].forEach(id=>sv(id,''));
   // Reset sample rows to just 1
   const sr=document.getElementById('sample-rows');
   if(sr){sr.innerHTML=`<div class="sample-row" id="sr-0" style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="text" class="form-input" id="smat-0" placeholder="Material name" style="flex:1"><button class="btn-remove-row" onclick="removeSampleRow(0)" style="flex-shrink:0">×</button></div>`;}
@@ -3867,7 +3874,7 @@ function showEditModal(id) {
   sv('entry-sitevalue',e.siteValue||'');sv('entry-dealercode',e.dealerCode||'');
   sv('entry-dealername',e.dealerName||'');sv('entry-contractor',e.contractor||'');sv('entry-contractorphone',e.contractorPhone||'');
   sv('entry-painter',e.painter||'');sv('entry-painterphone',e.painterPhone||'');sv('entry-status',e.status);
-  sv('entry-remarks',e.remarks||'');sv('entry-sapref',e.sapRef||'');sv('entry-doctype',e.refDocType||'');syncDocNumberField();
+  sv('entry-remarks',e.remarks||'');sv('entry-sapref',e.sapRef||'');sv('entry-doctype',e.refDocType||'');sv('entry-docvalue',e.refDocValue||'');syncDocNumberField();
   // Restore products
   const products = JSON.parse(e.products||'[]');
   document.getElementById('product-rows').innerHTML='';
@@ -4133,6 +4140,7 @@ function validateWizardStep() {
     const docType = gv('entry-doctype'), docNum = gv('entry-sapref').trim();
     if (docType && !docNum) { showToast(`⚠️ Please enter the ${docType.toLowerCase()}`); return false; }
     if (docNum && !docType) { showToast('⚠️ Please select whether that is a billing or invoice number'); return false; }
+    if (gv('entry-docvalue') && !docNum) { showToast('⚠️ Please enter the document number that value belongs to'); return false; }
   }
   return true;
 }
@@ -4178,6 +4186,7 @@ function buildReview() {
     <div class="review-section"><div class="review-section-title">📦 Status</div>
       <div class="review-row"><div class="review-label">Status</div><div class="review-value">${siteStatusBadge(gv('entry-status'))}</div></div>
       ${gv('entry-sapref').trim()?`<div class="review-row"><div class="review-label">${gv('entry-doctype')||'Reference'}</div><div class="review-value">${escapeHtml(gv('entry-sapref').trim())}</div></div>`:''}
+      ${gv('entry-docvalue')?`<div class="review-row"><div class="review-label">${(gv('entry-doctype')||'').replace(/ Number$/,'')||'Document'} Value</div><div class="review-value">₹${Number(gv('entry-docvalue')).toLocaleString('en-IN')}</div></div>`:''}
       ${gv('entry-remarks')?`<div class="review-row"><div class="review-label">Remarks</div><div class="review-value">${gv('entry-remarks')}</div></div>`:''}
     </div>`;
 }
@@ -4213,7 +4222,7 @@ async function saveEntry() {
       dealerCode:gv('entry-dealercode'), dealerName:gv('entry-dealername').trim(),
       contractor:gv('entry-contractor').trim(), contractorPhone:gv('entry-contractorphone').trim(), painter:gv('entry-painter').trim(), painterPhone:gv('entry-painterphone').trim(),
       status:gv('entry-status'), remarks:gv('entry-remarks').trim(),
-      sapRef:gv('entry-sapref').trim(), refDocType:gv('entry-doctype')
+      sapRef:gv('entry-sapref').trim(), refDocType:gv('entry-doctype'), refDocValue:gv('entry-docvalue')
     };
     if (editId) {
       await DATA_updateEntry(editId,{...entryData, updatedAt:new Date().toISOString()});
@@ -4266,7 +4275,8 @@ function showDetail(id) {
     <div class="detail-row"><div class="detail-label">ASM · Region</div><div class="detail-value">${e.asmName||'—'} · ${e.region||'—'}</div></div>
     <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
     ${e.remarks?`<div class="detail-row"><div class="detail-label">Remarks</div><div class="detail-value">${e.remarks}</div></div>`:''}
-    ${e.sapRef?`<div class="detail-row"><div class="detail-label">${e.refDocType||'SAP Ref #'}</div><div class="detail-value">${e.sapRef}</div></div>`:''}`;
+    ${e.sapRef?`<div class="detail-row"><div class="detail-label">${e.refDocType||'SAP Ref #'}</div><div class="detail-value">${e.sapRef}</div></div>`:''}
+    ${e.refDocValue?`<div class="detail-row"><div class="detail-label">${(e.refDocType||'').replace(/ Number$/,'')||'Document'} Value</div><div class="detail-value">₹${Number(e.refDocValue).toLocaleString('en-IN')}</div></div>`:''}`;
   document.getElementById('modal-detail-actions').innerHTML=currentUser.role==='isc'?`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`:`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
   openModal('modal-detail');
 }
@@ -6360,7 +6370,7 @@ function exportEntries(scope) {
       'Competitor Brand', 'Lead Date', 'Sample Date', 'Conversion Date',
       'Paint System', 'Products', 'Sample Materials', 'Order Details', 'Est. Site Value (₹)',
       'Dealer Code', 'Dealer Name', 'Contractor', 'Painter',
-      'Status', 'Remarks', 'Document Type', 'Billing / Invoice No', 'Last Updated'
+      'Status', 'Remarks', 'Document Type', 'Billing / Invoice No', 'Billing / Invoice Value', 'Last Updated'
     ];
     const dataRows = data.map(e => {
       let products = '';
@@ -6378,7 +6388,7 @@ function exportEntries(scope) {
         e.competitor||'', e.leadDate||'', e.sampleDate||'', e.conversionDate||'',
         e.paintSystem||'', products, sampleMats, orderDets, e.siteValue||'',
         e.dealerCode||'', e.dealerName||'', e.contractor||'', e.contractorPhone||'', e.painter||'', e.painterPhone||'',
-        siteStatusLabel(e.status), e.remarks||'', e.refDocType||'', e.sapRef||'',
+        siteStatusLabel(e.status), e.remarks||'', e.refDocType||'', e.sapRef||'', e.refDocValue||'',
         e.updatedAt ? fmtDate(e.updatedAt) : ''
       ];
     });
