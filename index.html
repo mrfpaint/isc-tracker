@@ -301,7 +301,7 @@
         </button>
         <button onclick="showScreen('screen-shnh-login')" style="width:100%;padding:12px;background:white;color:var(--dark);border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
           🏬 SH / NH Login
-          <span style="font-size:11px;color:var(--gray);font-weight:400">State Head / National Head</span>
+          <span style="font-size:11px;color:var(--gray);font-weight:400">South Head / North Head</span>
         </button>
         <button onclick="showScreen('screen-rsm-login')" style="width:100%;padding:12px;background:white;color:var(--dark);border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
           🌐 RSM Login
@@ -389,7 +389,7 @@
   </div>
 </div>
 
-<!-- SH/NH LOGIN — sign-in form for the State Head / National Head role (calls doSHNHLogin()). -->
+<!-- SH/NH LOGIN — sign-in form for the South Head / North Head role (calls doSHNHLogin()). -->
 <div id="screen-shnh-login" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
@@ -702,7 +702,10 @@
   <div id="tab-bdosites" class="main-content" style="display:none">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
       <div class="page-title">My ISC Sites</div>
-      <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export</button>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button onclick="showCreateISCModal()" style="padding:7px 14px;background:var(--red);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">+ Add ISC</button>
+        <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif">⬇ Export</button>
+      </div>
     </div>
     <div class="page-subtitle" id="bdosites-subtitle">Site visits of the ISCs mapped to you</div>
     <div class="stats-row s4">
@@ -4872,6 +4875,29 @@ function selectISC(id) {
   document.getElementById('preview-details').textContent = `Emp No: ${isc.username} · Region: ${isc.region||'—'} · ${isc.phone||''}`;
 }
 
+// When an ST/SE/BDO/BDE (rather than an ASM) is adding the ISC, pre-select themselves in
+// the mapping dropdowns so the new ISC is automatically linked to them.
+function prefillSelfMapping(stElId, bdoElId, regionElId) {
+  if (currentUser.role !== 'bdo') return;
+  if (currentUser.isST) sv(stElId, currentUser.id); else sv(bdoElId, currentUser.id);
+  const r = document.getElementById(regionElId);
+  if (r && !r.value && currentUser.region) sv(regionElId, currentUser.region);
+}
+
+// Which ASM a newly added/assigned ISC belongs to: ASMs assign to themselves;
+// ST/SE/BDO/BDE assign to their own ASM (they add ISCs on the ASM's behalf).
+function iscOwnerASMFields() {
+  if (currentUser.role === 'bdo') return {asmId:currentUser.asmId||'', asmName:currentUser.asmName||'', asmEmail:'', asmPhone:''};
+  return {asmId:currentUser.id, asmName:currentUser.name, asmEmail:currentUser.email||'', asmPhone:currentUser.phone||''};
+}
+
+// Refresh whichever list the current role is looking at after an ISC save.
+function refreshISCViews() {
+  if (currentUser.role==='asm') renderMyISCs();
+  else if (currentUser.role==='bdo') renderBDOSites();
+  else if (typeof renderAdminISCList==='function') renderAdminISCList();
+}
+
 // Opens the ISC modal in "add to my team" mode: clears every field, loads region/ST/BDO dropdowns and the unassigned-ISC search pool.
 async function showCreateISCModal() {
   sv('isc-edit-id','');sv('isc-name','');sv('isc-empno','');sv('isc-phone','');sv('isc-email','');
@@ -4894,6 +4920,7 @@ async function showCreateISCModal() {
   } finally {
     setLoading(false);
   }
+  prefillSelfMapping('isc-st','isc-bdo','isc-region');
   openModal('modal-isc');
 }
 
@@ -4998,6 +5025,7 @@ async function populateSelectModeMappingDropdowns() {
     if(stSel) stSel.innerHTML='<option value="">— Select ST (optional) —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
     if(bdoSel) bdoSel.innerHTML='<option value="">— Select BDO (optional) —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
     await populateRegionDropdown('isc-region-select');
+    prefillSelfMapping('isc-st-select','isc-bdo-select','isc-region-select');
   } catch(e) { console.warn('Could not load ST/BDO dropdowns:', e.message); }
 }
 
@@ -5044,20 +5072,20 @@ async function saveISC() {
       const st=sts.find(s=>s.id===stId), bdo=bdos.find(b=>b.id===bdoId);
       const isc = _allISCsForSearch.find(i=>i.id===selectedId);
       if (!isc) { showToast('⚠️ ISC not found'); return; }
+      const owner = iscOwnerASMFields();
       await DATA_updateISC(selectedId, {
-        asmId:currentUser.id, asmName:currentUser.name,
-        asmEmail:currentUser.email||'', asmPhone:currentUser.phone||'',
+        ...owner,
         stId:stId||'', stName:st?.name||'',
         bdoId:bdoId||'', bdoName:bdo?.name||'',
         region, dealerCodes, status:'Active'
       });
       const arr=LDB.arr('iscs'); const cidx=arr.findIndex(x=>x.id===selectedId);
-      const updated = {...isc, asmId:currentUser.id, asmName:currentUser.name, stId:stId||'', stName:st?.name||'', bdoId:bdoId||'', bdoName:bdo?.name||'', region, dealerCodes, status:'Active'};
+      const updated = {...isc, ...owner, stId:stId||'', stName:st?.name||'', bdoId:bdoId||'', bdoName:bdo?.name||'', region, dealerCodes, status:'Active'};
       if(cidx>-1) arr[cidx]=updated; else arr.push(updated);
       LDB.set('iscs',arr);
       _allISCsForSearch = _allISCsForSearch.filter(i=>i.id!==selectedId);
       showToast('✅ ISC assigned to your team!');
-      closeModal('modal-isc'); renderMyISCs();
+      closeModal('modal-isc'); refreshISCViews();
     } catch(e){showToast('⚠️ '+e.message);}
     finally{setLoading(false);}
     return;
@@ -5080,12 +5108,12 @@ async function saveISC() {
       const iscs=await DATA_getISCs();
       if (iscs.find(i=>(i.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
       await DATA_addISC({id:'isc_'+Date.now(),name,empNo,phone,email,
-        asmId:currentUser.id,asmName:currentUser.name,asmEmail:currentUser.email||'',asmPhone:currentUser.phone||'',
+        ...iscOwnerASMFields(),
         stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes,
         username,password,role:'isc',status:'Active',createdAt:new Date().toISOString()});
       showToast('✅ ISC account created!');
     }
-    closeModal('modal-isc'); renderMyISCs();
+    closeModal('modal-isc'); refreshISCViews();
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
 }
