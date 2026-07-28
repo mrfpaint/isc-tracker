@@ -718,9 +718,12 @@
       <button class="filter-btn" onclick="filterBDOEntries('NotConverted',this)">❌ Not Converted</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <select class="form-select" id="bdo-isc-filter" style="flex:1.2;min-width:150px;font-size:13px" onchange="renderBDOSites()">
+        <option value="">👤 All ISCs</option>
+      </select>
       <input type="date" class="form-input" id="bdo-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderBDOSites()" placeholder="From">
       <input type="date" class="form-input" id="bdo-date-to" style="flex:1;min-width:130px;font-size:12px" onchange="renderBDOSites()" placeholder="To">
-      <button onclick="document.getElementById('bdo-date-from').value='';document.getElementById('bdo-date-to').value='';renderBDOSites();" style="padding:8px 10px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;white-space:nowrap">✕ Clear</button>
+      <button onclick="document.getElementById('bdo-isc-filter').value='';document.getElementById('bdo-date-from').value='';document.getElementById('bdo-date-to').value='';renderBDOSites();" style="padding:8px 10px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;white-space:nowrap">✕ Clear</button>
     </div>
     <div id="bdo-entries-list"></div>
   </div>
@@ -3214,8 +3217,10 @@ function exportReportCSV() {
   a.click();
 }
 
-// Populates the ST/BDO's "My ISC Sites" tab: entries of the ISCs mapped to them (stId for ST/SE, bdoId for BDO/BDE), grouped by ISC, with stats and optional date-range filtering.
-async function renderBDOSites(filter='all') {
+// Populates the ST/BDO's "My ISC Sites" tab: entries of the ISCs mapped to them (stId for ST/SE, bdoId for BDO/BDE), grouped by ISC, with status, ISC and date-range filters.
+let _bdoSitesFilter = 'all';   // status chip survives ISC/date filter changes
+async function renderBDOSites(filter) {
+  if (filter!==undefined) _bdoSitesFilter = filter;
   setLoading(true,'Loading...');
   try {
     let all = await DATA_getEntries();
@@ -3233,8 +3238,19 @@ async function renderBDOSites(filter='all') {
       document.getElementById('bdo-entries-list').innerHTML = emptyState('👥','No ISCs mapped to you yet','Ask your ASM to assign your ISCs in the system');
       return;
     }
-    // Status + date filters
-    let shown = all.filter(e=>matchesSiteStatus(e.status, filter));
+    // ISC dropdown — rebuilt from the scoped entries each load, keeping the current selection
+    const iscSel = document.getElementById('bdo-isc-filter');
+    if (iscSel) {
+      const cur = iscSel.value;
+      const opts = [...new Map(all.map(e=>[String(e.iscId||''), e.iscName||'(unnamed)'])).entries()]
+        .filter(([id])=>id).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+      iscSel.innerHTML = '<option value="">👤 All ISCs</option>' +
+        opts.map(([id,name])=>`<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join('');
+      if (opts.some(([id])=>id===cur)) iscSel.value = cur;
+    }
+    // Status + ISC + date filters
+    let shown = all.filter(e=>matchesSiteStatus(e.status, _bdoSitesFilter));
+    if (iscSel && iscSel.value) shown = shown.filter(e=>String(e.iscId)===iscSel.value);
     const df=document.getElementById('bdo-date-from')?.value;
     const dt=document.getElementById('bdo-date-to')?.value;
     if (df) shown=shown.filter(e=>e.createdAt&&e.createdAt.slice(0,10)>=df);
