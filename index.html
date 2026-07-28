@@ -1133,7 +1133,10 @@
         </div>
       </div>
       <div class="collapsible-body collapsed" id="body-sts" style="max-height:0">
-        <div class="section-body"><div id="st-list"></div></div>
+        <div class="section-body">
+          <input type="text" class="form-input" id="st-search" placeholder="🔍 Search name / emp no / region / ASM..." oninput="renderSTList(false)" style="margin-bottom:10px">
+          <div id="st-list"></div>
+        </div>
       </div>
     </div>
 
@@ -1147,7 +1150,10 @@
         </div>
       </div>
       <div class="collapsible-body collapsed" id="body-bdos" style="max-height:0">
-        <div class="section-body"><div id="bdo-list"></div></div>
+        <div class="section-body">
+          <input type="text" class="form-input" id="bdo-search" placeholder="🔍 Search name / emp no / region / ASM..." oninput="renderBDOList(false)" style="margin-bottom:10px">
+          <div id="bdo-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -5128,7 +5134,7 @@ function toggleSection(id) {
   const isCollapsed = body.classList.contains('collapsed');
   if (isCollapsed) {
     body.classList.remove('collapsed');
-    body.style.maxHeight = '9999px';
+    body.style.maxHeight = 'none';   // never clip — long lists (150+ STs) exceed any fixed height
     btn.classList.add('open');
     // Load data when expanding
     if (id==='iscs') renderAdminISCList();
@@ -5387,15 +5393,22 @@ async function renderRSMSites(filter='all') {
 // Status filter pill handler for the RSM sites list.
 function filterRSMEntries(f,el){document.querySelectorAll('#tab-rsmsites .filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderRSMSites(f);}
 
-async function renderSTList() {
+let _stAdminCache=[];
+async function renderSTList(refetch=true) {
   const el=document.getElementById('st-list');
   if(!el) return;
-  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const sts=(await DATA_getSTs()).filter(s=>s.status!=='Vacant');
+    if (refetch || !_stAdminCache.length) {
+      el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+      _stAdminCache=(await DATA_getSTs()).filter(s=>s.status!=='Vacant');
+    }
     const countEl=document.getElementById('st-count');
-    if(countEl) countEl.textContent=`(${sts.length} total)`;
-    if (!sts.length){el.innerHTML=emptyState('🧑‍💼','No STs yet','Click + Add ST to add');return;}
+    if(countEl) countEl.textContent=`(${_stAdminCache.length} total)`;
+    // Alphabetical + live search, so a 150-entry list stays findable
+    let sts=[..._stAdminCache].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+    const q=(document.getElementById('st-search')?.value||'').trim().toLowerCase();
+    if(q) sts=sts.filter(s=>[s.name,s.empNo,s.username,s.region,s.asmName,s.email].some(v=>String(v||'').toLowerCase().includes(q)));
+    if (!sts.length){el.innerHTML=emptyState('🧑‍💼', q?'No STs match your search':'No STs yet', q?'Try a different search':'Click + Add ST to add');return;}
     el.innerHTML=sts.map(s=>{
       const isActive=String(s.status||'Active')!=='Inactive';
       return `<div class="entry-card" style="cursor:default">
@@ -5411,15 +5424,21 @@ async function renderSTList() {
   } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
 }
 
-async function renderBDOList() {
+let _bdoAdminCache=[];
+async function renderBDOList(refetch=true) {
   const el=document.getElementById('bdo-list');
   if(!el) return;
-  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const bdos=(await DATA_getBDOs()).filter(b=>b.status!=='Vacant');
+    if (refetch || !_bdoAdminCache.length) {
+      el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+      _bdoAdminCache=(await DATA_getBDOs()).filter(b=>b.status!=='Vacant');
+    }
     const countEl=document.getElementById('bdo-count');
-    if(countEl) countEl.textContent=`(${bdos.length} total)`;
-    if (!bdos.length){el.innerHTML=emptyState('📈','No BDOs yet','Click + Add BDO to add');return;}
+    if(countEl) countEl.textContent=`(${_bdoAdminCache.length} total)`;
+    let bdos=[..._bdoAdminCache].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+    const q=(document.getElementById('bdo-search')?.value||'').trim().toLowerCase();
+    if(q) bdos=bdos.filter(b=>[b.name,b.empNo,b.username,b.region,b.location,b.asmName,b.email].some(v=>String(v||'').toLowerCase().includes(q)));
+    if (!bdos.length){el.innerHTML=emptyState('📈', q?'No BDOs match your search':'No BDOs yet', q?'Try a different search':'Click + Add BDO to add');return;}
     el.innerHTML=bdos.map(b=>{
       const isActive=String(b.status||'Active')!=='Inactive';
       return `<div class="entry-card" style="cursor:default">
