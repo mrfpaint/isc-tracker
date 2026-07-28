@@ -701,10 +701,10 @@
   <!-- BDO VIEW -->
   <div id="tab-bdosites" class="main-content" style="display:none">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-      <div class="page-title">My Region Sites</div>
+      <div class="page-title">My ISC Sites</div>
       <button onclick="exportEntries('all')" style="padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export</button>
     </div>
-    <div class="page-subtitle" id="bdosites-subtitle">All site visits in your region</div>
+    <div class="page-subtitle" id="bdosites-subtitle">Site visits of the ISCs mapped to you</div>
     <div class="stats-row s4">
       <div class="stat-card"><div class="stat-value" id="bstat-total">0</div><div class="stat-label">Total</div></div>
       <div class="stat-card gold"><div class="stat-value" id="bstat-pending">0</div><div class="stat-label">Pending</div></div>
@@ -2401,6 +2401,29 @@ function activitySheetFor(user) {
   return user.isST ? 'ST_Visits' : 'BDO_Visits';
 }
 
+// ── ROLE SCOPING ──
+// The set of ISC ids the current user may see, resolved LIVE from the Users sheet — never from
+// ids stamped on old records, which go stale when an ISC is reassigned. Returns null for admin
+// (no restriction). All ids are String()-coerced because Sheets returns them inconsistently typed.
+//   ISC → themselves · ST/SE → ISCs with stId=them · BDO/BDE → ISCs with bdoId=them
+//   ASM → their mapped ISCs · RSM → every ISC under their ASMs
+async function scopedISCIdSet() {
+  const me = String(currentUser.id||'');
+  if (currentUser.role==='admin') return null;
+  if (currentUser.role==='isc') return new Set([me]);
+  const iscs = await DATA_getISCs();
+  let mine;
+  if (currentUser.role==='asm') mine = iscs.filter(i=>String(i.asmId||'')===me);
+  else if (currentUser.role==='rsm') {
+    const asms = await DATA_getASMs();
+    const myAsmIds = new Set(asms.filter(a=>String(a.rsmId||'')===me).map(a=>String(a.id)));
+    mine = iscs.filter(i=>myAsmIds.has(String(i.asmId||'')));
+  }
+  else mine = currentUser.isST ? iscs.filter(i=>String(i.stId||'')===me)
+                               : iscs.filter(i=>String(i.bdoId||'')===me);
+  return new Set(mine.map(i=>String(i.id)));
+}
+
 // Generic fetch of the current user's own visits sheet (remote-first with local cache fallback).
 async function DATA_getMyVisits() {
   const sheet = activitySheetFor(currentUser), cache = ACTIVITY_SHEET_CACHE[sheet];
@@ -2837,7 +2860,7 @@ function buildNav() {
   } else if (currentUser.role==='asm') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
@@ -3185,20 +3208,25 @@ function exportReportCSV() {
   a.click();
 }
 
-// Populates the BDO's "My Region Sites" tab: all entries in the BDO's region, grouped by ISC, with stats and optional date-range filtering.
+// Populates the ST/BDO's "My ISC Sites" tab: entries of the ISCs mapped to them (stId for ST/SE, bdoId for BDO/BDE), grouped by ISC, with stats and optional date-range filtering.
 async function renderBDOSites(filter='all') {
   setLoading(true,'Loading...');
   try {
     let all = await DATA_getEntries();
-    // Filter by BDO's region
-    if (currentUser.region) all = all.filter(e=>e.region===currentUser.region || e.bdoName===currentUser.name);
+    // Scope to the ISCs mapped to this ST/SE (stId) or BDO/BDE (bdoId) — not the whole region
+    const myIds = await scopedISCIdSet();
+    if (myIds) all = all.filter(e=>myIds.has(String(e.iscId)));
     _allEntriesCache = all;
     const bc = siteStatusCounts(all);
     document.getElementById('bstat-total').textContent = all.length;
     document.getElementById('bstat-pending').textContent = bc.Pending;
     document.getElementById('bstat-confirmed').textContent = bc.Confirmed;
     document.getElementById('bstat-notconverted').textContent = bc.NotConverted;
-    document.getElementById('bdosites-subtitle').textContent = `${currentUser.name} · Region: ${currentUser.region||'—'} 🟢`;
+    document.getElementById('bdosites-subtitle').textContent = `${currentUser.name} · ${currentUser.empRole||(currentUser.isST?'ST':'BDO')} · ${myIds?myIds.size:0} ISC${myIds&&myIds.size!==1?'s':''} mapped 🟢`;
+    if (myIds && !myIds.size) {
+      document.getElementById('bdo-entries-list').innerHTML = emptyState('👥','No ISCs mapped to you yet','Ask your ASM to assign your ISCs in the system');
+      return;
+    }
     // Status + date filters
     let shown = all.filter(e=>matchesSiteStatus(e.status, filter));
     const df=document.getElementById('bdo-date-from')?.value;
@@ -3813,8 +3841,8 @@ async function renderAllEntries(filter='all') {
       // Never trust the asmId field stamped on the entry itself — it can be
       // blank (older records) or stale (ISC reassigned to a different ASM since).
       let myISCIds=new Set();
-      try{const iscs=await DATA_getISCs();iscs.filter(i=>i.asmId===currentUser.id).forEach(i=>myISCIds.add(i.id));}catch(e){}
-      all=all.filter(e=>myISCIds.has(e.iscId));
+      try{const iscs=await DATA_getISCs();iscs.filter(i=>String(i.asmId||'')===String(currentUser.id)).forEach(i=>myISCIds.add(String(i.id)));}catch(e){}
+      all=all.filter(e=>myISCIds.has(String(e.iscId)));
     }
     _allEntriesCache=all;
     document.getElementById('astat-total').textContent=all.length;
@@ -4600,7 +4628,7 @@ async function renderMyISCs() {
   setLoading(true,'Loading ISCs...');
   try {
     const all = await DATA_getISCs();
-    _iscCache = all.filter(i=>i.asmId===currentUser.id);
+    _iscCache = all.filter(i=>String(i.asmId||'')===String(currentUser.id));
     const active=_iscCache.filter(i=>i.status!=='Inactive').length;
     const inactive=_iscCache.filter(i=>i.status==='Inactive').length;
     document.getElementById('isc-stat-total').textContent=_iscCache.length;
@@ -4661,9 +4689,9 @@ async function renderMyTeam() {
     const sts = await DATA_getST();
     const bdos = await DATA_getBDO();
     
-    const myISCs = iscs.filter(i => i.asmId === currentUser.id);
-    const mySTs = sts.filter(s => s.asmId === currentUser.id);
-    const myBDOs = bdos.filter(b => b.asmId === currentUser.id);
+    const myISCs = iscs.filter(i => String(i.asmId||'') === String(currentUser.id));
+    const mySTs = sts.filter(s => String(s.asmId||'') === String(currentUser.id));
+    const myBDOs = bdos.filter(b => String(b.asmId||'') === String(currentUser.id));
     
     // Update stats
     document.getElementById('team-total').textContent = myISCs.length + mySTs.length + myBDOs.length;
@@ -5319,15 +5347,15 @@ async function renderRSMSites(filter='all') {
   try {
     // Get all ASMs under this RSM
     const allAsms = await DATA_getASMs();
-    const myAsms = allAsms.filter(a=>a.rsmId===currentUser.id);
-    const myAsmIds = myAsms.map(a=>a.id);
+    const myAsms = allAsms.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+    const myAsmIds = myAsms.map(a=>String(a.id));
     // Get ISC IDs under those ASMs — relies only on current Users sheet mapping
     let myISCIds=new Set();
-    try{const iscs=await DATA_getISCs();iscs.filter(i=>myAsmIds.includes(i.asmId)).forEach(i=>myISCIds.add(i.id));}catch(e){}
+    try{const iscs=await DATA_getISCs();iscs.filter(i=>myAsmIds.includes(String(i.asmId||''))).forEach(i=>myISCIds.add(String(i.id)));}catch(e){}
     // Get all entries for those ASMs — match ONLY by current ISC mapping, never by
     // the asmId field stamped on the entry (can be stale after ISC reassignment)
     let all = await DATA_getEntries();
-    all = all.filter(e=>myISCIds.has(e.iscId));
+    all = all.filter(e=>myISCIds.has(String(e.iscId)));
     document.getElementById('rstat-total').textContent=all.length;
     const rc = siteStatusCounts(all);
     document.getElementById('rstat-pending').textContent=rc.Pending;
@@ -5857,10 +5885,16 @@ async function renderDashboard() {
     // ── HIERARCHY TREE (Admin/RSM) — rendered first ───────────────────
     if (role==='admin' || role==='rsm') {
       try {
-        const allISCs = await DATA_getISCs();
-        const allASMs = await DATA_getASMs();
+        let allISCs = await DATA_getISCs();
+        let allASMs = await DATA_getASMs();
         let allRSMs = [];
         if (role==='admin') { try { allRSMs = await DATA_getRSMs(); } catch(e) { allRSMs = []; } }
+        if (role==='rsm') {
+          // RSM sees only their own branch of the tree
+          allASMs = allASMs.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+          const _myAsmIds = new Set(allASMs.map(a=>String(a.id)));
+          allISCs = allISCs.filter(i=>_myAsmIds.has(String(i.asmId||'')));
+        }
         const mappedISCs   = allISCs.filter(i=>i.asmId).length;
         const unmappedISCs = allISCs.filter(i=>!i.asmId).length;
         const totalISCs    = allISCs.length;
@@ -5920,26 +5954,15 @@ async function renderDashboard() {
     try { entries = await DATA_getEntries(); } catch(e) { console.warn('Entries error:',e.message); }
     try { attendance = await DATA_getAttendance(); } catch(e) { console.warn('Attendance error:',e.message); }
 
-    if(role==='isc'){entries=entries.filter(e=>e.iscId===currentUser.id);attendance=attendance.filter(a=>a.iscId===currentUser.id);}
-    else if(role==='asm'){
-      // Match ONLY by current ISC-to-ASM mapping — never trust asmId stamped on the
-      // record itself, since it can be stale after an ISC is reassigned
-      let myISCIds=new Set();
-      try{const iscs=await DATA_getISCs();iscs.filter(i=>i.asmId===currentUser.id).forEach(i=>myISCIds.add(i.id));}catch(e){}
-      entries=entries.filter(e=>myISCIds.has(e.iscId));
-      attendance=attendance.filter(a=>myISCIds.has(a.iscId));
-    }
-    else if(role==='rsm'){
-      try{
-        const asms=await DATA_getASMs();
-        const asmIds=asms.filter(a=>a.rsmId===currentUser.id).map(a=>a.id);
-        let myISCIds=new Set();
-        try{const iscs=await DATA_getISCs();iscs.filter(i=>asmIds.includes(i.asmId)).forEach(i=>myISCIds.add(i.id));}catch(e){}
-        entries=entries.filter(e=>myISCIds.has(e.iscId));
-        attendance=attendance.filter(a=>myISCIds.has(a.iscId));
-      }catch(e){}
-    }
-    else if(role==='bdo'){entries=entries.filter(e=>e.bdoName===currentUser.name||e.region===currentUser.region);attendance=attendance.filter(a=>a.region===currentUser.region);}
+    // One scoping rule for every role, resolved live from the Users sheet (see scopedISCIdSet):
+    // ISC own · ST/SE their stId ISCs · BDO/BDE their bdoId ISCs · ASM team · RSM under their ASMs · admin all
+    try{
+      const _dashScope = await scopedISCIdSet();
+      if(_dashScope){
+        entries=entries.filter(e=>_dashScope.has(String(e.iscId)));
+        attendance=attendance.filter(a=>_dashScope.has(String(a.iscId)));
+      }
+    }catch(e){ if(role!=='admin'){entries=[];attendance=[];} }
 
     const filteredEntries=dashDateFilter(entries);
     const month=new Date().toISOString().slice(0,7);
@@ -6034,9 +6057,8 @@ async function renderDashboard() {
     if (role !== 'isc') try {
       const _monthStart = new Date().toISOString().slice(0,7)+'-01';
       let attISCs = (await DATA_getISCs()).filter(i=>iscActiveOn(i,_monthStart));
-      if (currentUser.role==='asm') attISCs = attISCs.filter(i=>i.asmId===currentUser.id);
-      else if (currentUser.role==='bdo') attISCs = attISCs.filter(i=>i.bdoId===currentUser.id || i.region===currentUser.region);
-      else if (currentUser.role==='rsm') { const asms=await DATA_getASMs(); const asmIds=asms.filter(a=>a.rsmId===currentUser.id).map(a=>a.id); attISCs = attISCs.filter(i=>asmIds.includes(i.asmId)); }
+      const _attScope = await scopedISCIdSet();
+      if (_attScope) attISCs = attISCs.filter(i=>_attScope.has(String(i.id)));
 
       const todayD = todayStr();
       const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
@@ -6117,8 +6139,13 @@ async function renderDashboard() {
 
       // ── 4. ASM / BDO SELF-ATTENDANCE COMPLIANCE (admin/rsm only) ──
       if (role==='admin' || role==='rsm') try {
-        const asmsAll = await DATA_getASMs();
-        const bdosAll = await DATA_getBDOs();
+        let asmsAll = await DATA_getASMs();
+        let bdosAll = await DATA_getBDOs();
+        if (role==='rsm') {
+          asmsAll = asmsAll.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+          const _myAsmIds = new Set(asmsAll.map(a=>String(a.id)));
+          bdosAll = bdosAll.filter(b=>_myAsmIds.has(String(b.asmId||'')));
+        }
         const managers = [...asmsAll.map(a=>({...a,_type:'ASM'})), ...bdosAll.map(b=>({...b,_type:'BDO'}))];
         if (managers.length) {
           const mgrRows = managers.map(m => {
@@ -6518,8 +6545,8 @@ async function renderTeamAttendance() {
   try {
     // Get all ISCs under this ASM (or all for admin)
     let allISCs = (await DATA_getISCs()).filter(i=>iscActiveOn(i, selectedDate));
-    if (currentUser.role==='asm') allISCs = allISCs.filter(i=>i.asmId===currentUser.id);
-    else if (currentUser.role==='bdo') allISCs = allISCs.filter(i=>i.bdoId===currentUser.id || i.region===currentUser.region);
+    const _tattScope = await scopedISCIdSet();
+    if (_tattScope) allISCs = allISCs.filter(i=>_tattScope.has(String(i.id)));
 
     // Get attendance for selected date — ONLY for this user's team, not the whole organisation
     let allAtt = await DATA_getAttendance();
@@ -6610,9 +6637,9 @@ function exportTeamAttendance() {
   if (dates.length > 92) { showToast('⚠️ Range too large — please pick under 3 months'); return; }
 
   setLoading(true, dates.length > 1 ? `Preparing ${dates.length}-day report...` : 'Preparing report...');
-  Promise.all([DATA_getAttendance(), DATA_getISCs()]).then(([allAtt, allISCs])=>{
-    if (currentUser.role==='asm') allISCs = allISCs.filter(i=>i.asmId===currentUser.id);
-    else if (currentUser.role==='bdo') allISCs = allISCs.filter(i=>i.bdoId===currentUser.id || i.region===currentUser.region);
+  Promise.all([DATA_getAttendance(), DATA_getISCs()]).then(async ([allAtt, allISCs])=>{
+    const _expScope = await scopedISCIdSet();
+    if (_expScope) allISCs = allISCs.filter(i=>_expScope.has(String(i.id)));
 
     // Index attendance by iscId + date for fast lookup
     const attByKey = {};
@@ -6664,10 +6691,15 @@ function exportToExcel(rows, filename) {
 // Exports site-visit entries as a full-detail CSV (every field, with products/samples/order-details JSON flattened into readable text). `scope` is 'my' (ISC's own), or unset (role-scoped: ASM's team or everyone for admin).
 function exportEntries(scope) {
   setLoading(true, 'Preparing export...');
-  DATA_getEntries().then(all => {
-    let data = all;
-    if (scope === 'my') data = all.filter(e => e.iscId === currentUser.id);
-    else if (currentUser.role === 'asm') data = all.filter(e => e.asmId === currentUser.id);
+  DATA_getEntries().then(async all => {
+    // Same live-mapping scope as the on-screen lists: ISC own, ST/SE stId, BDO/BDE bdoId,
+    // ASM team, RSM everything under their ASMs, admin all. Never the whole sheet by default.
+    let data;
+    if (scope === 'my') data = all.filter(e => String(e.iscId)===String(currentUser.id));
+    else {
+      const ids = await scopedISCIdSet();
+      data = ids ? all.filter(e => ids.has(String(e.iscId))) : all;
+    }
     setLoading(false);
     if (!data.length) { showToast('⚠️ No data to export'); return; }
     const headers = [
@@ -6701,7 +6733,10 @@ function exportEntries(scope) {
       ];
     });
     const today = new Date().toISOString().slice(0,10);
-    const prefix = scope==='my' ? `ISC_${(currentUser.name||'ISC').replace(/ /g,'_')}` : currentUser.role==='asm' ? `ASM_${(currentUser.name||'ASM').replace(/ /g,'_')}` : 'Admin_AllSites';
+    const roleTag = currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? 'RSM'
+                  : currentUser.role==='bdo' ? (currentUser.empRole||(currentUser.isST?'ST':'BDO')) : '';
+    const prefix = scope==='my' ? `ISC_${(currentUser.name||'ISC').replace(/ /g,'_')}`
+                 : roleTag ? `${roleTag}_${(currentUser.name||roleTag).replace(/ /g,'_')}` : 'Admin_AllSites';
     exportToExcel([headers, ...dataRows], `MRF_ISC_SiteTracker_${prefix}_${today}.csv`);
   }).catch(e => { setLoading(false); showToast('⚠️ Export failed: ' + e.message); console.error('Export error:', e); });
 }
@@ -6710,10 +6745,16 @@ function exportEntries(scope) {
 async function exportHierarchy() {
   setLoading(true, 'Preparing hierarchy export...');
   try {
-    const allISCs = await DATA_getISCs();
-    const allASMs = await DATA_getASMs();
+    let allISCs = await DATA_getISCs();
+    let allASMs = await DATA_getASMs();
     let allRSMs = [];
     if (currentUser.role==='admin') { try { allRSMs = await DATA_getRSMs(); } catch(e) { allRSMs = []; } }
+    if (currentUser.role==='rsm') {
+      // RSM exports only their own branch
+      allASMs = allASMs.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+      const _myAsmIds = new Set(allASMs.map(a=>String(a.id)));
+      allISCs = allISCs.filter(i=>_myAsmIds.has(String(i.asmId||'')));
+    }
 
     const asmById = {}; allASMs.forEach(a=>asmById[a.id]=a);
     const rsmById = {}; allRSMs.forEach(r=>rsmById[r.id]=r);
