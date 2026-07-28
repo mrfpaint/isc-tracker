@@ -740,6 +740,7 @@
       <button class="filter-btn" onclick="filterMyActivity('Site',this)">🏗️ Site</button>
       <button class="filter-btn" onclick="filterMyActivity('Influencer',this)">🎨 Influencer</button>
       <button class="filter-btn" onclick="filterMyActivity('Contractor/Painter',this)">👷 Contractor</button>
+      <button class="filter-btn" onclick="filterMyActivity('Work Along',this)">🤝 Work Along</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="date" class="form-input" id="act-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderMyActivity()">
@@ -1639,7 +1640,8 @@
     <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Dealer')">🏪 &nbsp;Dealer</button>
     <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Site')">🏗️ &nbsp;Site</button>
     <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Influencer')">🎨 &nbsp;Influencer <span style="font-size:11px;color:var(--gray)">(architect / interior / engineer)</span></button>
-    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:16px;font-size:15px" onclick="openActivityForm('Contractor/Painter')">👷 &nbsp;Contractor / Painter <span style="font-size:11px;color:var(--gray)">(incl. builder)</span></button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Contractor/Painter')">👷 &nbsp;Contractor / Painter <span style="font-size:11px;color:var(--gray)">(incl. builder)</span></button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:16px;font-size:15px" onclick="openActivityForm('Work Along')">🤝 &nbsp;Work Along <span style="font-size:11px;color:var(--gray)" id="picker-workalong-hint">(joint working)</span></button>
     <button class="btn-secondary" style="width:100%" onclick="closeModal('modal-activity-picker')">Cancel</button>
   </div>
 </div>
@@ -1676,7 +1678,12 @@
     <div class="form-group" id="ap-firm-group"><label class="form-label" id="ap-firm-label">Firm Name</label><input type="text" class="form-input" id="ap-firm" placeholder="Firm / company"></div>
     <div class="form-group"><label class="form-label">Mobile</label><input type="tel" class="form-input" id="ap-mobile" placeholder="10-digit mobile"></div>
     <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="ap-email" placeholder="name@example.com"></div>
-    <div class="form-group"><label class="form-label" id="ap-subtype-label">Type</label><select class="form-select" id="ap-subtype"></select></div>
+    <div class="form-group"><label class="form-label" id="ap-subtype-label">Type</label><select class="form-select" id="ap-subtype" onchange="toggleMachineType()"></select></div>
+    <div class="form-group" id="ap-machinetype-group" style="display:none"><label class="form-label">Machine Type *</label><select class="form-select" id="ap-machinetype">
+      <option value="">— Select —</option>
+      <option>Water Based</option>
+      <option>Water and Solvent based Dual Machine</option>
+    </select></div>
 
     <div class="form-group"><label class="form-label">Visit Date *</label><input type="date" class="form-input" id="ap-visitdate"></div>
     <div class="form-group">
@@ -1702,6 +1709,37 @@
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-activity-party')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveActivityParty()">Save Activity</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2c: Work Along (joint working) — who you worked with depends on your role:
+     ST/SE/BDO/BDE pick an ISC under their ASM, ASMs pick their ST/SE/BDO/BDE, RSMs pick anyone under their ASMs. -->
+<div class="modal-overlay" id="modal-activity-joint">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="aj-title">Log Joint Working</div>
+    <div class="modal-subtitle" id="aj-subtitle">Record a day worked along with a team member</div>
+    <input type="hidden" id="aj-activity-id">
+
+    <div class="form-group">
+      <label class="form-label" id="aj-person-label">Worked along with *</label>
+      <select class="form-select" id="aj-person"><option value="">— Select —</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">Visit Date *</label><input type="date" class="form-input" id="aj-visitdate"></div>
+    <div class="form-group">
+      <label class="form-label">GPS Location</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="aj-gps" placeholder="Tap 📍 to capture" readonly style="flex:1;background:#f9fafb;font-size:12px">
+        <button type="button" onclick="captureGPSInto('aj-gps','aj-gps-status','aj-gps-btn')" id="aj-gps-btn" style="padding:10px 14px;background:var(--dark);color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0">📍</button>
+      </div>
+      <div id="aj-gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Remarks</label><textarea class="form-input" id="aj-remarks" rows="2" placeholder="What was worked on together"></textarea></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-activity-joint')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveActivityJoint()">Save Activity</button>
     </div>
   </div>
 </div>
@@ -2354,8 +2392,22 @@ async function DATA_getBDOVisits() {
 //  logged as "New", so the next visit can pick them as "Existing" instead of retyping their details.
 // ══════════════════════════════════════════════
 
-// Which visits sheet a given user writes to — STs and SEs share one, BDOs and BDEs the other.
-function activitySheetFor(user) { return user.isST ? 'ST_Visits' : 'BDO_Visits'; }
+// Which visits sheet a given user writes to — STs and SEs share one, BDOs and BDEs another,
+// and ASMs/RSMs (who log the same activities plus joint working) each get their own.
+const ACTIVITY_SHEET_CACHE = {ST_Visits:'st_visits', BDO_Visits:'bdo_visits', ASM_Visits:'asm_visits', RSM_Visits:'rsm_visits'};
+function activitySheetFor(user) {
+  if (user.role==='asm') return 'ASM_Visits';
+  if (user.role==='rsm') return 'RSM_Visits';
+  return user.isST ? 'ST_Visits' : 'BDO_Visits';
+}
+
+// Generic fetch of the current user's own visits sheet (remote-first with local cache fallback).
+async function DATA_getMyVisits() {
+  const sheet = activitySheetFor(currentUser), cache = ACTIVITY_SHEET_CACHE[sheet];
+  if (!isConfigured()) return LDB.arr(cache) || [];
+  try { const remote = await sheetsGet(sheet); LDB.set(cache, remote); return remote; }
+  catch(e) { return LDB.arr(cache) || []; }
+}
 
 // Master sheet + local-cache key for each party type the activity forms can create.
 const PARTY_MASTER = {
@@ -2382,14 +2434,14 @@ async function DATA_addPartyMaster(partyType, rec) {
 // Saves one activity row. Writes locally first so it shows immediately, then syncs — same
 // resilience pattern DATA_addEntry() uses for ISC site visits.
 async function DATA_addActivity(sheet, rec) {
-  const cache = sheet === 'ST_Visits' ? 'st_visits' : 'bdo_visits';
+  const cache = ACTIVITY_SHEET_CACHE[sheet] || 'bdo_visits';
   const arr = LDB.arr(cache); arr.push(rec); LDB.set(cache, arr);
   if (isConfigured()) await sheetsAppend(sheet, rec);
 }
 
 // Patches an existing activity row (matched by id) — local cache first for instant UI, then the sheet.
 async function DATA_updateActivity(sheet, id, updates) {
-  const cache = sheet === 'ST_Visits' ? 'st_visits' : 'bdo_visits';
+  const cache = ACTIVITY_SHEET_CACHE[sheet] || 'bdo_visits';
   const arr = LDB.arr(cache);
   const i = arr.findIndex(r=>String(r.id)===String(id));
   if (i >= 0) { arr[i] = {...arr[i], ...updates}; LDB.set(cache, arr); }
@@ -2770,9 +2822,9 @@ function launchApp() {
   document.getElementById('header-user-badge').textContent = currentUser.name||currentUser.username;
   buildNav();
   if (currentUser.role==='isc') { showTab('mysites'); document.getElementById('fab-btn').style.display='flex'; }
-  else if (currentUser.role==='asm') { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
+  else if (currentUser.role==='asm') { showTab('allsites'); document.getElementById('fab-btn').style.display='flex'; }
   else if (currentUser.role==='bdo') { showTab('myactivity'); document.getElementById('fab-btn').style.display='flex'; }
-  else if (currentUser.role==='rsm') { showTab('rsmsites'); document.getElementById('fab-btn').style.display='none'; }
+  else if (currentUser.role==='rsm') { showTab('rsmsites'); document.getElementById('fab-btn').style.display='flex'; }
   else if (currentUser.viewOnly) { showTab('team-attendance'); document.getElementById('fab-btn').style.display='none'; }
   else { showTab('allsites'); document.getElementById('fab-btn').style.display='none'; }
 }
@@ -2783,11 +2835,11 @@ function buildNav() {
   if (currentUser.role==='isc') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='asm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
   } else {
@@ -3212,12 +3264,23 @@ let _partyMasterCache = [];   // the loaded master list for whichever type is cu
 // Influencers and Painters store name/firmName/subType), so these two translate between the shared
 // form fields and whichever shape that type's sheet actually uses.
 function partyToMaster(partyType, f) {
-  if (partyType === 'Dealer') return {code:f.code, shopName:f.firm, contactName:f.name, mobile:f.mobile, email:f.email, dealerType:f.subType};
+  if (partyType === 'Dealer') return {code:f.code, shopName:f.firm, contactName:f.name, mobile:f.mobile, email:f.email, dealerType:f.subType, machineType:f.machineType||''};
   return {code:f.code, name:f.name, firmName:f.firm, mobile:f.mobile, email:f.email, subType:f.subType};
 }
 function masterToParty(partyType, r) {
-  if (partyType === 'Dealer') return {code:r.code||'', name:r.contactName||'', firm:r.shopName||'', mobile:r.mobile||'', email:r.email||'', subType:r.dealerType||''};
+  if (partyType === 'Dealer') return {code:r.code||'', name:r.contactName||'', firm:r.shopName||'', mobile:r.mobile||'', email:r.email||'', subType:r.dealerType||'', machineType:r.machineType||''};
   return {code:r.code||'', name:r.name||'', firm:r.firmName||'', mobile:r.mobile||'', email:r.email||'', subType:r.subType||''};
+}
+
+// Machine Type is only relevant for Dealer visits where Dealer Type = Machine Dealer.
+// Shows/hides the field and clears it when hidden so a stale value never gets saved.
+function isMachineDealerSelected() {
+  return gv('ap-type') === 'Dealer' && gv('ap-subtype') === 'Machine Dealer';
+}
+function toggleMachineType() {
+  const show = isMachineDealerSelected();
+  document.getElementById('ap-machinetype-group').style.display = show ? '' : 'none';
+  if (!show) sv('ap-machinetype','');
 }
 
 // FAB handler for ST/BDO.
@@ -3235,9 +3298,89 @@ function applyPartyConfig(cfg, subTypeCurrent) {
   document.getElementById('ap-subtype').innerHTML = '<option value="">— Select —</option>' + subTypes.map(s=>`<option>${escapeHtml(s)}</option>`).join('');
 }
 
+// ── Work Along (joint working) ──
+// Who the dropdown offers depends on the logged-in role:
+//   ST/SE/BDO/BDE → ISCs under their ASM (falls back to same-region ISCs if no ASM mapping)
+//   ASM           → the ST/SE/BDO/BDE mapped to them
+//   RSM           → their ASMs plus every ST/SE/BDO/BDE under those ASMs
+let _jointPeople = [];
+async function loadJointPeople() {
+  const activeOnly = p => String(p.status||'Active')!=='Inactive' && String(p.status||'')!=='Vacant';
+  if (currentUser.role === 'asm') {
+    const [sts, bdos] = await Promise.all([DATA_getST(), DATA_getBDO()]);
+    return [...sts, ...bdos].filter(activeOnly).filter(p=>String(p.asmId||'')===String(currentUser.id))
+      .map(p=>({id:p.id, name:p.name, role:(p.role||'ST').toUpperCase()}));
+  }
+  if (currentUser.role === 'rsm') {
+    let [asms, sts, bdos] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
+    sts = sts.filter(activeOnly); bdos = bdos.filter(activeOnly);
+    const myAsms = asms.filter(activeOnly).filter(a=>String(a.rsmId||'')===String(currentUser.id));
+    const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
+    return [
+      ...myAsms.map(a=>({id:a.id, name:a.name, role:'ASM'})),
+      ...[...sts, ...bdos].filter(p=>myAsmIds.has(String(p.asmId||'')))
+        .map(p=>({id:p.id, name:p.name, role:(p.role||'ST').toUpperCase()})),
+    ];
+  }
+  // ST/SE/BDO/BDE — active ISCs under their ASM, else same-region ISCs
+  const iscs = (await DATA_getISCs()).filter(i=>String(i.status||'Active')!=='Inactive');
+  let mine = currentUser.asmId ? iscs.filter(i=>String(i.asmId||'')===String(currentUser.asmId)) : [];
+  if (!mine.length && currentUser.region) mine = iscs.filter(i=>String(i.region||'')===String(currentUser.region));
+  return mine.map(i=>({id:i.id, name:i.name, role:'ISC'}));
+}
+
+function fillJointSelect(people, currentId) {
+  const sel = document.getElementById('aj-person');
+  sel.innerHTML = '<option value="">— Select —</option>' + people.map(p=>
+    `<option value="${escapeHtml(String(p.id))}">${escapeHtml(p.role)} — ${escapeHtml(p.name||'(no name)')}</option>`).join('');
+  if (currentId) sel.value = String(currentId);
+}
+
+async function openJointForm() {
+  sv('aj-activity-id','');
+  document.getElementById('aj-title').textContent = 'Log Joint Working';
+  const who = currentUser.role==='asm' ? 'your ST / SE / BDO / BDE'
+            : currentUser.role==='rsm' ? 'your ASM / ST / SE / BDO / BDE'
+            : 'an ISC under your ASM';
+  document.getElementById('aj-subtitle').textContent = `Record a day worked along with ${who}`;
+  ['aj-person','aj-remarks','aj-gps'].forEach(id=>sv(id,''));
+  const g=document.getElementById('aj-gps'); if(g) delete g.dataset.raw;
+  document.getElementById('aj-gps-status').textContent='';
+  sv('aj-visitdate', todayStr());
+  document.getElementById('aj-person').innerHTML = '<option value="">⏳ Loading...</option>';
+  openModal('modal-activity-joint');
+  try { _jointPeople = await loadJointPeople(); } catch(e){ _jointPeople = []; }
+  fillJointSelect(_jointPeople);
+  if (!_jointPeople.length) showToast('⚠️ No team members found to work along with');
+}
+
+async function saveActivityJoint() {
+  const personId = gv('aj-person'), visitDate = gv('aj-visitdate');
+  if (!personId) return showToast('⚠️ Please select who you worked along with');
+  if (!visitDate) return showToast('⚠️ Visit date is required');
+  const p = _jointPeople.find(x=>String(x.id)===String(personId)) || {};
+  const fields = {
+    visitDate,
+    gps: gv('aj-gps'), gpsRaw: document.getElementById('aj-gps')?.dataset.raw || '',
+    remarks: gv('aj-remarks').trim(),
+    withId: personId, withName: p.name||'', withRole: p.role||'',
+  };
+  const editId = gv('aj-activity-id');
+  setLoading(true, editId ? 'Updating activity...' : 'Saving activity...');
+  try {
+    if (editId) await DATA_updateActivity(activitySheetFor(currentUser), editId, fields);
+    else await DATA_addActivity(activitySheetFor(currentUser), {...baseActivityRow('Work Along'), ...fields});
+    showToast(editId ? '✅ Activity updated!' : '✅ Activity logged!');
+    closeModal('modal-activity-joint');
+    renderMyActivity();
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
 // Opens the right form for the chosen activity type, blanked and dated today.
 async function openActivityForm(type) {
   closeModal('modal-activity-picker');
+  if (type === 'Work Along') { openJointForm(); return; }
   if (type === 'Site') {
     ['as-sitestatus','as-custname','as-custphone','as-custtype','as-sitename','as-address','as-gps',
      'as-buildtype','as-sitestage','as-area','as-products','as-sitevalue','as-dealercode','as-dealername',
@@ -3260,7 +3403,8 @@ async function openActivityForm(type) {
   document.getElementById('ap-modechoice-group').style.display = '';
   applyPartyConfig(cfg);
   setPurposeOptions(cfg.purposes);
-  ['ap-code','ap-name','ap-firm','ap-mobile','ap-email','ap-purpose','ap-remarks','ap-gps','ap-search'].forEach(id=>sv(id,''));
+  ['ap-code','ap-name','ap-firm','ap-mobile','ap-email','ap-purpose','ap-remarks','ap-gps','ap-search','ap-machinetype'].forEach(id=>sv(id,''));
+  toggleMachineType();
   const g=document.getElementById('ap-gps'); if(g) delete g.dataset.raw;
   document.getElementById('ap-gps-status').textContent='';
   sv('ap-visitdate', todayStr());
@@ -3277,6 +3421,26 @@ async function openActivityForm(type) {
 function editActivity(id) {
   const a = _myActivityCache.find(r=>String(r.id)===String(id));
   if (!a) return showToast('⚠️ Activity not found');
+
+  if (a.activityType === 'Work Along') {
+    sv('aj-activity-id', a.id);
+    document.getElementById('aj-title').textContent = 'Edit Joint Working';
+    document.getElementById('aj-subtitle').textContent = 'Update this joint working entry';
+    sv('aj-visitdate', a.visitDate||todayStr()); sv('aj-remarks', a.remarks||'');
+    sv('aj-gps', a.gps||'');
+    const g=document.getElementById('aj-gps'); if(g){ if(a.gpsRaw) g.dataset.raw=a.gpsRaw; else delete g.dataset.raw; }
+    document.getElementById('aj-gps-status').textContent='';
+    document.getElementById('aj-person').innerHTML='<option value="">⏳ Loading...</option>';
+    openModal('modal-activity-joint');
+    loadJointPeople().catch(()=>[]).then(people=>{
+      // If the stored person is no longer in the master, keep them selectable so the entry still displays
+      if (a.withId && !people.some(x=>String(x.id)===String(a.withId)))
+        people = [...people, {id:a.withId, name:a.withName||'(unknown)', role:a.withRole||''}];
+      _jointPeople = people;
+      fillJointSelect(people, a.withId||'');
+    });
+    return;
+  }
 
   if (a.activityType === 'Site') {
     sv('as-activity-id', a.id);
@@ -3308,6 +3472,7 @@ function editActivity(id) {
   setPurposeOptions(cfg.purposes, a.purpose||'');
   sv('ap-code', a.partyCode||''); sv('ap-name', a.partyName||''); sv('ap-firm', a.partyFirm||'');
   sv('ap-mobile', a.partyMobile||''); sv('ap-email', a.partyEmail||''); sv('ap-subtype', a.partySubType||'');
+  toggleMachineType(); sv('ap-machinetype', a.partyMachineType||'');
   sv('ap-visitdate', a.visitDate||todayStr());
   sv('ap-purpose', a.purpose||''); sv('ap-remarks', a.remarks||'');
   sv('ap-gps', a.gps||'');
@@ -3326,6 +3491,7 @@ function setPartyMode(mode) {
     sv('ap-party-id','');
     ['ap-code','ap-name','ap-firm','ap-mobile','ap-email'].forEach(id=>sv(id,''));
     sv('ap-subtype','');
+    toggleMachineType();
   } else {
     renderPartyOptions();
   }
@@ -3361,6 +3527,7 @@ function applyExistingParty() {
   sv('ap-party-id', rec.id);
   sv('ap-code', p.code); sv('ap-name', p.name); sv('ap-firm', p.firm);
   sv('ap-mobile', p.mobile); sv('ap-email', p.email); sv('ap-subtype', p.subType);
+  toggleMachineType(); sv('ap-machinetype', p.machineType||'');
 }
 
 // Fields every activity row carries regardless of type.
@@ -3368,7 +3535,7 @@ function baseActivityRow(activityType) {
   return {
     id: 'act'+Date.now(),
     activityType,
-    role: currentUser.empRole || (currentUser.isST ? 'ST' : 'BDO'),
+    role: currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? 'RSM' : (currentUser.empRole || (currentUser.isST ? 'ST' : 'BDO')),
     empId: currentUser.id||'', empName: currentUser.name||'',
     asmId: currentUser.asmId||'', asmName: currentUser.asmName||'',
     region: currentUser.region||'',
@@ -3380,10 +3547,12 @@ function baseActivityRow(activityType) {
 async function saveActivityParty() {
   const type = gv('ap-type'), mode = gv('ap-mode');
   const f = {code:gv('ap-code').trim(), name:gv('ap-name').trim(), firm:gv('ap-firm').trim(),
-             mobile:gv('ap-mobile').trim(), email:gv('ap-email').trim(), subType:gv('ap-subtype')};
+             mobile:gv('ap-mobile').trim(), email:gv('ap-email').trim(), subType:gv('ap-subtype'),
+             machineType: isMachineDealerSelected() ? gv('ap-machinetype') : ''};
   const visitDate = gv('ap-visitdate');
   if (!f.name) return showToast('⚠️ Name is required');
   if (!visitDate) return showToast('⚠️ Visit date is required');
+  if (isMachineDealerSelected() && !f.machineType) return showToast('⚠️ Please select the machine type');
 
   // Edit mode — patch the original activity row and stop (master record is left untouched).
   const editId = gv('ap-activity-id');
@@ -3396,6 +3565,7 @@ async function saveActivityParty() {
         purpose: gv('ap-purpose'), remarks: gv('ap-remarks').trim(),
         partyCode:f.code, partyName:f.name, partyFirm:f.firm,
         partyMobile:f.mobile, partyEmail:f.email, partySubType:f.subType,
+        partyMachineType:f.machineType,
       });
       showToast('✅ Activity updated!');
       closeModal('modal-activity-party');
@@ -3429,6 +3599,7 @@ async function saveActivityParty() {
       purpose: gv('ap-purpose'), remarks: gv('ap-remarks').trim(),
       partyId, partyCode:f.code, partyName:f.name, partyFirm:f.firm,
       partyMobile:f.mobile, partyEmail:f.email, partySubType:f.subType,
+      partyMachineType:f.machineType,
       isNewParty: mode==='new' ? 'Yes' : 'No',
     });
     showToast('✅ Activity logged!');
@@ -3502,7 +3673,7 @@ function filterMyActivity(f, el) {
   renderMyActivity();
 }
 
-const ACTIVITY_ICON = {'Dealer':'🏪','Site':'🏗️','Influencer':'🎨','Contractor/Painter':'👷'};
+const ACTIVITY_ICON = {'Dealer':'🏪','Site':'🏗️','Influencer':'🎨','Contractor/Painter':'👷','Work Along':'🤝'};
 
 let _myActivityCache = [];   // last-loaded own activities, so the ✏️ Edit button can find the full record
 
@@ -3512,14 +3683,15 @@ async function renderMyActivity() {
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const all = (currentUser.isST ? await DATA_getSTVisits() : await DATA_getBDOVisits())
+    const all = (await DATA_getMyVisits())
       .filter(a=>a.id && String(a.empId)===String(currentUser.id));
     _myActivityCache = all;
     const today = todayStr(), month = today.slice(0,7);
     document.getElementById('myact-total').textContent = all.length;
     document.getElementById('myact-month').textContent = all.filter(a=>String(a.visitDate||'').startsWith(month)).length;
     document.getElementById('myact-today').textContent = all.filter(a=>a.visitDate===today).length;
-    document.getElementById('myactivity-subtitle').textContent = `${currentUser.name} · ${currentUser.empRole||(currentUser.isST?'ST':'BDO')}${currentUser.region?' · '+currentUser.region:''}`;
+    const roleLabel = currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? 'RSM' : (currentUser.empRole||(currentUser.isST?'ST':'BDO'));
+    document.getElementById('myactivity-subtitle').textContent = `${currentUser.name} · ${roleLabel}${currentUser.region?' · '+currentUser.region:''}`;
 
     let shown = _myActivityFilter==='all' ? all : all.filter(a=>a.activityType===_myActivityFilter);
     const df = gv('act-date-from'), dt = gv('act-date-to');
@@ -3529,14 +3701,17 @@ async function renderMyActivity() {
 
     shown.sort((a,b)=>String(b.visitDate||'').localeCompare(String(a.visitDate||'')) || String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
     el.innerHTML = shown.map(a=>{
-      const isSite = a.activityType==='Site';
-      const heading = isSite ? (a.siteName||'(unnamed site)') : (a.partyName||'(no name)');
+      const isSite = a.activityType==='Site', isJoint = a.activityType==='Work Along';
+      const heading = isSite ? (a.siteName||'(unnamed site)') : isJoint ? (a.withName||'(no name)') : (a.partyName||'(no name)');
       const sub = isSite
         ? [a.custName, a.address].filter(Boolean).map(escapeHtml).join(' · ')
+        : isJoint
+        ? [a.withRole ? 'Worked along with · '+a.withRole : ''].filter(Boolean).map(escapeHtml).join('')
         : [a.partyFirm, a.partyCode, a.partyMobile].filter(Boolean).map(escapeHtml).join(' · ');
       const extra = isSite
         ? [a.buildType, a.siteStage, a.siteValue?('₹'+Number(a.siteValue).toLocaleString('en-IN')):''].filter(Boolean).map(escapeHtml).join(' · ')
-        : [a.partySubType, a.purpose].filter(Boolean).map(escapeHtml).join(' · ');
+        : isJoint ? ''
+        : [a.partySubType, a.partyMachineType, a.purpose].filter(Boolean).map(escapeHtml).join(' · ');
       return `<div class="entry-card" style="cursor:default">
         <div class="entry-card-top">
           <div style="flex:1">
@@ -3932,7 +4107,7 @@ function captureGPSInto(inputId='entry-gps', statusId='gps-status', btnId='gps-b
 }
 // The "+" button means different things per role: ISCs log a site visit, ST/BDO pick an activity type.
 function onFabClick() {
-  if (currentUser.role==='bdo') openActivityPicker();
+  if (['bdo','asm','rsm'].includes(currentUser.role)) openActivityPicker();
   else showNewEntryModal();
 }
 
