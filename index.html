@@ -1434,8 +1434,12 @@
         <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:4px" id="preview-name">—</div>
         <div style="font-size:12px;color:var(--gray)" id="preview-details">—</div>
       </div>
-      <!-- ST, BDO, Region for existing ISC -->
+      <!-- ASM, ST, BDO, Region for existing ISC -->
       <div class="form-group" style="margin-top:12px">
+        <label class="form-label">Reports to (ASM) *</label>
+        <select class="form-select" id="isc-asm-select"><option value="">— Select ASM —</option></select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Sales Technologist (ST)</label>
         <select class="form-select" id="isc-st-select"><option value="">— Select ST —</option></select>
       </div>
@@ -1475,6 +1479,10 @@
         <input type="password" class="form-input" id="isc-password" placeholder="Login password">
         <button class="pwd-eye" type="button" onclick="togglePwd('isc-password',this)" tabindex="-1">👁</button>
       </div></div>
+    <div class="form-group">
+      <label class="form-label">Reports to (ASM) *</label>
+      <select class="form-select" id="isc-asm"><option value="">— Select ASM —</option></select>
+    </div>
     <div class="form-group">
       <label class="form-label">Sales Technologist (ST)</label>
       <select class="form-select" id="isc-st"><option value="">— Select ST —</option></select>
@@ -4884,11 +4892,34 @@ function prefillSelfMapping(stElId, bdoElId, regionElId) {
   if (r && !r.value && currentUser.region) sv(regionElId, currentUser.region);
 }
 
-// Which ASM a newly added/assigned ISC belongs to: ASMs assign to themselves;
-// ST/SE/BDO/BDE assign to their own ASM (they add ISCs on the ASM's behalf).
+// Which ASM a newly added/assigned ISC belongs to when no dropdown choice is made:
+// ASMs default to themselves; ST/SE/BDO/BDE default to their own ASM.
 function iscOwnerASMFields() {
   if (currentUser.role === 'bdo') return {asmId:currentUser.asmId||'', asmName:currentUser.asmName||'', asmEmail:'', asmPhone:''};
   return {asmId:currentUser.id, asmName:currentUser.name, asmEmail:currentUser.email||'', asmPhone:currentUser.phone||''};
+}
+
+// Fills a "Reports to (ASM)" dropdown with all active ASMs (alphabetical) and pre-selects
+// the sensible default: an ASM picks themselves, an ST/SE/BDO/BDE gets their own ASM.
+async function populateASMDropdown(elId) {
+  const el = document.getElementById(elId); if (!el) return;
+  const asms = (await DATA_getASMs())
+    .filter(a=>String(a.status||'Active')!=='Inactive' && String(a.status||'')!=='Vacant')
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  el.innerHTML = '<option value="">— Select ASM —</option>' +
+    asms.map(a=>`<option value="${escapeHtml(String(a.id))}">${escapeHtml(a.name||'')}</option>`).join('');
+  if (currentUser.role==='asm') el.value = String(currentUser.id);
+  else if (currentUser.role==='bdo' && currentUser.asmId) el.value = String(currentUser.asmId);
+}
+
+// Resolves the ASM picked in a dropdown into the four asm* fields stored on the ISC record.
+async function selectedASMFields(elId) {
+  const id = gv(elId);
+  if (!id) return null;
+  const asms = await DATA_getASMs();
+  const a = asms.find(x=>String(x.id)===String(id));
+  return a ? {asmId:a.id, asmName:a.name||'', asmEmail:a.email||'', asmPhone:a.phone||''}
+           : {asmId:id, asmName:'', asmEmail:'', asmPhone:''};
 }
 
 // Refresh whichever list the current role is looking at after an ISC save.
@@ -4932,7 +4963,7 @@ async function showEditISCModal(id) {
   sv('isc-edit-id',id);sv('isc-name',isc.name);sv('isc-empno',isc.empNo||isc.username||'');sv('isc-phone',isc.phone);sv('isc-email',isc.email);sv('isc-username',isc.username);sv('isc-password',isc.password);sv('isc-region',isc.region||'');sv('isc-dealer-codes',isc.dealerCodes||'');
   document.getElementById('modal-isc-title').textContent='Edit ISC Account';
   await populateSTBDODropdowns();
-  sv('isc-st',isc.stId||'');sv('isc-bdo',isc.bdoId||'');
+  sv('isc-st',isc.stId||'');sv('isc-bdo',isc.bdoId||'');sv('isc-asm',isc.asmId||'');
   // Show dealer tags
   const tags=document.getElementById('isc-dealer-tags');
   tags.innerHTML='';
@@ -4945,6 +4976,7 @@ async function populateSTBDODropdowns() {
   const sts=await DATA_getSTs(), bdos=await DATA_getBDOs();
   document.getElementById('isc-st').innerHTML='<option value="">— Select ST —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   document.getElementById('isc-bdo').innerHTML='<option value="">— Select BDO —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  await populateASMDropdown('isc-asm');
 }
 
 // Adds a removable "dealer code" chip to the create/edit ISC form and syncs the hidden comma-separated field.
@@ -5025,6 +5057,7 @@ async function populateSelectModeMappingDropdowns() {
     if(stSel) stSel.innerHTML='<option value="">— Select ST (optional) —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
     if(bdoSel) bdoSel.innerHTML='<option value="">— Select BDO (optional) —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
     await populateRegionDropdown('isc-region-select');
+    await populateASMDropdown('isc-asm-select');
     prefillSelfMapping('isc-st-select','isc-bdo-select','isc-region-select');
   } catch(e) { console.warn('Could not load ST/BDO dropdowns:', e.message); }
 }
@@ -5065,6 +5098,7 @@ async function saveISC() {
     const region = gv('isc-region-select');
     const dealerCodes = gv('isc-dealer-codes-select').trim();
     if (!selectedId) return showToast('⚠️ Please search and select an ISC first');
+    if (!gv('isc-asm-select')) return showToast('⚠️ Please select the ASM this ISC reports to');
     if (!region) return showToast('⚠️ Please select a Region');
     setLoading(true,'Assigning ISC to your team...');
     try {
@@ -5072,7 +5106,7 @@ async function saveISC() {
       const st=sts.find(s=>s.id===stId), bdo=bdos.find(b=>b.id===bdoId);
       const isc = _allISCsForSearch.find(i=>i.id===selectedId);
       if (!isc) { showToast('⚠️ ISC not found'); return; }
-      const owner = iscOwnerASMFields();
+      const owner = (await selectedASMFields('isc-asm-select')) || iscOwnerASMFields();
       await DATA_updateISC(selectedId, {
         ...owner,
         stId:stId||'', stName:st?.name||'',
@@ -5097,18 +5131,20 @@ async function saveISC() {
   const name=gv('isc-name').trim(),empNo=gv('isc-empno').trim(),phone=gv('isc-phone').trim(),email=gv('isc-email').trim(),
         username=gv('isc-username').trim()||empNo,password=gv('isc-password').trim()||empNo;
   if (!name||!phone||!email||!username||!password||!region) return showToast('⚠️ Please fill Name, Phone, Email, Username, Password and Region');
+  if (!editId && !gv('isc-asm')) return showToast('⚠️ Please select the ASM this ISC reports to');
   setLoading(true,'Saving ISC account...');
   try {
     const sts=await DATA_getSTs(),bdos=await DATA_getBDOs();
     const st=sts.find(s=>s.id===stId),bdo=bdos.find(b=>b.id===bdoId);
+    const owner = await selectedASMFields('isc-asm');   // chosen "Reports to" ASM (create + edit)
     if (editId) {
-      await DATA_updateISC(editId,{name,empNo,phone,email,username,password,stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes});
+      await DATA_updateISC(editId,{name,empNo,phone,email,username,password,stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes,...(owner||{})});
       showToast('✅ ISC account updated!');
     } else {
       const iscs=await DATA_getISCs();
       if (iscs.find(i=>(i.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
       await DATA_addISC({id:'isc_'+Date.now(),name,empNo,phone,email,
-        ...iscOwnerASMFields(),
+        ...(owner || iscOwnerASMFields()),
         stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes,
         username,password,role:'isc',status:'Active',createdAt:new Date().toISOString()});
       showToast('✅ ISC account created!');
