@@ -1024,7 +1024,7 @@
           <button class="collapse-btn open" id="toggle-contacts">▼</button>
         </div>
       </div>
-      <div class="collapsible-body" id="body-contacts" style="max-height:9999px">
+      <div class="collapsible-body" id="body-contacts" style="max-height:none">
         <div class="section-body">
           <div class="alert alert-info" style="margin-bottom:12px">📇 Aggregated from site visit entries — Contractors, Painters, Dealers & Customers. Sort by activity or value to spot top influencers.</div>
           <input type="text" class="form-input" id="contacts-search" placeholder="🔍 Search by name, phone, region..." style="margin-bottom:10px" oninput="renderContactDirectory()">
@@ -1066,6 +1066,19 @@
       </div>
     </div>
 
+    <!-- DATA HEALTH CHECK (AI) — scans the master sheets for broken hierarchy references,
+         duplicates and name mismatches via the separate mrf-ai worker (see worker-ai/). -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">🩺 Data Health Check <span style="font-size:11px;color:var(--gray);font-weight:400">AI-assisted</span></div>
+        <button class="btn-sm btn-blue" onclick="runDataHealthCheck()">▶ Run Check</button>
+      </div>
+      <div class="section-body">
+        <div style="font-size:12px;color:var(--gray)">Scans the Users, STs, BDOs, ASMs &amp; RSMs sheets for broken mappings, duplicate ids/usernames and name mismatches — the data problems that make people invisible in the app — and asks Claude to prioritise what to fix first.</div>
+        <div id="dh-results" style="margin-top:10px"></div>
+      </div>
+    </div>
+
     <!-- VACANT POSITIONS — every currently-open seat across RSM/ASM/ST/BDO, so a departure with no
          immediate successor never gets lost in the regular per-role lists. One click here fills it. -->
     <div class="section-card">
@@ -1075,7 +1088,7 @@
           <button class="collapse-btn open" id="toggle-vacant">▼</button>
         </div>
       </div>
-      <div class="collapsible-body" id="body-vacant" style="max-height:9999px">
+      <div class="collapsible-body" id="body-vacant" style="max-height:none">
         <div class="section-body"><div id="vacant-list"></div></div>
       </div>
     </div>
@@ -1103,7 +1116,7 @@
           <button class="collapse-btn open" id="toggle-asms">▼</button>
         </div>
       </div>
-      <div class="collapsible-body" id="body-asms" style="max-height:9999px">
+      <div class="collapsible-body" id="body-asms" style="max-height:none">
         <div class="section-body"><div id="asm-list"></div></div>
       </div>
     </div>
@@ -2036,6 +2049,40 @@ async function adminEnsureAttendanceSheet() {
 // a server-side API key/secret (e.g. appending rows) rather than the
 // client-side Google API key alone.
 const WORKER_URL = 'https://mrf-isc-tracker.jofran81.workers.dev';
+// Separate AI worker (worker-ai/ in this repo) — deploy with wrangler, then update if the URL differs.
+const AI_WORKER_URL = 'https://mrf-ai.jofran81.workers.dev';
+
+// Admin "Data Health Check": asks the AI worker to scan the master sheets for broken
+// mappings/duplicates and render Claude's prioritised summary plus the raw findings.
+async function runDataHealthCheck() {
+  const el = document.getElementById('dh-results');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--gray);font-size:13px">⏳ Scanning sheets &amp; asking Claude...</div>';
+  try {
+    const r = await fetch(AI_WORKER_URL + '/api/ai/hygiene', {
+      method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ userId: (currentUser && currentUser.id) || 'admin' }),
+    });
+    const d = await r.json();
+    if (!r.ok && !(d.issues||[]).length) throw new Error(d.error || ('HTTP '+r.status));
+    const sevColor = {high:'#991b1b', medium:'#92400e', low:'#555'};
+    const sevLabel = {high:'🔴 High — fix first', medium:'🟠 Medium', low:'⚪ Low / cosmetic'};
+    let html = '';
+    if (d.summary) html += `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;font-size:13px;line-height:1.55;margin-bottom:12px">🤖 ${escapeHtml(d.summary)}</div>`;
+    if (d.totals) html += `<div style="font-size:11px;color:var(--gray);margin-bottom:10px">Scanned: ${d.totals.ISCs} ISCs · ${d.totals.STs} STs · ${d.totals.BDOs} BDOs · ${d.totals.ASMs} ASMs · ${d.totals.RSMs} RSMs</div>`;
+    if (!(d.issues||[]).length) { el.innerHTML = html + '<div style="color:#065f46;font-weight:600;font-size:13px">✅ No issues found — mappings look healthy</div>'; return; }
+    ['high','medium','low'].forEach(s=>{
+      const list = d.issues.filter(i=>i.severity===s);
+      if (!list.length) return;
+      html += `<div style="font-size:12px;font-weight:700;color:${sevColor[s]};margin:12px 0 6px">${sevLabel[s]} (${list.length})</div>`;
+      html += list.slice(0,60).map(i=>`<div style="font-size:12px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;margin-bottom:5px"><strong>${escapeHtml(i.sheet)}</strong> · ${escapeHtml(i.name||i.id||'')} — ${escapeHtml(i.problem)}</div>`).join('');
+      if (list.length>60) html += `<div style="font-size:11px;color:var(--gray);margin-bottom:6px">+${list.length-60} more in this severity</div>`;
+    });
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-error">Could not run check: ${escapeHtml(e.message)}<br><span style="font-size:11px">Is the mrf-ai worker deployed? See worker-ai/README.md for the one-time setup.</span></div>`;
+  }
+}
 
 // ── OFFLINE SYNC ──────────────────────────────
 async function syncOfflineEntries() {
