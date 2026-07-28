@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.15</div>
+        <div class="auth-tagline">FIELD ONE · v4.16</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2052,6 +2052,33 @@ const WORKER_URL = 'https://mrf-isc-tracker.jofran81.workers.dev';
 // Separate AI worker (worker-ai/ in this repo) — deploy with wrangler, then update if the URL differs.
 const AI_WORKER_URL = 'https://mrf-ai.jofran81.workers.dev';
 
+// AI pre-save check for site entries. Fails OPEN in every case (AI down, over budget,
+// slow, network error) — a field save must never be blocked by the AI layer.
+async function aiValidateEntry(entry) {
+  try {
+    // Send only the fields the checker looks at — keeps the prompt small and cheap
+    const slim = {
+      customer:entry.customer, custPhone:entry.custPhone, siteName:entry.siteName, address:entry.address,
+      area:entry.area, siteValue:entry.siteValue, leadDate:entry.leadDate, sampleDate:entry.sampleDate,
+      paintDate:entry.paintDate, conversionDate:entry.conversionDate, status:entry.status,
+      dealerCode:entry.dealerCode, dealerName:entry.dealerName, competitor:entry.competitor,
+      contractor:entry.contractor, contractorPhone:entry.contractorPhone,
+      painter:entry.painter, painterPhone:entry.painterPhone,
+    };
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), 8000);   // never delay a save more than 8s
+    const r = await fetch(AI_WORKER_URL + '/api/ai/validate-entry', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ userId:(currentUser&&currentUser.id)||'isc', entry:slim }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d.warnings) ? d.warnings : [];
+  } catch(_) { return []; }
+}
+
 // Admin "Data Health Check": asks the AI worker to scan the master sheets for broken
 // mappings/duplicates and render Claude's prioritised summary plus the raw findings.
 async function runDataHealthCheck() {
@@ -2064,7 +2091,7 @@ async function runDataHealthCheck() {
       body: JSON.stringify({ userId: (currentUser && currentUser.id) || 'admin' }),
     });
     const d = await r.json();
-    if (!r.ok && !(d.issues||[]).length) throw new Error(d.error || ('HTTP '+r.status));
+    if (!r.ok && !(d.issues||[]).length) throw new Error((d.error || ('HTTP '+r.status)) + (d.detail ? ' — ' + d.detail : ''));
     const sevColor = {high:'#991b1b', medium:'#92400e', low:'#555'};
     const sevLabel = {high:'🔴 High — fix first', medium:'🟠 Medium', low:'⚪ Low / cosmetic'};
     let html = '';
@@ -4644,6 +4671,18 @@ async function saveEntry() {
       await DATA_updateEntry(editId,{...entryData, updatedAt:new Date().toISOString()});
       showToast('✅ Entry updated!');
     } else {
+      // AI sanity check on NEW entries only (edits skipped to conserve the daily AI budget).
+      // Non-blocking: warnings only ask "Save anyway?" — and if AI is unreachable, saves proceed silently.
+      setLoading(true,'Checking entry...');
+      const warnings = await aiValidateEntry(entryData);
+      if (warnings.length) {
+        setLoading(false);
+        const msg = '🤖 Possible issues in this entry:\n\n'
+          + warnings.map(w=>`• ${w.field ? w.field+': ' : ''}${w.issue}`).join('\n')
+          + '\n\nSave anyway?';
+        if (!confirm(msg)) return;   // back to the form to fix
+        setLoading(true,'Saving...');
+      }
       await DATA_addEntry({id:'E'+Date.now(), iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, createdAt:new Date().toISOString()});
       showToast('✅ Site entry saved!');
     }
