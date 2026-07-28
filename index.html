@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.16</div>
+        <div class="auth-tagline">FIELD ONE · v4.17</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -955,6 +955,14 @@
       </div>
     </div>
     <div class="page-subtitle" id="dash-subtitle">Loading...</div>
+    <!-- Weekly AI Brief — ASM/RSM only; generated on demand via the mrf-ai worker -->
+    <div id="ai-brief-card" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="font-weight:700;font-size:14px;color:var(--dark)">✨ Weekly AI Brief <span style="font-size:11px;color:var(--gray);font-weight:400">last 7 days</span></div>
+        <button class="btn-sm btn-blue" id="ai-brief-btn" onclick="generateWeeklyBrief()">Generate</button>
+      </div>
+      <div id="ai-brief-body" style="font-size:13px;line-height:1.6;margin-top:8px;color:#1f2937;white-space:pre-wrap"></div>
+    </div>
     <div id="dash-content"></div>
   </div>
 
@@ -2077,6 +2085,105 @@ async function aiValidateEntry(entry) {
     const d = await r.json();
     return Array.isArray(d.warnings) ? d.warnings : [];
   } catch(_) { return []; }
+}
+
+// ── Weekly AI Brief (ASM / RSM dashboards) ──
+// Aggregates the last 7 days of the manager's OWN scope client-side (numbers computed
+// here, not by the model), then asks the AI worker's /generate endpoint for a short
+// narrative. Result is cached per day in localStorage so repeat dashboard visits are free.
+function _aiBriefCacheKey(){ return 'ai_brief_'+String(currentUser.id||'x'); }
+
+function showCachedBriefIfAny() {
+  const card=document.getElementById('ai-brief-card');
+  if (!card) return;
+  const show = ['asm','rsm'].includes(currentUser.role);
+  card.style.display = show ? '' : 'none';
+  if (!show) return;
+  const cached = LDB.get(_aiBriefCacheKey());
+  const body=document.getElementById('ai-brief-body'), btn=document.getElementById('ai-brief-btn');
+  if (cached && cached.date===todayStr() && cached.text) {
+    body.textContent = cached.text;
+    btn.textContent = '↻ Regenerate';
+  } else {
+    body.innerHTML = '<span style="color:var(--gray)">Tap Generate for a summary of your team\'s week — visits, attendance, stale sites and what to chase.</span>';
+    btn.textContent = 'Generate';
+  }
+}
+
+async function generateWeeklyBrief() {
+  const body=document.getElementById('ai-brief-body'), btn=document.getElementById('ai-brief-btn');
+  btn.disabled=true;
+  body.innerHTML='<span style="color:var(--gray)">⏳ Reading your team\'s week & writing the brief...</span>';
+  try {
+    const since=(()=>{const d=new Date();d.setDate(d.getDate()-6);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
+    const today=todayStr();
+    const scope=await scopedISCIdSet();
+    const [entriesAll, attAll, stVisits, bdoVisits, sts, bdos, asms] = await Promise.all([
+      DATA_getEntries(), DATA_getAttendance(), DATA_getSTVisits(), DATA_getBDOVisits(), DATA_getST(), DATA_getBDO(), DATA_getASMs()]);
+    const entries = scope ? entriesAll.filter(e=>scope.has(String(e.iscId))) : entriesAll;
+    const att = scope ? attAll.filter(a=>scope.has(String(a.iscId))) : attAll;
+
+    // Team employees (ST/SE/BDO/BDE) in this manager's scope
+    let team=[];
+    if (currentUser.role==='asm') team=[...sts,...bdos].filter(p=>String(p.asmId||'')===String(currentUser.id));
+    else if (currentUser.role==='rsm') { const my=new Set(asms.filter(a=>String(a.rsmId||'')===String(currentUser.id)).map(a=>String(a.id))); team=[...sts,...bdos].filter(p=>my.has(String(p.asmId||''))); }
+    team=team.filter(p=>String(p.status||'Active')!=='Inactive');
+    const teamIds=new Set(team.map(p=>String(p.id)));
+    const visits=[...stVisits,...bdoVisits].filter(v=>teamIds.has(String(v.empId)) && String(v.visitDate||'')>=since);
+
+    // Deterministic aggregates — the model narrates, it doesn't count
+    const weekEntries=entries.filter(e=>String(e.createdAt||'').slice(0,10)>=since);
+    const sc=siteStatusCounts(weekEntries);
+    const weekValue=weekEntries.reduce((s,e)=>s+Number(e.siteValue||0),0);
+    const cutoff=(()=>{const d=new Date();d.setDate(d.getDate()-14);return d.toISOString().slice(0,10);})();
+    const stalePending=entries.filter(e=>siteStatusKey(e.status)==='Pending' && String(e.createdAt||'').slice(0,10)<cutoff).length;
+    const weekAtt=att.filter(a=>String(a.date||'')>=since);
+    const presentDays=weekAtt.filter(a=>a.status==='Present').length;
+    const markedToday=new Set(att.filter(a=>a.date===today).map(a=>String(a.iscId)));
+    const unmarkedToday=scope?[...scope].filter(id=>!markedToday.has(id)).length:0;
+    const perISC={}; weekEntries.forEach(e=>{perISC[e.iscName||'?']=(perISC[e.iscName||'?']||0)+1;});
+    const topISCs=Object.entries(perISC).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=>`${n} (${c})`);
+    const activeISCIds=new Set(weekEntries.map(e=>String(e.iscId)));
+    const idleISCs=scope?[...scope].filter(id=>!activeISCIds.has(id)).length:0;
+    const visitsByType={}; visits.forEach(v=>{visitsByType[v.activityType||'?']=(visitsByType[v.activityType||'?']||0)+1;});
+    const activeEmp=new Set(visits.map(v=>String(v.empId)));
+    const idleTeam=team.filter(p=>!activeEmp.has(String(p.id))).map(p=>`${p.name} (${(p.role||'').toUpperCase()})`).slice(0,10);
+    const comp={}; weekEntries.forEach(e=>{const c=(e.competitor||'').trim(); if(c) comp[c]=(comp[c]||0)+1;});
+    let remarks=[...weekEntries.map(e=>e.remarks),...visits.map(v=>v.remarks)].filter(r=>r&&r.trim()).map(r=>String(r).slice(0,90)).slice(0,12);
+
+    const stats={
+      manager:{name:currentUser.name, role:currentUser.role.toUpperCase(), region:currentUser.region||''},
+      window:{from:since, to:today},
+      sites:{newThisWeek:weekEntries.length, converted:sc.Confirmed, pending:sc.Pending, notConverted:sc.NotConverted,
+             estValueINR:weekValue, topISCs, iscsWithNoEntries:idleISCs, totalISCs:scope?scope.size:0, stalePendingOver14Days:stalePending},
+      attendance:{presentDaysThisWeek:presentDays, records:weekAtt.length, unmarkedToday},
+      teamFieldActivity:{teamSize:team.length, visitsByType, membersWithZeroVisits:idleTeam},
+      competitorMentions:comp,
+      sampleRemarks:remarks,
+    };
+    let prompt=JSON.stringify(stats);
+    while (prompt.length>7000 && remarks.length) { remarks=remarks.slice(0,remarks.length-3); stats.sampleRemarks=remarks; prompt=JSON.stringify(stats); }
+
+    const system=[
+      'You write a weekly field-team brief for a manager at MRF Vapocure Paints (India).',
+      'Input JSON contains pre-computed stats for the last 7 days of THEIR team only: site entries by ISCs,',
+      'employee field visits, attendance, stale pipeline, competitor mentions and sample visit remarks.',
+      'Write plain text, no markdown symbols, 120-200 words, exactly 3 short paragraphs:',
+      '1) The week in numbers - wins first. 2) Concerns - inactive people, attendance gaps, stale pending sites,',
+      'competitor pressure. 3) Three concrete follow-up actions for next week. Use names from the data where available.',
+      'Do not invent numbers that are not in the input.',
+    ].join('\n');
+
+    const r=await fetch(AI_WORKER_URL+'/api/ai/generate',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({userId:String(currentUser.id||'mgr'), system, prompt})});
+    const d=await r.json();
+    if (!r.ok || !d.text) throw new Error(d.error||('HTTP '+r.status));
+    body.textContent=d.text.trim();
+    LDB.set(_aiBriefCacheKey(), {date:today, text:d.text.trim()});
+    btn.textContent='↻ Regenerate';
+  } catch(e) {
+    body.innerHTML=`<span style="color:#991b1b">Could not generate: ${escapeHtml(e.message)}</span>`;
+  } finally { btn.disabled=false; }
 }
 
 // Admin "Data Health Check": asks the AI worker to scan the master sheets for broken
@@ -6058,6 +6165,7 @@ function funnelBar(label, val, total, color) {
 // filtered to the selected period, and turned into KPI cards/bars below.
 async function renderDashboard() {
   setLoading(true,'Loading dashboard...');
+  showCachedBriefIfAny();   // Weekly AI Brief card (ASM/RSM only)
   const el = document.getElementById('dash-content');
   const role = currentUser.role;
   const periodLabel = _dashPeriod==='week'?'This Week':_dashPeriod==='month'?'This Month':'All Time';
