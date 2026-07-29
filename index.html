@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.19</div>
+        <div class="auth-tagline">FIELD ONE · v4.20</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2602,6 +2602,9 @@ function activitySheetFor(user) {
   return user.isST ? 'ST_Visits' : 'BDO_Visits';
 }
 
+// Shared name comparator so every people dropdown lists alphabetically
+const byName = (a,b)=>String(a.name||'').localeCompare(String(b.name||''));
+
 // ── ROLE SCOPING ──
 // The set of ISC ids the current user may see, resolved LIVE from the Users sheet — never from
 // ids stamped on old records, which go stale when an ISC is reassigned. Returns null for admin
@@ -3143,7 +3146,8 @@ function actSearchInput() {
   const q = document.getElementById('act-search').value.trim().toLowerCase();
   const box = document.getElementById('act-search-results');
   if (q.length < 2) { box.style.display='none'; return; }
-  const matches = _actPeople.map((p,idx)=>({p,idx})).filter(x=>String(x.p.name||'').toLowerCase().includes(q)).slice(0,12);
+  const matches = _actPeople.map((p,idx)=>({p,idx})).filter(x=>String(x.p.name||'').toLowerCase().includes(q))
+    .sort((a,b)=>String(a.p.name||'').localeCompare(String(b.p.name||''))).slice(0,12);
   if (!matches.length) { box.innerHTML = `<div style="padding:12px;color:#999;font-size:13px">No matching employee found</div>`; box.style.display='block'; return; }
   box.innerHTML = matches.map(x=>`<div onclick="actSelectPerson(${x.idx})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px"><strong>${x.p.name}</strong> <span style="color:#999">· ${x.p._role}${x.p.region?' · '+x.p.region:''}</span></div>`).join('');
   box.style.display='block';
@@ -3573,7 +3577,7 @@ async function loadJointPeople() {
 
 function fillJointSelect(people, currentId) {
   const sel = document.getElementById('aj-person');
-  sel.innerHTML = '<option value="">— Select —</option>' + people.map(p=>
+  sel.innerHTML = '<option value="">— Select —</option>' + [...people].sort(byName).map(p=>
     `<option value="${escapeHtml(String(p.id))}">${escapeHtml(p.role)} — ${escapeHtml(p.name||'(no name)')}</option>`).join('');
   if (currentId) sel.value = String(currentId);
 }
@@ -3750,7 +3754,8 @@ function renderPartyOptions() {
     if (!q) return true;
     const p = masterToParty(type, r);
     return [p.name,p.firm,p.code,p.mobile].some(v=>String(v||'').toLowerCase().includes(q));
-  }).slice(0, 200);   // cap the rendered list — the search box is how you narrow a long master
+  }).sort((a,b)=>String(masterToParty(type,a).name||'').localeCompare(String(masterToParty(type,b).name||'')))
+    .slice(0, 200);   // cap the rendered list — the search box is how you narrow a long master
   if (!matches.length) { sel.innerHTML = '<option value="" disabled>No matches</option>'; return; }
   sel.innerHTML = matches.map(r=>{
     const p = masterToParty(type, r);
@@ -5049,7 +5054,7 @@ function searchISCDropdown() {
     String(i.username||'').includes(q) ||
     (i.region||'').toLowerCase().includes(q) ||
     (i.location||'').toLowerCase().includes(q)
-  ).slice(0, 15);
+  ).sort(byName).slice(0, 15);
   if (!matches.length) {
     results.style.display='block';
     results.innerHTML=`<div style="padding:12px;font-size:13px;color:var(--gray)">No ISCs found. Try a different search.</div>`;
@@ -5174,8 +5179,8 @@ async function showEditISCModal(id) {
 // Fills the "create ISC" form's ST and BDO <select> dropdowns from the full ST/BDO lists.
 async function populateSTBDODropdowns() {
   const sts=await DATA_getSTs(), bdos=await DATA_getBDOs();
-  document.getElementById('isc-st').innerHTML='<option value="">— Select ST —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  document.getElementById('isc-bdo').innerHTML='<option value="">— Select BDO —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  document.getElementById('isc-st').innerHTML='<option value="">— Select ST —</option>'+[...sts].sort(byName).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('isc-bdo').innerHTML='<option value="">— Select BDO —</option>'+[...bdos].sort(byName).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
   await populateASMDropdown('isc-asm');
 }
 
@@ -5254,8 +5259,8 @@ async function populateSelectModeMappingDropdowns() {
     const sts=await DATA_getSTs(), bdos=await DATA_getBDOs();
     const stSel=document.getElementById('isc-st-select');
     const bdoSel=document.getElementById('isc-bdo-select');
-    if(stSel) stSel.innerHTML='<option value="">— Select ST (optional) —</option>'+sts.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-    if(bdoSel) bdoSel.innerHTML='<option value="">— Select BDO (optional) —</option>'+bdos.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+    if(stSel) stSel.innerHTML='<option value="">— Select ST (optional) —</option>'+[...sts].sort(byName).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    if(bdoSel) bdoSel.innerHTML='<option value="">— Select BDO (optional) —</option>'+[...bdos].sort(byName).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
     await populateRegionDropdown('isc-region-select');
     await populateASMDropdown('isc-asm-select');
     prefillSelfMapping('isc-st-select','isc-bdo-select','isc-region-select');
@@ -5618,7 +5623,7 @@ async function openAssignRSMModal(asmId, asmName, currentRsmId) {
   sel.innerHTML = `<option value="">— Select RSM —</option>`;
   try {
     const rsms = await DATA_getRSMs();
-    rsms.forEach(r=>{
+    [...rsms].sort(byName).forEach(r=>{
       const opt=document.createElement('option');
       opt.value=r.id; opt.textContent=r.name+(r.region?' ('+r.region+')':'');
       if(r.id===currentRsmId) opt.selected=true;
@@ -5669,7 +5674,7 @@ async function renderRSMSites(filter='all') {
     const asmSel=document.getElementById('rsm-asm-filter');
     const selVal=asmSel?asmSel.value:'';
     if(asmSel){
-      asmSel.innerHTML=`<option value="">👥 All ASMs</option>`+myAsms.map(a=>`<option value="${a.id}" ${a.id===selVal?'selected':''}>${a.name}</option>`).join('');
+      asmSel.innerHTML=`<option value="">👥 All ASMs</option>`+[...myAsms].sort(byName).map(a=>`<option value="${a.id}" ${a.id===selVal?'selected':''}>${a.name}</option>`).join('');
     }
     // Apply filters
     let shown=all.filter(e=>matchesSiteStatus(e.status, filter));
@@ -5758,7 +5763,7 @@ async function openAddAsmModal() {
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
     const rsms = await DATA_getRSMs();
-    rsms.filter(r=>String(r.status||'Active')!=='Inactive').forEach(r=>{
+    rsms.filter(r=>String(r.status||'Active')!=='Inactive').sort(byName).forEach(r=>{
       const opt=document.createElement('option'); opt.value=r.id; opt.textContent=r.name+(r.region?' ('+r.region+')':''); sel.appendChild(opt);
     });
   } catch(e){}
@@ -5772,7 +5777,7 @@ async function openAddSTModal() {
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
     const asms = await DATA_getASMs();
-    asms.filter(a=>String(a.status||'Active')!=='Inactive').forEach(a=>{
+    asms.filter(a=>String(a.status||'Active')!=='Inactive').sort(byName).forEach(a=>{
       const opt=document.createElement('option'); opt.value=a.id; opt.textContent=a.name; sel.appendChild(opt);
     });
   } catch(e){}
@@ -5787,7 +5792,7 @@ async function openAddBDOModal() {
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
     const asms = await DATA_getASMs();
-    asms.filter(a=>String(a.status||'Active')!=='Inactive').forEach(a=>{
+    asms.filter(a=>String(a.status||'Active')!=='Inactive').sort(byName).forEach(a=>{
       const opt=document.createElement('option'); opt.value=a.id; opt.textContent=a.name; sel.appendChild(opt);
     });
   } catch(e){}
@@ -5944,7 +5949,7 @@ async function openDeactivateModal(role, id, name) {
   sel.innerHTML = `<option value="${VACANT_SENTINEL}">— Leave vacant for now —</option>`;
   try {
     const people = await ROLE_GETTER[role]();
-    people.filter(p=>p.id!==id && String(p.status||'Active')==='Active').forEach(p=>{
+    people.filter(p=>p.id!==id && String(p.status||'Active')==='Active').sort(byName).forEach(p=>{
       const opt=document.createElement('option'); opt.value=p.id; opt.textContent=p.name; sel.appendChild(opt);
     });
   } catch(e){ showToast('⚠️ Could not load replacement list'); return; }
@@ -5973,7 +5978,7 @@ async function openFillModal(role, id, name) {
   sel.innerHTML = '<option value="">— Select —</option>';
   try {
     const people = await ROLE_GETTER[role]();
-    people.filter(p=>p.id!==id && String(p.status||'Active')==='Active').forEach(p=>{
+    people.filter(p=>p.id!==id && String(p.status||'Active')==='Active').sort(byName).forEach(p=>{
       const opt=document.createElement('option'); opt.value=p.id; opt.textContent=p.name; sel.appendChild(opt);
     });
   } catch(e){ showToast('⚠️ Could not load candidate list'); return; }
