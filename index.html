@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.17</div>
+        <div class="auth-tagline">FIELD ONE · v4.18</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -5363,7 +5363,7 @@ async function toggleISCStatus(id,newStatus) {
   try {
     await DATA_updateISC(id,updates);
     showToast(`✅ ISC ${newStatus==='Inactive'?'deactivated':'activated'}!`);
-    renderMyISCs();
+    refreshISCViews();
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
 }
@@ -5461,12 +5461,29 @@ function renderAdminISCListFiltered(filter='all') {
           <div class="entry-name">${isc.name}</div>
           <div class="entry-sub">👤 @${isc.username} · 🗺️ ${isc.region||'—'} · 📍 ${isc.location||'—'}</div>
           ${isc.phone?`<div class="entry-sub">📞 ${isc.phone}</div>`:''}
-          ${isc.asmName?`<div class="entry-sub">ASM: ${isc.asmName}</div>`:''}
+          ${isc.asmName?`<div class="entry-sub">ASM: ${isc.asmName}${isc.stName?' · ST: '+isc.stName:''}${!isActive&&isc.relievedDate?' · left '+isc.relievedDate:''}</div>`:''}
         </div>
-        <span class="status-badge ${isActive?'badge-active':'badge-inactive'}">${isActive?'● Active':'● Inactive'}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <span class="status-badge ${isActive?'badge-active':'badge-inactive'}">${isActive?'● Active':'● Inactive'}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn-sm btn-blue" onclick="adminEditISC('${escapeHtml(String(isc.id))}')">✏️ Edit</button>
+            ${isActive
+              ? `<button class="btn-sm btn-red" onclick="toggleISCStatus('${escapeHtml(String(isc.id))}','Inactive')">🔴 Deactivate</button>`
+              : `<button class="btn-sm btn-green" onclick="toggleISCStatus('${escapeHtml(String(isc.id))}','Active')">🟢 Activate</button>`}
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');
+}
+
+// Admin edit: the shared edit modal looks records up in _iscCache (the ASM view's cache),
+// so make sure the record is present there before opening it.
+function adminEditISC(id) {
+  const rec = _adminISCCache.find(i=>String(i.id)===String(id));
+  if (!rec) return showToast('⚠️ ISC not found');
+  if (!_iscCache.find(i=>String(i.id)===String(id))) _iscCache.push(rec);
+  showEditISCModal(id);
 }
 
 // Status filter pill handler for the Admin ISC list.
