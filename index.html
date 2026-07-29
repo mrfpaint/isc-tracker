@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.18</div>
+        <div class="auth-tagline">FIELD ONE · v4.19</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -5133,6 +5133,7 @@ async function showCreateISCModal() {
   document.getElementById('isc-selected-preview').style.display='none';
   document.getElementById('isc-search-results').style.display='none';
   document.getElementById('modal-isc-title').textContent='Add ISC to My Team';
+  document.getElementById('isc-mode-selector').style.display='flex';   // restore chooser (edit mode hides it)
   setISCMode('select');
   // Load dropdowns + ISC list; try/finally guarantees the loading overlay always closes
   setLoading(true,'Loading ISC list...');
@@ -5155,6 +5156,12 @@ async function showEditISCModal(id) {
   await populateRegionDropdown('isc-region');
   sv('isc-edit-id',id);sv('isc-name',isc.name);sv('isc-empno',isc.empNo||isc.username||'');sv('isc-phone',isc.phone);sv('isc-email',isc.email);sv('isc-username',isc.username);sv('isc-password',isc.password);sv('isc-region',isc.region||'');sv('isc-dealer-codes',isc.dealerCodes||'');
   document.getElementById('modal-isc-title').textContent='Edit ISC Account';
+  // Edit mode always shows the pre-filled form — never the "search & select" screen
+  // (whose pool is unassigned ISCs only), and the new/existing chooser makes no sense here.
+  document.getElementById('isc-mode-selector').style.display='none';
+  setISCMode('create');
+  const saveBtn=document.getElementById('btn-save-isc');
+  if (saveBtn) saveBtn.textContent='Save Changes';
   await populateSTBDODropdowns();
   sv('isc-st',isc.stId||'');sv('isc-bdo',isc.bdoId||'');sv('isc-asm',isc.asmId||'');
   // Show dealer tags
