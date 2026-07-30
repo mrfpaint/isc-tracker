@@ -2720,6 +2720,25 @@ async function DATA_getAttendance(iscId=null) {
       const remoteIds = new Set(remote.map(r=>r.id));
       const localOnly = local.filter(r=>!remoteIds.has(r.id));
       rows = [...remote, ...localOnly];
+      // SELF-HEAL: any of MY recent local records that are missing from the server
+      // AND not in the offline queue mean an earlier background write was lost
+      // (e.g. app killed mid-request before the queue-first fix). Re-queue them.
+      try {
+        if (typeof currentUser==='object' && currentUser && currentUser.id!=null && !currentUser.viewOnly) {
+          const qIds = new Set(LDB.arr('attendance_offline_queue').map(r=>r.id));
+          const cutoff = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+          const twoMinAgo = Date.now()-2*60*1000;   // skip records whose write may still be in flight
+          const lost = localOnly.filter(r=> String(r.iscId)===String(currentUser.id)
+            && r.date>=cutoff && !qIds.has(r.id)
+            && (!r.createdAt || Date.parse(r.createdAt)<twoMinAgo));
+          if (lost.length) {
+            const q = LDB.arr('attendance_offline_queue'); q.push(...lost);
+            LDB.set('attendance_offline_queue', q);
+            console.warn(`Self-heal: re-queued ${lost.length} lost attendance record(s)`);
+            setTimeout(autoSyncAttendanceQueue, 500);
+          }
+        }
+      } catch(_) { /* self-heal is best-effort */ }
     } else {
       rows = local;
     }
@@ -2757,8 +2776,14 @@ async function syncOfflineAttendance() {
   if (!queue.length) { showToast('✅ No pending attendance to sync!'); return; }
   if (!isConfigured()) { showToast('⚠️ Google Sheets not configured.'); return; }
   setLoading(true, `Syncing ${queue.length} attendance records...`);
+  // DUPLICATE GUARD: a queued record may already be on the server (write succeeded
+  // but the app closed before it was dequeued). Check before appending.
+  let _remoteIds = new Set();
+  try { _remoteIds = new Set((await sheetsGet('Attendance')).map(r=>r.id)); }
+  catch(e) { setLoading(false); showToast('⚠️ Cannot reach server — try again later.'); return; }
   let synced = 0; const remaining = [];
   for (const record of queue) {
+    if (_remoteIds.has(record.id)) { synced++; continue; }  // already on server — just drop from queue
     try {
       const row = ATTENDANCE_HEADERS.map(h=>String(record[h]??''));
       const wresp = await fetch(`${WORKER_URL}/sheets/append`, {
@@ -3016,8 +3041,14 @@ function doSignOut() {
 async function autoSyncAttendanceQueue() {
   const queue = LDB.arr('attendance_offline_queue');
   if (!queue.length || !isConfigured() || !navigator.onLine) return;
+  // DUPLICATE GUARD: a queued record may already be on the server (write succeeded
+  // but the app closed before it was dequeued). Check before appending.
+  let _remoteIds;
+  try { _remoteIds = new Set((await sheetsGet('Attendance')).map(r=>r.id)); }
+  catch(e) { return; }  // can't verify — don't risk duplicates, retry next time
   let synced = 0; const remaining = [];
   for (const record of queue) {
+    if (_remoteIds.has(record.id)) { synced++; continue; }  // already on server — just drop from queue
     try {
       const row = ATTENDANCE_HEADERS.map(h=>String(record[h]??''));
       const wresp = await fetch(`${WORKER_URL}/sheets/append`, {
@@ -6663,22 +6694,31 @@ function updateAttendanceUIImmediately(record) {
   setTimeout(() => renderMyAttendance(), 3000);
 }
 
-// Background write of one attendance record to the Sheet; on any failure it queues the record for retry and turns the offline banner red/persistent so it can't be missed.
+// Background write of one attendance record to the Sheet.
+// QUEUE-FIRST: the record is parked in the offline queue BEFORE the request is sent.
+// If the app is closed / phone locked mid-request (very common right after tapping ✅),
+// the catch block never runs — but the record survives in the queue and
+// autoSyncAttendanceQueue() pushes it on the next app open. Nothing is silently lost.
 async function DATA_addAttendanceToSheets(record) {
   if (!isConfigured()) return;
+  const q0 = LDB.arr('attendance_offline_queue');
+  if (!q0.find(r=>r.id===record.id)) { q0.push(record); LDB.set('attendance_offline_queue', q0); }
   try {
     const row = ATTENDANCE_HEADERS.map(h=>String(record[h]??''));
     const wresp = await fetch(`${WORKER_URL}/sheets/append`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sheet:'Attendance', row})
+      body:JSON.stringify({sheet:'Attendance', row}),
+      keepalive:true   // let the browser finish this request even if the tab/app closes
     });
     if (!wresp.ok) throw new Error('Worker error: '+wresp.status);
     // Also check JSON body — Google Sheets may return 200 with an error inside
     const wdata = await wresp.json();
     if (wdata.error) throw new Error('Sheets error: '+(wdata.error.message||JSON.stringify(wdata.error)));
+    // Confirmed on server — remove from the queue
+    LDB.set('attendance_offline_queue', LDB.arr('attendance_offline_queue').filter(r=>r.id!==record.id));
   } catch(e) {
     console.warn('Attendance Sheets write error:', e.message);
-    LDB.push('attendance_offline_queue', record);
+    // (record is already in the queue — just surface the warning UI)
     // Show RED warning banner — not just yellow
     const banner = document.getElementById('att-offline-banner');
     if (banner) {
