@@ -2982,41 +2982,39 @@ async function doAdminLogin() {
   finally { setLoading(false); }
 }
 
-// Shared login handler for both BDO and ST roles (one login screen serves both): tries local BDO cache, local ST cache, then Sheets BDOs, then Sheets STs. The isST flag on currentUser distinguishes which one actually signed in.
+// Shared login handler for both BDO and ST roles (one login screen serves both).
+// SHEETS-FIRST: when online, credentials are checked against the live BDOs/STs sheets, so a stale
+// local cache can never sign someone in under an old id/role (e.g. same emp no existing in both
+// BDOs and STs — the cached BDO row used to win and the ST would see zero mapped ISCs).
+// Local caches (bdos_login/sts_login) are only consulted when Sheets is unreachable (offline).
+// Inactive records are skipped everywhere — a relieved/duplicate row must not be able to sign in.
 async function doBDOLogin() {
   const u=gv('bdo-login-user').trim().toLowerCase(), p=gv('bdo-login-pass').trim().toLowerCase();
   if (!u||!p) return showAlert('alert-bdo-login','Please enter credentials.','error');
   setLoading(true,'Signing in...');
+  const isActive = r => String(r.status||'Active').toLowerCase() !== 'inactive';
+  const match = arr => (arr||[]).find(x=>(x.username||'').toLowerCase()===u&&(x.password||'').toLowerCase()===p&&isActive(x));
+  const cacheInto = (key,rec) => { const arr=LDB.arr(key); const idx=arr.findIndex(x=>x.id===rec.id); if(idx>-1) arr[idx]={...rec}; else arr.push({...rec}); LDB.set(key,arr); };
   try {
-    // Check local cache — BDOs first, then STs
-    const localBDO = LDB.arr('bdos_login');
-    const lb = localBDO.find(b=>(b.username||'').toLowerCase()===u&&(b.password||'').toLowerCase()===p);
-    if (lb) { currentUser={...lb,empRole:(lb.role||'BDO').toUpperCase(),role:'bdo',isST:false}; launchApp(); return; }
-    const localST = LDB.arr('sts_login');
-    const ls = localST.find(s=>(s.username||'').toLowerCase()===u&&(s.password||'').toLowerCase()===p);
-    if (ls) { currentUser={...ls,empRole:(ls.role||'ST').toUpperCase(),role:'bdo',isST:true}; launchApp(); return; }
-
+    let remoteChecked = false;
     if (isConfigured()) {
-      // Check Google Sheets BDOs sheet
-      const bdos = await sheetsGet('BDOs');
-      const bdo = bdos.find(b=>(b.username||'').toLowerCase()===u&&(b.password||'').toLowerCase()===p);
-      if (bdo) {
-        const arr=LDB.arr('bdos_login');
-        const idx=arr.findIndex(x=>x.id===bdo.id);
-        if(idx>-1) arr[idx]={...bdo}; else arr.push({...bdo});
-        LDB.set('bdos_login',arr);
-        currentUser={...bdo,empRole:(bdo.role||'BDO').toUpperCase(),role:'bdo',isST:false}; launchApp(); return;
-      }
-      // Check Google Sheets STs sheet — same login screen, same role/permissions
-      const sts = await sheetsGet('STs');
-      const st = sts.find(s=>(s.username||'').toLowerCase()===u&&(s.password||'').toLowerCase()===p);
-      if (st) {
-        const arr=LDB.arr('sts_login');
-        const idx=arr.findIndex(x=>x.id===st.id);
-        if(idx>-1) arr[idx]={...st}; else arr.push({...st});
-        LDB.set('sts_login',arr);
-        currentUser={...st,empRole:(st.role||'ST').toUpperCase(),role:'bdo',isST:true}; launchApp(); return;
-      }
+      try {
+        // STs first, then BDOs — if the same emp no somehow exists in both, the ST mapping wins
+        const sts  = await sheetsGet('STs');
+        const bdos = await sheetsGet('BDOs');
+        remoteChecked = true;
+        const st = match(sts);
+        if (st) { cacheInto('sts_login',st); currentUser={...st,empRole:(st.role||'ST').toUpperCase(),role:'bdo',isST:true}; launchApp(); return; }
+        const bdo = match(bdos);
+        if (bdo) { cacheInto('bdos_login',bdo); currentUser={...bdo,empRole:(bdo.role||'BDO').toUpperCase(),role:'bdo',isST:false}; launchApp(); return; }
+      } catch(e) { console.warn('Login: Sheets unreachable, falling back to local cache —', e.message); }
+    }
+    if (!remoteChecked) {
+      // Offline fallback only — same ST-before-BDO precedence as the live check
+      const ls = match(LDB.arr('sts_login'));
+      if (ls) { currentUser={...ls,empRole:(ls.role||'ST').toUpperCase(),role:'bdo',isST:true}; launchApp(); return; }
+      const lb = match(LDB.arr('bdos_login'));
+      if (lb) { currentUser={...lb,empRole:(lb.role||'BDO').toUpperCase(),role:'bdo',isST:false}; launchApp(); return; }
     }
     showAlert('alert-bdo-login','Invalid credentials. Username = Emp No, Password = Emp No.','error');
   } catch(e) { showAlert('alert-bdo-login','Error: '+e.message,'error'); console.error(e); }
