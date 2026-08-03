@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.21</div>
+        <div class="auth-tagline">FIELD ONE · v4.22</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2126,7 +2126,7 @@ async function generateWeeklyBrief() {
     // Team employees (ST/SE/BDO/BDE) in this manager's scope
     let team=[];
     if (currentUser.role==='asm') team=[...sts,...bdos].filter(p=>String(p.asmId||'')===String(currentUser.id));
-    else if (currentUser.role==='rsm') { const my=new Set(asms.filter(a=>String(a.rsmId||'')===String(currentUser.id)).map(a=>String(a.id))); team=[...sts,...bdos].filter(p=>my.has(String(p.asmId||''))); }
+    else if (currentUser.role==='rsm') { const my=new Set((await scopeASMsForRSM(asms)).map(a=>String(a.id))); team=[...sts,...bdos].filter(p=>my.has(String(p.asmId||''))); }
     team=team.filter(p=>String(p.status||'Active')!=='Inactive');
     const teamIds=new Set(team.map(p=>String(p.id)));
     const visits=[...stVisits,...bdoVisits].filter(v=>teamIds.has(String(v.empId)) && String(v.visitDate||'')>=since);
@@ -2605,6 +2605,32 @@ function activitySheetFor(user) {
 // Shared name comparator so every people dropdown lists alphabetically
 const byName = (a,b)=>String(a.name||'').localeCompare(String(b.name||''));
 
+// ── HEAD (NSH / SH / NH) SCOPING ──
+// National/zone heads are rows in the RSMs sheet with a COARSE region instead of a specific one:
+//   'All India' → NSH (sees every RSM's branch) · 'South' → SH (South I–V) · 'North' → NH (North I–II)
+// East and West RSM regions have no zone head — they roll up to NSH only (decided 2026-07-31).
+// Heads sign in via the NSH / SH-NH screens, get role 'rsm', and inherit every RSM screen; only the
+// ASM scoping widens from "ASMs with rsmId=me" to "ASMs under every RSM in my zone".
+function headZoneOf(u) {
+  const r = String((u&&u.region)||'').trim().toLowerCase();
+  if (r==='all india' || r==='all') return 'ALL';
+  if (['south','north','east','west'].includes(r)) return r;
+  return null;   // specific region (e.g. 'South II') or blank → a normal RSM, not a head
+}
+let _headRsmIds = null;   // per-login cache of the zone's rsmId set (cleared on sign-out/login)
+// Filters an ASMs array down to the current rsm-role user's scope. Plain RSM → ASMs with rsmId=me;
+// NSH → all ASMs; SH/NH → ASMs under every RSM whose region starts with the zone word.
+async function scopeASMsForRSM(asms) {
+  const zone = headZoneOf(currentUser);
+  if (!zone) return asms.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+  if (zone==='ALL') return asms.slice();
+  if (!_headRsmIds) {
+    const rsms = await DATA_getRSMs();
+    _headRsmIds = new Set(rsms.filter(r=>String(r.region||'').trim().toLowerCase().startsWith(zone)).map(r=>String(r.id)));
+  }
+  return asms.filter(a=>_headRsmIds.has(String(a.rsmId||'')));
+}
+
 // ── ROLE SCOPING ──
 // The set of ISC ids the current user may see, resolved LIVE from the Users sheet — never from
 // ids stamped on old records, which go stale when an ISC is reassigned. Returns null for admin
@@ -2620,7 +2646,7 @@ async function scopedISCIdSet() {
   if (currentUser.role==='asm') mine = iscs.filter(i=>String(i.asmId||'')===me);
   else if (currentUser.role==='rsm') {
     const asms = await DATA_getASMs();
-    const myAsmIds = new Set(asms.filter(a=>String(a.rsmId||'')===me).map(a=>String(a.id)));
+    const myAsmIds = new Set((await scopeASMsForRSM(asms)).map(a=>String(a.id)));
     mine = iscs.filter(i=>myAsmIds.has(String(i.asmId||'')));
   }
   else mine = currentUser.isST ? iscs.filter(i=>String(i.stId||'')===me)
@@ -2883,28 +2909,34 @@ async function doLogin() {
   finally { setLoading(false); }
 }
 
-// NOTE: NSH and SH/NH login are not actually wired up to any data source yet —
-// these are placeholder handlers that always reject after a fake delay, so
-// those two roles cannot currently sign in for real.
-async function doNSHLogin() {
-  const u=gv('nsh-login-user').trim(), p=gv('nsh-login-pass').trim();
-  if (!u||!p) return showAlert('alert-nsh-login','Please enter username and password.','error');
+// NSH / SH-NH login — heads are rows in the RSMs sheet with a coarse region ('All India' → NSH,
+// 'South' → SH, 'North' → NH). They get role 'rsm' and inherit every RSM screen; scopeASMsForRSM()
+// widens their visibility to the whole zone / country. Sheets-first so credentials are always live.
+// Each screen only accepts its own kind: a plain RSM row is bounced to the RSM login and vice versa.
+async function doHeadLogin(kind) {   // kind: 'nsh' | 'shnh'
+  const pfx = kind==='nsh' ? 'nsh' : 'shnh', alertId = 'alert-'+pfx+'-login';
+  const u=gv(pfx+'-login-user').trim().toLowerCase(), p=gv(pfx+'-login-pass').trim().toLowerCase();
+  if (!u||!p) return showAlert(alertId,'Please enter credentials.','error');
   setLoading(true,'Signing in...');
-  setTimeout(()=>{
-    setLoading(false);
-    showAlert('alert-nsh-login','Invalid credentials. Please contact your administrator.','error');
-  }, 600);
+  try {
+    const rsms = isConfigured() ? await DATA_getRSMs() : LDB.arr('rsms');
+    const hit = rsms.find(r=>(r.username||'').toLowerCase()===u&&(r.password||'').toLowerCase()===p&&String(r.status||'Active').toLowerCase()!=='inactive');
+    const zone = hit ? headZoneOf(hit) : null;
+    const wanted = kind==='nsh' ? zone==='ALL' : (zone && zone!=='ALL');
+    if (hit && wanted) {
+      const arr=LDB.arr('rsms'); const idx=arr.findIndex(x=>x.id===hit.id); if(idx>-1)arr[idx]={...hit}; else arr.push({...hit}); LDB.set('rsms',arr);
+      _headRsmIds = null;
+      const empRole = zone==='ALL' ? 'NSH' : (zone==='south' ? 'SH' : 'NH');
+      currentUser = {...hit, role:'rsm', empRole};
+      launchApp(); return;
+    }
+    if (hit) { showAlert(alertId, zone ? 'This account belongs to the other head login screen.' : 'This is an RSM account — please use the RSM login.','error'); return; }
+    showAlert(alertId,'Invalid credentials.','error');
+  } catch(e) { showAlert(alertId,'Error: '+e.message,'error'); }
+  finally { setLoading(false); }
 }
-
-async function doSHNHLogin() {
-  const u=gv('shnh-login-user').trim(), p=gv('shnh-login-pass').trim();
-  if (!u||!p) return showAlert('alert-shnh-login','Please enter username and password.','error');
-  setLoading(true,'Signing in...');
-  setTimeout(()=>{
-    setLoading(false);
-    showAlert('alert-shnh-login','Invalid credentials. Please contact your administrator.','error');
-  }, 600);
-}
+async function doNSHLogin()  { return doHeadLogin('nsh'); }
+async function doSHNHLogin() { return doHeadLogin('shnh'); }
 
 // ASM login — same local-cache-then-Sheets pattern as doLogin(), but against the ASMs list.
 async function doASMLogin() {
@@ -3024,6 +3056,7 @@ async function doBDOLogin() {
 // Clears the logged-in user, returns to the role-selection screen, and blanks out the login form fields.
 function doSignOut() {
   currentUser=null;
+  _headRsmIds=null;   // clear NSH/SH/NH zone-scope cache
   showScreen('screen-login');
   sv('login-username',''); sv('login-password','');
   sv('asm-login-user',''); sv('asm-login-pass','');
@@ -3153,8 +3186,8 @@ async function loadActivityPeople() {
   if (currentUser.role==='asm') {
     people = people.filter(p=>String(p.asmId||'')===String(currentUser.id));       // ASM: own team only
   } else if (currentUser.role==='rsm') {
-    const myAsmIds = new Set(asms.filter(a=>String(a.rsmId||'')===String(currentUser.id)).map(a=>String(a.id)));
-    people = people.filter(p=>myAsmIds.has(String(p.asmId||'')));                  // RSM: everyone under their ASMs
+    const myAsmIds = new Set((await scopeASMsForRSM(asms)).map(a=>String(a.id)));
+    people = people.filter(p=>myAsmIds.has(String(p.asmId||'')));                  // RSM: everyone under their ASMs (heads: whole zone / country)
   }
   return people;                                                                    // Admin: everyone
 }
@@ -3589,7 +3622,7 @@ async function loadJointPeople() {
   if (currentUser.role === 'rsm') {
     let [asms, sts, bdos] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
     sts = sts.filter(activeOnly); bdos = bdos.filter(activeOnly);
-    const myAsms = asms.filter(activeOnly).filter(a=>String(a.rsmId||'')===String(currentUser.id));
+    const myAsms = await scopeASMsForRSM(asms.filter(activeOnly));
     const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
     return [
       ...myAsms.map(a=>({id:a.id, name:a.name, role:'ASM'})),
@@ -3811,7 +3844,7 @@ function baseActivityRow(activityType) {
   return {
     id: 'act'+Date.now(),
     activityType,
-    role: currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? 'RSM' : (currentUser.empRole || (currentUser.isST ? 'ST' : 'BDO')),
+    role: currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? (currentUser.empRole||'RSM') : (currentUser.empRole || (currentUser.isST ? 'ST' : 'BDO')),
     empId: currentUser.id||'', empName: currentUser.name||'',
     asmId: currentUser.asmId||'', asmName: currentUser.asmName||'',
     region: currentUser.region||'',
@@ -3966,7 +3999,7 @@ async function renderMyActivity() {
     document.getElementById('myact-total').textContent = all.length;
     document.getElementById('myact-month').textContent = all.filter(a=>String(a.visitDate||'').startsWith(month)).length;
     document.getElementById('myact-today').textContent = all.filter(a=>a.visitDate===today).length;
-    const roleLabel = currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? 'RSM' : (currentUser.empRole||(currentUser.isST?'ST':'BDO'));
+    const roleLabel = currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? (currentUser.empRole||'RSM') : (currentUser.empRole||(currentUser.isST?'ST':'BDO'));
     document.getElementById('myactivity-subtitle').textContent = `${currentUser.name} · ${roleLabel}${currentUser.region?' · '+currentUser.region:''}`;
 
     let shown = _myActivityFilter==='all' ? all : all.filter(a=>a.activityType===_myActivityFilter);
@@ -5684,7 +5717,7 @@ async function renderRSMSites(filter='all') {
   try {
     // Get all ASMs under this RSM
     const allAsms = await DATA_getASMs();
-    const myAsms = allAsms.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+    const myAsms = await scopeASMsForRSM(allAsms);
     const myAsmIds = myAsms.map(a=>String(a.id));
     // Get ISC IDs under those ASMs — relies only on current Users sheet mapping
     let myISCIds=new Set();
@@ -6242,7 +6275,7 @@ async function renderDashboard() {
         if (role==='admin') { try { allRSMs = await DATA_getRSMs(); } catch(e) { allRSMs = []; } }
         if (role==='rsm') {
           // RSM sees only their own branch of the tree
-          allASMs = allASMs.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+          allASMs = await scopeASMsForRSM(allASMs);
           const _myAsmIds = new Set(allASMs.map(a=>String(a.id)));
           allISCs = allISCs.filter(i=>_myAsmIds.has(String(i.asmId||'')));
         }
@@ -6493,7 +6526,7 @@ async function renderDashboard() {
         let asmsAll = await DATA_getASMs();
         let bdosAll = await DATA_getBDOs();
         if (role==='rsm') {
-          asmsAll = asmsAll.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+          asmsAll = await scopeASMsForRSM(asmsAll);
           const _myAsmIds = new Set(asmsAll.map(a=>String(a.id)));
           bdosAll = bdosAll.filter(b=>_myAsmIds.has(String(b.asmId||'')));
         }
@@ -7093,7 +7126,7 @@ function exportEntries(scope) {
       ];
     });
     const today = new Date().toISOString().slice(0,10);
-    const roleTag = currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? 'RSM'
+    const roleTag = currentUser.role==='asm' ? 'ASM' : currentUser.role==='rsm' ? (currentUser.empRole||'RSM')
                   : currentUser.role==='bdo' ? (currentUser.empRole||(currentUser.isST?'ST':'BDO')) : '';
     const prefix = scope==='my' ? `ISC_${(currentUser.name||'ISC').replace(/ /g,'_')}`
                  : roleTag ? `${roleTag}_${(currentUser.name||roleTag).replace(/ /g,'_')}` : 'Admin_AllSites';
@@ -7111,7 +7144,7 @@ async function exportHierarchy() {
     if (currentUser.role==='admin') { try { allRSMs = await DATA_getRSMs(); } catch(e) { allRSMs = []; } }
     if (currentUser.role==='rsm') {
       // RSM exports only their own branch
-      allASMs = allASMs.filter(a=>String(a.rsmId||'')===String(currentUser.id));
+      allASMs = await scopeASMsForRSM(allASMs);
       const _myAsmIds = new Set(allASMs.map(a=>String(a.id)));
       allISCs = allISCs.filter(i=>_myAsmIds.has(String(i.asmId||'')));
     }
