@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.23</div>
+        <div class="auth-tagline">FIELD ONE · v4.24</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -6932,7 +6932,43 @@ async function applyAttCorrection(idx, newStatus) {
   finally { setLoading(false); }
 }
 
-// Populates the manager's Team Attendance tab for one selected date: scopes the ISC list to the viewer's role (ASM's own team / BDO's region / everyone for admin), cross-references who's marked vs unmarked, and shows a correction (✏️) button to those allowed to fix entries.
+// Everyone whose attendance the current viewer should see on the Team Attendance tab — the FULL
+// hierarchy below them, not just ISCs (all roles now self-mark into the same Attendance sheet):
+//   ASM        → their ISCs + the STs/SEs/BDOs/BDEs mapped to them
+//   RSM / NSH / SH / NH → their ASMs + STs/BDOs under those ASMs + the ISCs in scope
+//   ST/SE/BDO/BDE → the ISCs mapped to them (unchanged)
+//   Admin      → everyone: RSMs & heads, ASMs, STs/BDOs, ISCs
+// Pass activeOnDate to drop ISCs not active that day; pass null to include all (range exports
+// re-check per day themselves). Every person is tagged with _role for display.
+async function teamAttendancePeople(activeOnDate) {
+  const activeOnly = p => !['inactive','vacant'].includes(String(p.status||'Active').toLowerCase());
+  const tagRole = (arr,fallback) => arr.map(p=>({...p, _role:(p.role||fallback).toUpperCase()}));
+  let iscs = await DATA_getISCs();
+  if (activeOnDate) iscs = iscs.filter(i=>iscActiveOn(i, activeOnDate));
+  const scope = await scopedISCIdSet();
+  if (scope) iscs = iscs.filter(i=>scope.has(String(i.id)));
+  const people = [];
+  if (currentUser.role==='asm') {
+    const [sts,bdos] = await Promise.all([DATA_getST(), DATA_getBDO()]);
+    people.push(...tagRole([...sts,...bdos].filter(activeOnly).filter(p=>String(p.asmId||'')===String(currentUser.id)),'ST'));
+  } else if (currentUser.role==='rsm') {
+    const [asms,sts,bdos] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
+    const myAsms = (await scopeASMsForRSM(asms)).filter(activeOnly);
+    const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
+    people.push(...myAsms.map(a=>({...a,_role:'ASM'})));
+    people.push(...tagRole([...sts,...bdos].filter(activeOnly).filter(p=>myAsmIds.has(String(p.asmId||''))),'ST'));
+  } else if (currentUser.role==='admin') {
+    const [rsms,asms,sts,bdos] = await Promise.all([DATA_getRSMs(), DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
+    const headLbl = r => { const z=headZoneOf(r); return z ? (z==='ALL'?'NSH':(z==='south'?'SH':'NH')) : 'RSM'; };
+    people.push(...rsms.filter(activeOnly).map(r=>({...r,_role:headLbl(r)})));
+    people.push(...asms.filter(activeOnly).map(a=>({...a,_role:'ASM'})));
+    people.push(...tagRole([...sts,...bdos].filter(activeOnly),'ST'));
+  }
+  people.push(...iscs.map(i=>({...i,_role:'ISC'})));
+  return people;
+}
+
+// Populates the manager's Team Attendance tab for one selected date: scopes the people list to the viewer's role via teamAttendancePeople(), cross-references who's marked vs unmarked, and shows a correction (✏️) button to those allowed to fix entries.
 async function renderTeamAttendance() {
   // Set default date to today
   const df = document.getElementById('team-att-date');
@@ -6942,10 +6978,8 @@ async function renderTeamAttendance() {
 
   setLoading(true,'Loading attendance...');
   try {
-    // Get all ISCs under this ASM (or all for admin)
-    let allISCs = (await DATA_getISCs()).filter(i=>iscActiveOn(i, selectedDate));
-    const _tattScope = await scopedISCIdSet();
-    if (_tattScope) allISCs = allISCs.filter(i=>_tattScope.has(String(i.id)));
+    // Full team below this viewer — ISCs plus STs/BDOs/ASMs/RSMs depending on role
+    const allISCs = await teamAttendancePeople(selectedDate);
 
     // Get attendance for selected date — ONLY for this user's team, not the whole organisation
     let allAtt = await DATA_getAttendance();
@@ -6992,7 +7026,7 @@ async function renderTeamAttendance() {
         <div class="entry-card-top">
           <div>
             <div class="entry-name">${isc.name}</div>
-            <div class="entry-sub">👤 ${isc.username} · 🗺️ ${isc.region||'—'}</div>
+            <div class="entry-sub">👤 ${isc.username||'—'} · ${isc._role||'ISC'} · 🗺️ ${isc.region||'—'}</div>
             ${att?`<div class="entry-sub">🕐 ${att.checkInTime||'—'} ${att.gps?'· 📍 '+att.gps:''}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:6px">
@@ -7017,7 +7051,7 @@ function exportAttendance() {
   });
 }
 
-// Exports the team's attendance across a date range (or a single day) as CSV, one row per ISC per day, skipping days after an inactive ISC's last working day.
+// Exports the team's attendance across a date range (or a single day) as CSV, one row per team member (ISC/ST/BDO/ASM/RSM per viewer's scope) per day, skipping days after an inactive ISC's last working day.
 function exportTeamAttendance() {
   const singleDate = document.getElementById('team-att-date')?.value || todayStr();
   const fromDate = document.getElementById('team-att-export-from')?.value || singleDate;
@@ -7036,21 +7070,18 @@ function exportTeamAttendance() {
   if (dates.length > 92) { showToast('⚠️ Range too large — please pick under 3 months'); return; }
 
   setLoading(true, dates.length > 1 ? `Preparing ${dates.length}-day report...` : 'Preparing report...');
-  Promise.all([DATA_getAttendance(), DATA_getISCs()]).then(async ([allAtt, allISCs])=>{
-    const _expScope = await scopedISCIdSet();
-    if (_expScope) allISCs = allISCs.filter(i=>_expScope.has(String(i.id)));
-
-    // Index attendance by iscId + date for fast lookup
+  Promise.all([DATA_getAttendance(), teamAttendancePeople(null)]).then(([allAtt, team])=>{
+    // Index attendance by empId + date for fast lookup
     const attByKey = {};
     allAtt.forEach(a => { attByKey[a.iscId + '|' + a.date] = a; });
 
-    const headers = ['Date','ISC Name','Emp No','Status','Check-in Time','Location','ASM','Region'];
+    const headers = ['Date','Name','Role','Emp No','Status','Check-in Time','Location','ASM','Region'];
     const rows = [];
     dates.forEach(date => {
-      allISCs.forEach(isc => {
-        if (!iscActiveOn(isc, date)) return;   // skip days after their last working day
-        const att = attByKey[isc.id + '|' + date];
-        rows.push([date, isc.name, isc.username, att?.status||'Unmarked', att?.checkInTime||'', att?.gps||'', isc.asmName||'', isc.region||'']);
+      team.forEach(p => {
+        if (p._role==='ISC' && !iscActiveOn(p, date)) return;   // skip days after an ISC's last working day
+        const att = attByKey[p.id + '|' + date];
+        rows.push([date, p.name, p._role, p.username||'', att?.status||'Unmarked', att?.checkInTime||'', att?.gps||'', p.asmName||'', p.region||'']);
       });
     });
 
