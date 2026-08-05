@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.22</div>
+        <div class="auth-tagline">FIELD ONE · v4.23</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -3128,7 +3128,7 @@ function buildNav() {
   } else if (currentUser.role==='bdo') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
   } else {
@@ -6521,16 +6521,21 @@ async function renderDashboard() {
         }
       } catch(e) { console.warn('Unmarked alert error:',e.message); }
 
-      // ── 4. ASM / BDO SELF-ATTENDANCE COMPLIANCE (admin/rsm only) ──
+      // ── 4. RSM / ASM / BDO SELF-ATTENDANCE COMPLIANCE (admin/rsm only) ──
       if (role==='admin' || role==='rsm') try {
         let asmsAll = await DATA_getASMs();
         let bdosAll = await DATA_getBDOs();
+        let rsmsAll = [];
         if (role==='rsm') {
           asmsAll = await scopeASMsForRSM(asmsAll);
           const _myAsmIds = new Set(asmsAll.map(a=>String(a.id)));
           bdosAll = bdosAll.filter(b=>_myAsmIds.has(String(b.asmId||'')));
+        } else {
+          // Admin also tracks RSM / NSH / SH / NH self-attendance
+          try { rsmsAll = (await DATA_getRSMs()).filter(r=>!['inactive','vacant'].includes(String(r.status||'Active').toLowerCase())); } catch(e) {}
         }
-        const managers = [...asmsAll.map(a=>({...a,_type:'ASM'})), ...bdosAll.map(b=>({...b,_type:'BDO'}))];
+        const headLabel = r => { const z=headZoneOf(r); return z ? (z==='ALL'?'NSH':(z==='south'?'SH':'NH')) : 'RSM'; };
+        const managers = [...rsmsAll.map(r=>({...r,_type:headLabel(r)})), ...asmsAll.map(a=>({...a,_type:'ASM'})), ...bdosAll.map(b=>({...b,_type:'BDO'}))];
         if (managers.length) {
           const mgrRows = managers.map(m => {
             let present=0, marked=0;
@@ -6542,7 +6547,7 @@ async function renderDashboard() {
             }
             return { name:m.name, type:m._type, rate: marked>0?Math.round(present/marked*100):0, marked };
           }).sort((a,b)=>b.marked-a.marked).slice(0,12);
-          if (mgrRows.length) html += dashSection('📋 ASM / BDO Self-Attendance', `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f8f8f8"><th style="padding:7px 6px;text-align:left;color:#555;font-weight:600">Name</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Role</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Days Marked</th><th style="padding:7px 6px;text-align:right;color:#555;font-weight:600">Rate</th></tr>${mgrRows.map((m,idx)=>`<tr style="border-top:1px solid #f0f0f0;background:${idx%2?'#fafafa':'white'}"><td style="padding:6px;font-weight:500;color:#333">${m.name}</td><td style="padding:6px;text-align:center;color:#666">${m.type}</td><td style="padding:6px;text-align:center;color:#1565C0;font-weight:600">${m.marked}</td><td style="padding:6px;text-align:right;font-weight:700;color:${m.rate>=80?'#10b981':m.rate>=50?'#f59e0b':'#ef4444'}">${m.marked?m.rate+'%':'—'}</td></tr>`).join('')}</table></div>`);
+          if (mgrRows.length) html += dashSection('📋 Manager Self-Attendance', `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f8f8f8"><th style="padding:7px 6px;text-align:left;color:#555;font-weight:600">Name</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Role</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Days Marked</th><th style="padding:7px 6px;text-align:right;color:#555;font-weight:600">Rate</th></tr>${mgrRows.map((m,idx)=>`<tr style="border-top:1px solid #f0f0f0;background:${idx%2?'#fafafa':'white'}"><td style="padding:6px;font-weight:500;color:#333">${m.name}</td><td style="padding:6px;text-align:center;color:#666">${m.type}</td><td style="padding:6px;text-align:center;color:#1565C0;font-weight:600">${m.marked}</td><td style="padding:6px;text-align:right;font-weight:700;color:${m.rate>=80?'#10b981':m.rate>=50?'#f59e0b':'#ef4444'}">${m.marked?m.rate+'%':'—'}</td></tr>`).join('')}</table></div>`);
         }
       } catch(e) { console.warn('Manager compliance error:',e.message); }
 
@@ -6768,12 +6773,13 @@ async function DATA_addAttendanceToSheets(record) {
 // ══════════════════════════════════════════════
 //  SELF-ATTENDANCE for ASM / BDO (shown atop Team Attendance tab)
 // ══════════════════════════════════════════════
-// Shows the "mark my own attendance" card at the top of Team Attendance — only ASMs and BDOs (who are also field employees) get this; everyone else never sees the card.
+// Shows the "mark my own attendance" card at the top of Team Attendance — every field role in the
+// hierarchy marks their own attendance here: ASM, ST/SE/BDO/BDE (role 'bdo'), RSM, and the NSH/SH/NH
+// heads (role 'rsm'). ISCs mark theirs on their own Attendance tab; admin/viewer never see the card.
 async function renderSelfAttendanceCard() {
   const card = document.getElementById('satt-self-card');
   if (!card) return;
-  // Only ASM and BDO get to mark their own attendance here
-  if (currentUser.role !== 'asm' && currentUser.role !== 'bdo') { card.style.display = 'none'; return; }
+  if (!['asm','bdo','rsm'].includes(currentUser.role)) { card.style.display = 'none'; return; }
   card.style.display = 'block';
 
   const dateEl = document.getElementById('satt-today-date');
@@ -6803,7 +6809,7 @@ async function renderSelfAttendanceCard() {
   }
 }
 
-// Same as markAttendance() but for an ASM/BDO marking their own attendance from the Team Attendance tab's self-card; also refreshes the team list afterward since the marker may appear in it too.
+// Same as markAttendance() but for an ASM/BDO/RSM/head marking their own attendance from the Team Attendance tab's self-card; also refreshes the team list afterward since the marker may appear in it too.
 async function markSelfAttendance(status) {
   const today = todayStr();
   document.querySelectorAll('#satt-mark-buttons button').forEach(b=>b.disabled=true);
