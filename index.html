@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.26</div>
+        <div class="auth-tagline">FIELD ONE · v4.27</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -5886,6 +5886,17 @@ async function saveAsm() {
   finally{setLoading(false);}
 }
 
+// STs and BDOs share one login screen, so a username must be unique across BOTH sheets.
+// Inactive/vacant rows don't block reuse — their credentials are retired at login too.
+// (This guard is what prevents the "Parsad Patel / Patel Prasadkumar" duplicate-row problem.)
+async function stBdoUsernameTaken(username) {
+  const [sts, bdos] = await Promise.all([DATA_getSTs(), DATA_getBDOs()]);
+  const u = String(username||'').toLowerCase();
+  const live = r => String(r.status||'Active')!=='Inactive' && String(r.status||'')!=='Vacant';
+  const hit = [...sts, ...bdos].find(r => live(r) && String(r.username||'').toLowerCase()===u);
+  return hit ? `${hit.name} (${(hit.role||'?').toUpperCase()})` : null;
+}
+
 async function saveST() {
   const name=gv('st-name').trim(),email=gv('st-email').trim(),phone=gv('st-phone').trim();
   const username=gv('st-username').trim(),password=gv('st-password').trim();
@@ -5894,6 +5905,8 @@ async function saveST() {
   if (!username||!password) return showToast('⚠️ Username and password required for ST login');
   setLoading(true,'Saving ST...');
   try {
+    const takenBy = await stBdoUsernameTaken(username);
+    if (takenBy) { showToast(`⚠️ Emp no ${username} is already used by ${takenBy} — same person? Edit the existing record instead`); return; }
     const asms=await DATA_getASMs();
     const asm=asms.find(a=>a.id===asmId);
     const newSt = {id:'st'+Date.now(),name,email,phone,username,password,empNo:username,role,region,
@@ -5914,8 +5927,8 @@ async function saveBDO() {
   if (!username||!password) return showToast('⚠️ Username and password required for BDO login');
   setLoading(true,'Saving BDO...');
   try {
-    const bdos=await DATA_getBDOs();
-    if (bdos.find(b=>(b.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
+    const takenBy = await stBdoUsernameTaken(username);
+    if (takenBy) { showToast(`⚠️ Emp no ${username} is already used by ${takenBy} — same person? Edit the existing record instead`); return; }
     const asms=await DATA_getASMs();
     const asm=asms.find(a=>a.id===asmId);
     const newBdo = {id:'bdo'+Date.now(),name,email,phone,username,password,empNo:username,role,region,location,
