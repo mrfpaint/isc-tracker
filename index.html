@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.24</div>
+        <div class="auth-tagline">FIELD ONE · v4.26</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -603,7 +603,6 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap" id="att-mark-buttons">
         <button onclick="markAttendance('Present')" style="flex:1;padding:10px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">✅ Present</button>
         <button onclick="markAttendance('Leave')" style="flex:1;padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">🏖️ Leave</button>
-        <button onclick="markAttendance('Holiday')" style="flex:1;padding:10px;background:#6366f1;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">🎉 Holiday</button>
       </div>
       <div id="att-marked-info" style="display:none;font-size:12px;color:rgba(255,255,255,.7);margin-top:8px"></div>
     </div>
@@ -612,7 +611,6 @@
     <div class="stats-row">
       <div class="stat-card green"><div class="stat-value" id="att-present">0</div><div class="stat-label">Present</div></div>
       <div class="stat-card gold"><div class="stat-value" id="att-leave">0</div><div class="stat-label">Leave</div></div>
-      <div class="stat-card" style=""><div class="stat-value" id="att-holiday" style="color:#6366f1">0</div><div class="stat-label">Holiday</div></div>
     </div>
 
     <!-- Month filter -->
@@ -626,16 +624,24 @@
 
   <!-- ATTENDANCE VIEW (ASM/Admin) -->
   <div id="tab-team-attendance" class="main-content" style="display:none">
-    <!-- Self-mark card (ASM/BDO only) -->
+    <!-- Self-mark card — every manager level: ST/SE/BDO/BDE, ASM, RSM, SH/NH/NSH -->
     <div id="satt-self-card" style="display:none;background:linear-gradient(135deg,var(--dark),var(--dark2));border-radius:16px;padding:20px;color:white;margin-bottom:16px">
       <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">My Attendance · <span id="satt-today-date">Today</span></div>
       <div style="font-size:22px;font-weight:700;font-family:'Rajdhani',sans-serif;margin-bottom:16px" id="satt-today-status">Not marked yet</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap" id="satt-mark-buttons">
         <button onclick="markSelfAttendance('Present')" style="flex:1;padding:10px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">✅ Present</button>
         <button onclick="markSelfAttendance('Leave')" style="flex:1;padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">🏖️ Leave</button>
-        <button onclick="markSelfAttendance('Holiday')" style="flex:1;padding:10px;background:#6366f1;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">🎉 Holiday</button>
       </div>
       <div id="satt-marked-info" style="display:none;font-size:12px;color:rgba(255,255,255,.7);margin-top:8px"></div>
+      <!-- Monthly stats + history — same module ISCs get, adapted into the manager card -->
+      <div id="satt-month" style="display:none;margin-top:14px;border-top:1px solid rgba(255,255,255,.15);padding-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px">This Month</div>
+          <button onclick="exportSelfAttendance()" style="padding:4px 10px;background:rgba(255,255,255,.12);color:white;border:none;border-radius:8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">⬇ Export</button>
+        </div>
+        <div id="satt-month-stats" style="display:flex;gap:16px;font-size:13px;font-weight:600;margin-bottom:8px;flex-wrap:wrap"></div>
+        <div id="satt-history" style="font-size:12px;color:rgba(255,255,255,.75);line-height:1.8;max-height:180px;overflow-y:auto"></div>
+      </div>
     </div>
 
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
@@ -658,7 +664,6 @@
         <option value="all">All Status</option>
         <option value="Present">Present</option>
         <option value="Leave">Leave</option>
-        <option value="Holiday">Holiday</option>
         <option value="Unmarked">Unmarked</option>
       </select>
     </div>
@@ -6364,8 +6369,8 @@ async function renderDashboard() {
     </div>`;
 
     if(role==='isc'){
-      const present=monthAtt.filter(a=>a.status==='Present').length,leave=monthAtt.filter(a=>a.status==='Leave').length,holiday=monthAtt.filter(a=>a.status==='Holiday').length;
-      html+=`<div style="display:flex;gap:10px;margin-bottom:12px">${dashCard('Present',present,'this month','#065f46','✅')}${dashCard('Leave',leave,'this month','#92400e','🏖️')}${dashCard('Holiday',holiday,'this month','#4c1d95','🎉')}</div>`;
+      const present=monthAtt.filter(a=>a.status==='Present').length,leave=monthAtt.filter(a=>a.status==='Leave').length;
+      html+=`<div style="display:flex;gap:10px;margin-bottom:12px">${dashCard('Present',present,'this month','#065f46','✅')}${dashCard('Leave',leave,'this month','#92400e','🏖️')}</div>`;
     } else {
       const presentISCs=new Set(monthAtt.filter(a=>a.status==='Present').map(a=>a.iscId)).size,totalISCsAtt=new Set(monthAtt.map(a=>a.iscId)).size,attRate=totalISCsAtt>0?Math.round(presentISCs/totalISCsAtt*100):0;
       html+=`<div style="display:flex;gap:10px;margin-bottom:12px">${dashCard('Active ISCs',presentISCs,'marked present','#065f46','👥')}${dashCard('Att. Rate',attRate+'%','of team','#1565C0','📅')}${dashCard('Total Att.',monthAtt.length,'this month','#6A1B9A','📊')}</div>`;
@@ -6615,7 +6620,6 @@ async function renderMyAttendance() {
   const monthRecs = allAtt.filter(a=>a.date?.startsWith(month));
   document.getElementById('att-present').textContent = monthRecs.filter(a=>a.status==='Present').length;
   document.getElementById('att-leave').textContent = monthRecs.filter(a=>a.status==='Leave').length;
-  document.getElementById('att-holiday').textContent = monthRecs.filter(a=>a.status==='Holiday').length;
 
   // History list
   const listEl = document.getElementById('att-list');
@@ -6641,6 +6645,7 @@ async function renderMyAttendance() {
 
 // Marks the ISC's attendance for today (Present/Leave/Holiday): blocks double-marking, captures GPS if Present, saves to local storage instantly for a snappy UI, then writes to Sheets in the background.
 async function markAttendance(status) {
+  if (!['Present','Leave'].includes(status)) return;   // Holiday retired — Present or Leave only
   const today = todayStr();
 
   // Prevent double-tap — disable buttons immediately
@@ -6723,7 +6728,6 @@ function updateAttendanceUIImmediately(record) {
   const monthRecs = localAtt.filter(a=>a.date?.startsWith(month));
   const pEl=document.getElementById('att-present'); if(pEl) pEl.textContent=monthRecs.filter(a=>a.status==='Present').length;
   const lEl=document.getElementById('att-leave'); if(lEl) lEl.textContent=monthRecs.filter(a=>a.status==='Leave').length;
-  const hEl=document.getElementById('att-holiday'); if(hEl) hEl.textContent=monthRecs.filter(a=>a.status==='Holiday').length;
   // Refresh history list from local immediately
   renderAttendanceList(localAtt);
   // After 3 seconds, refresh from server to get accurate count
@@ -6807,10 +6811,42 @@ async function renderSelfAttendanceCard() {
     if (markedInfo) markedInfo.style.display = 'none';
     if (statusEl) { statusEl.textContent = 'Not marked yet'; statusEl.style.color = 'rgba(255,255,255,.6)'; }
   }
+
+  // Monthly stats + recent history inside the card (parity with the ISC attendance module)
+  const monthWrap = document.getElementById('satt-month');
+  if (monthWrap) {
+    const month = today.slice(0,7);
+    const recs = allAtt.filter(a=>String(a.date||'').startsWith(month)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const c = {Present:0,Leave:0,Holiday:0}; recs.forEach(r=>{ if(c[r.status]!=null) c[r.status]++; });
+    const stEl = document.getElementById('satt-month-stats');
+    if (stEl) stEl.innerHTML =
+      `<span style="color:#34d399">✅ ${c.Present} Present</span>`+
+      `<span style="color:#fbbf24">🏖️ ${c.Leave} Leave</span>`;
+    const hEl = document.getElementById('satt-history');
+    const ic = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
+    if (hEl) hEl.innerHTML = recs.slice(0,15).map(r=>
+      `<div style="display:flex;justify-content:space-between;gap:10px"><span>${escapeHtml(r.date||'')}</span><span>${ic[r.status]||''} ${escapeHtml(r.status||'')}${r.checkInTime?' · '+escapeHtml(r.checkInTime):''}</span></div>`).join('')
+      || '<div style="color:rgba(255,255,255,.4)">No records yet this month</div>';
+    monthWrap.style.display = 'block';
+  }
+}
+
+// CSV export of the manager's own attendance for the current month (any role with the self-card).
+function exportSelfAttendance() {
+  const month = new Date().toISOString().slice(0,7);
+  DATA_getAttendance(currentUser.id).then(all=>{
+    const recs = all.filter(a=>a.date?.startsWith(month)).sort((a,b)=>b.date.localeCompare(a.date));
+    if (!recs.length) { showToast('⚠️ No attendance records to export'); return; }
+    const headers = ['Date','Name','Role','Status','Check-in Time','Location','Region'];
+    const roleLabel = currentUser.empRole || ({asm:'ASM',rsm:'RSM',bdo:'BDO',isc:'ISC'})[currentUser.role] || '';
+    const rows = recs.map(r=>[r.date, r.iscName||currentUser.name, roleLabel, r.status, r.checkInTime||'', r.gps||'', r.region||'']);
+    exportToExcel([headers,...rows], `MRF_Attendance_${(currentUser.name||'me').replace(/ /g,'_')}_${month}.csv`);
+  }).catch(e=>showToast('⚠️ '+e.message));
 }
 
 // Same as markAttendance() but for an ASM/BDO/RSM/head marking their own attendance from the Team Attendance tab's self-card; also refreshes the team list afterward since the marker may appear in it too.
 async function markSelfAttendance(status) {
+  if (!['Present','Leave'].includes(status)) return;   // Holiday retired — Present or Leave only
   const today = todayStr();
   document.querySelectorAll('#satt-mark-buttons button').forEach(b=>b.disabled=true);
 
@@ -6895,7 +6931,6 @@ function openAttCorrection(idx) {
       <div style="display:flex;flex-direction:column;gap:8px">
         <button onclick="applyAttCorrection(${idx},'Present')" style="padding:11px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">✅ Present</button>
         <button onclick="applyAttCorrection(${idx},'Leave')" style="padding:11px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🏖️ Leave</button>
-        <button onclick="applyAttCorrection(${idx},'Holiday')" style="padding:11px;background:#6366f1;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🎉 Holiday</button>
         <button onclick="applyAttCorrection(${idx},'Absent')" style="padding:11px;background:#ef4444;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🚫 Absent (marked by mistake)</button>
         <button onclick="document.getElementById('att-correct-overlay').remove()" style="padding:10px;background:#f3f4f6;color:#333;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px">Cancel</button>
       </div>
