@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.27</div>
+        <div class="auth-tagline">FIELD ONE · v4.28</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1713,7 +1713,7 @@
     </div>
 
     <div class="form-group" id="ap-existing-group" style="display:none">
-      <label class="form-label">Search &amp; select *</label>
+      <label class="form-label">Search &amp; select <span style="font-weight:400;color:var(--gray)">(optional)</span></label>
       <input type="text" class="form-input" id="ap-search" placeholder="Type name, code or mobile..." oninput="renderPartyOptions()" style="margin-bottom:8px">
       <select class="form-select" id="ap-existing-select" size="5" onchange="applyExistingParty()"></select>
       <div style="font-size:11px;color:var(--gray);margin-top:4px">Picking someone fills their details below — you can still correct them.</div>
@@ -3889,7 +3889,8 @@ async function saveActivityParty() {
     return;
   }
 
-  if (mode==='existing' && !gv('ap-party-id')) return showToast('⚠️ Please select someone from the list');
+  // "Existing" mode no longer forces a pick from the master list — if nothing is selected,
+  // the visit saves with whatever details were typed, just without a link to a master record.
 
   setLoading(true,'Saving activity...');
   try {
