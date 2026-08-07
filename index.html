@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.28</div>
+        <div class="auth-tagline">FIELD ONE · v4.29</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -752,6 +752,7 @@
       <button class="filter-btn" onclick="filterMyActivity('Influencer',this)">🎨 Influencer</button>
       <button class="filter-btn" onclick="filterMyActivity('Contractor/Painter',this)">👷 Contractor</button>
       <button class="filter-btn" onclick="filterMyActivity('Work Along',this)">🤝 Work Along</button>
+      <button class="filter-btn" onclick="filterMyActivity('Office',this)">🏢 Office</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="date" class="form-input" id="act-date-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderMyActivity()">
@@ -1687,7 +1688,8 @@
     <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Site')">🏗️ &nbsp;Site</button>
     <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Influencer')">🎨 &nbsp;Influencer <span style="font-size:11px;color:var(--gray)">(architect / interior / engineer)</span></button>
     <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Contractor/Painter')">👷 &nbsp;Contractor / Painter <span style="font-size:11px;color:var(--gray)">(incl. builder)</span></button>
-    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:16px;font-size:15px" onclick="openActivityForm('Work Along')">🤝 &nbsp;Work Along <span style="font-size:11px;color:var(--gray)" id="picker-workalong-hint">(joint working)</span></button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;font-size:15px" onclick="openActivityForm('Work Along')">🤝 &nbsp;Work Along <span style="font-size:11px;color:var(--gray)" id="picker-workalong-hint">(joint working)</span></button>
+    <button class="btn-secondary" style="width:100%;text-align:left;padding:14px;margin-bottom:16px;font-size:15px" onclick="openActivityForm('Office')">🏢 &nbsp;Office <span style="font-size:11px;color:var(--gray)">(office day / meeting)</span></button>
     <button class="btn-secondary" style="width:100%" onclick="closeModal('modal-activity-picker')">Cancel</button>
   </div>
 </div>
@@ -1786,6 +1788,32 @@
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-activity-joint')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveActivityJoint()">Save Activity</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2d: Office activity — a lightweight entry for office days/meetings: just date, optional GPS, and mandatory remarks describing the office work. -->
+<div class="modal-overlay" id="modal-activity-office">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="ao-title">Log Office Work</div>
+    <div class="modal-subtitle">Record an office day, meeting or admin work</div>
+    <input type="hidden" id="ao-activity-id">
+
+    <div class="form-group"><label class="form-label">Date *</label><input type="date" class="form-input" id="ao-visitdate"></div>
+    <div class="form-group">
+      <label class="form-label">GPS Location</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="ao-gps" placeholder="Tap 📍 to capture" readonly style="flex:1;background:#f9fafb;font-size:12px">
+        <button type="button" onclick="captureGPSInto('ao-gps','ao-gps-status','ao-gps-btn')" id="ao-gps-btn" style="padding:10px 14px;background:var(--dark);color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0">📍</button>
+      </div>
+      <div id="ao-gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Remarks *</label><textarea class="form-input" id="ao-remarks" rows="3" placeholder="What was the office work / meeting about"></textarea></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-activity-office')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveActivityOffice()">Save Activity</button>
     </div>
   </div>
 </div>
@@ -3267,7 +3295,11 @@ async function renderActivityReport() {
                      || String(v.stName||v.bdoName||v.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
         .forEach(v=>{
           const d = _actRecDate(v);
-          if (dateSet.has(d)) acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`Visit: ${v.siteName||v.customer||v.purpose||v.dealerName||'(site)'}`, place:v.address||v.location||''});
+          if (!dateSet.has(d)) return;
+          if (String(v.activityType||'')==='Office')
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏢', text:`Office${v.remarks?': '+v.remarks:''}`, place:v.gps||''});
+          else
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`Visit: ${v.siteName||v.customer||v.purpose||v.dealerName||'(site)'}`, place:v.address||v.location||''});
         });
       // ...plus any ISC site entries where they were tagged
       const entries = await DATA_getEntries();
@@ -3694,6 +3726,15 @@ async function saveActivityJoint() {
 async function openActivityForm(type) {
   closeModal('modal-activity-picker');
   if (type === 'Work Along') { openJointForm(); return; }
+  if (type === 'Office') {
+    ['ao-activity-id','ao-gps','ao-remarks'].forEach(id=>sv(id,''));
+    const g=document.getElementById('ao-gps'); if(g) delete g.dataset.raw;
+    document.getElementById('ao-gps-status').textContent='';
+    document.getElementById('ao-title').textContent = 'Log Office Work';
+    sv('ao-visitdate', todayStr());
+    openModal('modal-activity-office');
+    return;
+  }
   if (type === 'Site') {
     ['as-sitestatus','as-custname','as-custphone','as-custtype','as-sitename','as-address','as-gps',
      'as-buildtype','as-sitestage','as-area','as-products','as-sitevalue','as-dealercode','as-dealername',
@@ -3752,6 +3793,17 @@ function editActivity(id) {
       _jointPeople = people;
       fillJointSelect(people, a.withId||'');
     });
+    return;
+  }
+
+  if (a.activityType === 'Office') {
+    sv('ao-activity-id', a.id);
+    document.getElementById('ao-title').textContent = 'Edit Office Work';
+    sv('ao-visitdate', a.visitDate||todayStr()); sv('ao-remarks', a.remarks||'');
+    sv('ao-gps', a.gps||'');
+    const g=document.getElementById('ao-gps'); if(g){ if(a.gpsRaw) g.dataset.raw=a.gpsRaw; else delete g.dataset.raw; }
+    document.getElementById('ao-gps-status').textContent='';
+    openModal('modal-activity-office');
     return;
   }
 
@@ -3980,6 +4032,35 @@ async function saveActivitySite() {
   finally { setLoading(false); }
 }
 
+// Office activity — no party or site attached, so remarks are mandatory (they ARE the content).
+async function saveActivityOffice() {
+  const visitDate = gv('ao-visitdate'), remarks = gv('ao-remarks').trim();
+  if (!visitDate) return showToast('⚠️ Date is required');
+  if (!remarks) return showToast('⚠️ Please describe the office work in remarks');
+
+  const editId = gv('ao-activity-id');
+  setLoading(true, editId ? 'Updating activity...' : 'Saving activity...');
+  try {
+    if (editId) {
+      await DATA_updateActivity(activitySheetFor(currentUser), editId, {
+        visitDate, remarks,
+        gps: gv('ao-gps'), gpsRaw: document.getElementById('ao-gps')?.dataset.raw || '',
+      });
+      showToast('✅ Office activity updated!');
+    } else {
+      await DATA_addActivity(activitySheetFor(currentUser), {
+        ...baseActivityRow('Office'),
+        visitDate, remarks,
+        gps: gv('ao-gps'), gpsRaw: document.getElementById('ao-gps')?.dataset.raw || '',
+      });
+      showToast('✅ Office activity logged!');
+    }
+    closeModal('modal-activity-office');
+    renderMyActivity();
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
 let _myActivityFilter = 'all';
 function filterMyActivity(f, el) {
   document.querySelectorAll('#tab-myactivity .filter-btn').forEach(b=>b.classList.remove('active'));
@@ -3988,7 +4069,7 @@ function filterMyActivity(f, el) {
   renderMyActivity();
 }
 
-const ACTIVITY_ICON = {'Dealer':'🏪','Site':'🏗️','Influencer':'🎨','Contractor/Painter':'👷','Work Along':'🤝'};
+const ACTIVITY_ICON = {'Dealer':'🏪','Site':'🏗️','Influencer':'🎨','Contractor/Painter':'👷','Work Along':'🤝','Office':'🏢'};
 
 let _myActivityCache = [];   // last-loaded own activities, so the ✏️ Edit button can find the full record
 
@@ -4016,16 +4097,17 @@ async function renderMyActivity() {
 
     shown.sort((a,b)=>String(b.visitDate||'').localeCompare(String(a.visitDate||'')) || String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
     el.innerHTML = shown.map(a=>{
-      const isSite = a.activityType==='Site', isJoint = a.activityType==='Work Along';
-      const heading = isSite ? (a.siteName||'(unnamed site)') : isJoint ? (a.withName||'(no name)') : (a.partyName||'(no name)');
+      const isSite = a.activityType==='Site', isJoint = a.activityType==='Work Along', isOffice = a.activityType==='Office';
+      const heading = isSite ? (a.siteName||'(unnamed site)') : isJoint ? (a.withName||'(no name)') : isOffice ? 'Office work' : (a.partyName||'(no name)');
       const sub = isSite
         ? [a.custName, a.address].filter(Boolean).map(escapeHtml).join(' · ')
         : isJoint
         ? [a.withRole ? 'Worked along with · '+a.withRole : ''].filter(Boolean).map(escapeHtml).join('')
+        : isOffice ? ''
         : [a.partyFirm, a.partyCode, a.partyMobile].filter(Boolean).map(escapeHtml).join(' · ');
       const extra = isSite
         ? [a.buildType, a.siteStage, a.siteValue?('₹'+Number(a.siteValue).toLocaleString('en-IN')):''].filter(Boolean).map(escapeHtml).join(' · ')
-        : isJoint ? ''
+        : (isJoint || isOffice) ? ''
         : [a.partySubType, a.partyMachineType, a.purpose].filter(Boolean).map(escapeHtml).join(' · ');
       return `<div class="entry-card" style="cursor:default">
         <div class="entry-card-top">
