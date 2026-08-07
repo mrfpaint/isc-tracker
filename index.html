@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.30</div>
+        <div class="auth-tagline">FIELD ONE · v4.31</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -970,6 +970,26 @@
       <div id="ai-brief-body" style="font-size:13px;line-height:1.6;margin-top:8px;color:#1f2937;white-space:pre-wrap"></div>
     </div>
     <div id="dash-content"></div>
+  </div>
+
+  <!-- ORG VIEW — NSH + Admin drill-down: Attendance / Activities aggregated level by level
+       (All RSMs → one RSM's ASMs → one ASM's STs/BDOs → one ST/BDO's ISCs). -->
+  <div id="tab-orgdash" class="main-content" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title">🏛️ Org View</div>
+      <button class="btn-sm btn-blue" onclick="ogdRefresh()">🔄 Refresh</button>
+    </div>
+    <div class="page-subtitle" id="orgdash-subtitle">Drill down: RSM → ASM → ST/BDO → ISC</div>
+    <div class="filter-row" style="margin-bottom:10px">
+      <button class="filter-btn active" id="ogd-mode-att" onclick="setOrgDashMode('attendance',this)">📅 Attendance</button>
+      <button class="filter-btn" id="ogd-mode-act" onclick="setOrgDashMode('activities',this)">🕒 Activities</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="form-input" id="ogd-from" style="flex:1;min-width:130px;font-size:12px" onchange="renderOrgDash()">
+      <input type="date" class="form-input" id="ogd-to" style="flex:1;min-width:130px;font-size:12px" onchange="renderOrgDash()">
+    </div>
+    <div id="ogd-breadcrumb" style="font-size:12px;margin-bottom:10px;line-height:1.9"></div>
+    <div id="ogd-list"></div>
   </div>
 
   <!-- PROFILE -->
@@ -3179,11 +3199,11 @@ function buildNav() {
   } else if (currentUser.role==='bdo') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button>${currentUser.empRole==='NSH'?`<button class="nav-item" onclick="switchTab('orgdash',this)"><span class="nav-icon">🏛️</span><span>Org View</span></button>`:''}<button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
   } else {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('orgdash',this)"><span class="nav-icon">🏛️</span><span>Org View</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
 }
 
@@ -3192,7 +3212,7 @@ function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n
 
 // Hides all tab panels, shows only #tab-<tab>, and kicks off that tab's data-loading/render function so it always shows fresh data.
 function showTab(tab) {
-  ['tab-mysites','tab-allsites','tab-bdosites','tab-myactivity','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
+  ['tab-mysites','tab-allsites','tab-bdosites','tab-myactivity','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm','tab-orgdash'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
   document.getElementById('tab-'+tab).style.display='block';
   if (tab==='mysites') renderMyEntries();
   if (tab==='allsites') renderAllEntries();
@@ -3208,6 +3228,7 @@ function showTab(tab) {
   if (tab==='admin') renderAdminPanel();
   if (tab==='dashboard') renderDashboard();
   if (tab==='activity') renderActivityTab();
+  if (tab==='orgdash') renderOrgDash();
   if (tab==='reports') renderReportsTab();
   if (tab==='pcm') {
     // Approvals are for managers only (ASM / RSM / Admin)
@@ -7322,6 +7343,133 @@ function exportTeamAttendance() {
     setLoading(false);
   }).catch(e => { showToast('⚠️ Export failed: '+e.message); setLoading(false); });
 }
+
+// ══════════════════════════════════════════════
+//  ORG VIEW — NSH + Admin drill-down dashboard
+//  Two modes (Attendance / Activities), four levels (RSM → ASM → ST/BDO → ISC).
+//  Every card shows the aggregate for that person PLUS everyone below them; tapping
+//  drills one level down, the breadcrumb jumps back up. Data is fetched once per
+//  session and cached in _ogdData — the 🔄 button forces a refetch.
+// ══════════════════════════════════════════════
+let _ogdData = null;     // masters + facts, loaded once
+let _ogdPath = [];       // drill path: array of node objects {p, role}
+let _ogdMode = 'attendance';
+let _ogdNodes = [];      // nodes currently rendered (index-addressed by ogdDrill)
+
+async function loadOrgDashData(force=false) {
+  if (_ogdData && !force) return _ogdData;
+  const safe = p => p.catch(()=>[]);
+  const [rsms,asms,sts,bdos,iscs,att,entries,stV,bdoV,asmV,rsmV] = await Promise.all([
+    safe(DATA_getRSMs()), safe(DATA_getASMs()), safe(DATA_getSTs()), safe(DATA_getBDOs()),
+    safe(DATA_getISCs()), safe(DATA_getAttendance()), safe(DATA_getEntries()),
+    safe(DATA_getSTVisits()), safe(DATA_getBDOVisits()), safe(sheetsGet('ASM_Visits')), safe(sheetsGet('RSM_Visits'))
+  ]);
+  const live = r => !['inactive','vacant'].includes(String(r.status||'Active').toLowerCase());
+  _ogdData = {
+    rsms:   rsms.filter(r=>live(r) && !headZoneOf(r)),   // real RSMs only — NSH/SH/NH rows aren't a drill level
+    asms:   asms.filter(live),
+    stbdos: [...sts.filter(live).map(s=>({...s,_role:(s.role||'ST').toUpperCase()})),
+             ...bdos.filter(live).map(b=>({...b,_role:(b.role||'BDO').toUpperCase()}))],
+    iscs:   iscs.filter(live),
+    att,
+    // one flat {pid, date} list across every activity source: ISC site entries + all four visit sheets
+    visits: [...entries.map(e=>({pid:String(e.iscId||''), date:String(e.createdAt||'').slice(0,10)})),
+             ...[...stV,...bdoV,...asmV,...rsmV].map(v=>({pid:String(v.empId||v.stId||v.bdoId||v.userId||''), date:String(v.visitDate||v.createdAt||'').slice(0,10)}))]
+  };
+  return _ogdData;
+}
+
+// The next level down from `node` (null = top level → all RSMs). ISCs with an ASM but no ST/BDO
+// mapping surface directly under their ASM so nobody drops out of the tree.
+function ogdChildren(D, node) {
+  if (!node) return D.rsms.slice().sort(byName).map(r=>({p:r, role:'rsm'}));
+  if (node.role==='rsm') return D.asms.filter(a=>String(a.rsmId||'')===String(node.p.id)).sort(byName).map(a=>({p:a, role:'asm'}));
+  if (node.role==='asm') {
+    const kids = D.stbdos.filter(s=>String(s.asmId||'')===String(node.p.id)).sort(byName).map(s=>({p:s, role:'stbdo'}));
+    const direct = D.iscs.filter(i=>String(i.asmId||'')===String(node.p.id) && !String(i.stId||'') && !String(i.bdoId||'')).sort(byName).map(i=>({p:i, role:'isc'}));
+    return [...kids, ...direct];
+  }
+  if (node.role==='stbdo') {
+    const isST = ['ST','SE'].includes(String(node.p._role||'ST'));
+    return D.iscs.filter(i=>String((isST?i.stId:i.bdoId)||'')===String(node.p.id)).sort(byName).map(i=>({p:i, role:'isc'}));
+  }
+  return [];
+}
+
+// All person ids at-and-below a node (the node themselves + every descendant).
+function ogdIds(D, node) {
+  const out = [String(node.p.id)];
+  ogdChildren(D, node).forEach(c=>out.push(...ogdIds(D, c)));
+  return out;
+}
+
+async function renderOrgDash() {
+  const list = document.getElementById('ogd-list'); if (!list) return;
+  const fEl = document.getElementById('ogd-from'), tEl = document.getElementById('ogd-to');
+  if (!tEl.value) tEl.value = todayStr();
+  if (!fEl.value) fEl.value = todayStr();
+  const from = fEl.value, to = tEl.value;
+  if (from > to) { showToast('⚠️ "From" date must be before "To" date'); return; }
+  list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading organisation data...</div>`;
+  try {
+    const D = await loadOrgDashData();
+
+    const bc = document.getElementById('ogd-breadcrumb');
+    const crumbs = [`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(0)">🌍 All RSMs</a>`];
+    _ogdPath.forEach((n,i)=>crumbs.push(`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(${i+1})">${escapeHtml(n.p.name||'')}</a>`));
+    bc.innerHTML = crumbs.join(' <span style="color:#999">›</span> ');
+
+    const parent = _ogdPath.length ? _ogdPath[_ogdPath.length-1] : null;
+    _ogdNodes = ogdChildren(D, parent);
+    if (!_ogdNodes.length) { list.innerHTML = emptyState('🏛️','Nothing mapped at this level'); return; }
+
+    const inRange = d => d>=from && d<=to;
+    const single = from===to;
+    const attFor = ids => { const set=new Set(ids); const c={P:0,L:0,H:0,marked:0};
+      D.att.forEach(a=>{ if (set.has(String(a.iscId)) && inRange(String(a.date||''))) { c.marked++;
+        if (a.status==='Present') c.P++; else if (a.status==='Leave') c.L++; else if (a.status==='Holiday') c.H++; } });
+      return c; };
+    const actFor = ids => { const set=new Set(ids); return D.visits.filter(v=>set.has(v.pid)&&inRange(v.date)).length; };
+    const roleLabel = n => n.role==='rsm'?'RSM':n.role==='asm'?'ASM':n.role==='isc'?'ISC':(n.p._role||'ST');
+
+    list.innerHTML = _ogdNodes.map((n,i)=>{
+      const ids = ogdIds(D, n), ppl = ids.length;
+      let metrics;
+      if (_ogdMode==='attendance') {
+        const c = attFor(ids);
+        metrics = single
+          ? `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H} · <span style="color:#ef4444">❌ ${ppl-c.marked} unmarked</span>`
+          : `✅ ${c.P} present · 🏖️ ${c.L} leave · 🎉 ${c.H} holiday <span style="color:#999">(marks in range)</span>`;
+      } else {
+        const cnt = actFor(ids);
+        metrics = `🕒 ${cnt} activit${cnt===1?'y':'ies'}`;
+      }
+      const drillable = n.role!=='isc';
+      return `<div class="entry-card" style="cursor:${drillable?'pointer':'default'}" ${drillable?`onclick="ogdDrill(${i})"`:''}>
+        <div class="entry-card-top">
+          <div style="flex:1">
+            <div class="entry-name">${escapeHtml(n.p.name||'(no name)')} <span style="font-size:10px;color:var(--gray)">${roleLabel(n)}</span></div>
+            <div class="entry-sub">👥 ${ppl} ${ppl===1?'person':'people'}${n.p.region?' · 🗺️ '+escapeHtml(n.p.region):''}</div>
+            <div class="entry-sub" style="margin-top:4px">${metrics}</div>
+          </div>
+          ${drillable?'<div style="color:#999;font-size:20px;align-self:center">›</div>':''}
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('orgdash-subtitle').textContent =
+      `${_ogdMode==='attendance'?'📅 Attendance':'🕒 Activities'} · ${single?from:from+' → '+to}`;
+  } catch(e) { list.innerHTML = `<div class="alert alert-error">Could not load: ${e.message}</div>`; }
+}
+
+function ogdDrill(i) { const n=_ogdNodes[i]; if (!n || n.role==='isc') return; _ogdPath.push(n); renderOrgDash(); }
+function ogdJump(len) { _ogdPath = _ogdPath.slice(0, len); renderOrgDash(); }
+function setOrgDashMode(m, el) {
+  _ogdMode = m;
+  document.getElementById('ogd-mode-att').classList.toggle('active', m==='attendance');
+  document.getElementById('ogd-mode-act').classList.toggle('active', m==='activities');
+  renderOrgDash();
+}
+function ogdRefresh() { _ogdData = null; renderOrgDash(); }
 
 // ══════════════════════════════════════════════
 //  EXCEL EXPORT
