@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.29</div>
+        <div class="auth-tagline">FIELD ONE · v4.30</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1615,6 +1615,7 @@
     <div class="modal-handle"></div>
     <div class="modal-title">Add Sales Technologist</div>
     <div class="modal-subtitle" id="modal-st-subtitle">Add a new ST/SE</div>
+    <input type="hidden" id="st-edit-id">
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="st-name" placeholder="ST full name"></div>
     <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="st-email" placeholder="st@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="st-phone" placeholder="10-digit number"></div>
@@ -1636,6 +1637,7 @@
     <div class="modal-handle"></div>
     <div class="modal-title">Add BDO</div>
     <div class="modal-subtitle" id="modal-bdo-subtitle">Add a new BDO/BDE</div>
+    <input type="hidden" id="bdo-edit-id">
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="bdo-name" placeholder="BDO full name"></div>
     <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bdo-email" placeholder="bdo@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bdo-phone" placeholder="10-digit number"></div>
@@ -1648,6 +1650,22 @@
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-bdo')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveBDO()">Save BDO</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign ASM Modal — shared by ST/SE and BDO/BDE cards: remap one person to a different ASM without touching any of their other details. -->
+<div class="modal-overlay" id="modal-assign-asm">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Assign ASM</div>
+    <div class="modal-subtitle" id="assign-asm-person-name">Assign an ASM</div>
+    <input type="hidden" id="assign-asm-person-id">
+    <input type="hidden" id="assign-asm-person-role">
+    <div class="form-group"><label class="form-label">Reports to (ASM)</label><select class="form-select" id="assign-asm-select"><option value="">— Select ASM —</option></select></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-assign-asm')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveASMAssignment()">Assign ASM</button>
     </div>
   </div>
 </div>
@@ -5868,6 +5886,8 @@ async function renderSTList(refetch=true) {
       <div class="entry-sub">${s.email?'📧 '+s.email+' · ':''}${s.phone?'📞 '+s.phone:''}</div>
       <div class="entry-sub" style="margin-top:4px">${s.region?'🗺️ '+s.region+' · ':''}🌐 ASM: <strong>${s.asmName||'Not assigned'}</strong></div>
       <div class="isc-actions" style="margin-top:8px">
+        <button class="btn-sm btn-blue" onclick="editST('${s.id}')">✏️ Edit</button>
+        <button class="btn-sm btn-blue" onclick="openAssignASMModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${s.asmId||''}')">🌐 Assign ASM</button>
         ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('st','${s.id}','Active')">🟢 Activate</button>`}
       </div>
@@ -5898,6 +5918,8 @@ async function renderBDOList(refetch=true) {
       <div class="entry-sub">${b.email?'📧 '+b.email+' · ':''}${b.phone?'📞 '+b.phone:''}</div>
       <div class="entry-sub" style="margin-top:4px">${b.region?'🗺️ '+b.region+' · ':''}${b.location?'📌 '+b.location+' · ':''}🌐 ASM: <strong>${b.asmName||'Not assigned'}</strong></div>
       <div class="isc-actions" style="margin-top:8px">
+        <button class="btn-sm btn-blue" onclick="editBDO('${b.id}')">✏️ Edit</button>
+        <button class="btn-sm btn-blue" onclick="openAssignASMModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}','${b.asmId||''}')">🌐 Assign ASM</button>
         ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('bdo','${b.id}','Active')">🟢 Activate</button>`}
       </div>
@@ -5923,6 +5945,8 @@ async function openAddAsmModal() {
 // Populates the ASM + region dropdowns, then opens the Add ST modal.
 async function openAddSTModal() {
   document.getElementById('modal-st-subtitle').textContent = 'Add a new ST/SE';
+  sv('st-edit-id','');
+  ['st-name','st-email','st-phone','st-username','st-password'].forEach(id=>sv(id,''));
   const sel = document.getElementById('st-asm-select');
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
@@ -5938,6 +5962,8 @@ async function openAddSTModal() {
 // Populates the ASM + region dropdowns, then opens the Add BDO modal.
 async function openAddBDOModal() {
   document.getElementById('modal-bdo-subtitle').textContent = 'Add a new BDO/BDE';
+  sv('bdo-edit-id','');
+  ['bdo-name','bdo-email','bdo-phone','bdo-username','bdo-password','bdo-location'].forEach(id=>sv(id,''));
   const sel = document.getElementById('bdo-asm-select');
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
@@ -5972,12 +5998,67 @@ async function saveAsm() {
 // STs and BDOs share one login screen, so a username must be unique across BOTH sheets.
 // Inactive/vacant rows don't block reuse — their credentials are retired at login too.
 // (This guard is what prevents the "Parsad Patel / Patel Prasadkumar" duplicate-row problem.)
-async function stBdoUsernameTaken(username) {
+// excludeId lets the edit flow keep a person's own username without tripping the check.
+async function stBdoUsernameTaken(username, excludeId) {
   const [sts, bdos] = await Promise.all([DATA_getSTs(), DATA_getBDOs()]);
   const u = String(username||'').toLowerCase();
   const live = r => String(r.status||'Active')!=='Inactive' && String(r.status||'')!=='Vacant';
-  const hit = [...sts, ...bdos].find(r => live(r) && String(r.username||'').toLowerCase()===u);
+  const hit = [...sts, ...bdos].find(r => live(r) && String(r.username||'').toLowerCase()===u && String(r.id)!==String(excludeId||''));
   return hit ? `${hit.name} (${(hit.role||'?').toUpperCase()})` : null;
+}
+
+// ── EDIT ST / BDO — reuses the Add modals in edit mode (hidden st-edit-id / bdo-edit-id) ──
+async function editST(id) {
+  const s = _stAdminCache.find(x=>String(x.id)===String(id));
+  if (!s) return showToast('⚠️ ST not found');
+  await openAddSTModal();
+  document.getElementById('modal-st-subtitle').textContent = `Edit — ${s.name}`;
+  sv('st-edit-id', s.id);
+  sv('st-name', s.name||''); sv('st-email', s.email||''); sv('st-phone', s.phone||'');
+  sv('st-username', s.username||''); sv('st-password', s.password||'');
+  sv('st-role', (s.role||'ST').toUpperCase()); sv('st-region', s.region||''); sv('st-asm-select', s.asmId||'');
+}
+async function editBDO(id) {
+  const b = _bdoAdminCache.find(x=>String(x.id)===String(id));
+  if (!b) return showToast('⚠️ BDO not found');
+  await openAddBDOModal();
+  document.getElementById('modal-bdo-subtitle').textContent = `Edit — ${b.name}`;
+  sv('bdo-edit-id', b.id);
+  sv('bdo-name', b.name||''); sv('bdo-email', b.email||''); sv('bdo-phone', b.phone||'');
+  sv('bdo-username', b.username||''); sv('bdo-password', b.password||'');
+  sv('bdo-role', (b.role||'bdo').toLowerCase()); sv('bdo-region', b.region||'');
+  sv('bdo-location', b.location||''); sv('bdo-asm-select', b.asmId||'');
+}
+
+// ── ASSIGN ASM — shared remap modal for ST/SE and BDO/BDE ──
+async function openAssignASMModal(role, personId, personName, currentAsmId) {
+  sv('assign-asm-person-id', personId); sv('assign-asm-person-role', role);
+  document.getElementById('assign-asm-person-name').textContent = `Assigning ASM for: ${personName}`;
+  const sel = document.getElementById('assign-asm-select');
+  sel.innerHTML = `<option value="">— Select ASM —</option>`;
+  try {
+    const asms = await DATA_getASMs();
+    asms.filter(a=>String(a.status||'Active')!=='Inactive').sort(byName).forEach(a=>{
+      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=a.name;
+      if(a.id===currentAsmId) opt.selected=true;
+      sel.appendChild(opt);
+    });
+  } catch(e){ showToast('⚠️ Could not load ASMs'); return; }
+  openModal('modal-assign-asm');
+}
+async function saveASMAssignment() {
+  const role=gv('assign-asm-person-role'), personId=gv('assign-asm-person-id'), asmId=gv('assign-asm-select');
+  if (!asmId) return showToast('⚠️ Please select an ASM');
+  setLoading(true,'Assigning ASM...');
+  try {
+    const asms = await DATA_getASMs();
+    const asm = asms.find(a=>a.id===asmId);
+    await sheetsUpdate(role==='st'?'STs':'BDOs','id',personId,{asmId, asmName:asm?.name||''});
+    showToast('✅ ASM assigned!');
+    closeModal('modal-assign-asm');
+    if (role==='st') renderSTList(); else renderBDOList();
+  } catch(e){showToast('⚠️ '+e.message);}
+  finally{setLoading(false);}
 }
 
 async function saveST() {
@@ -5986,12 +6067,21 @@ async function saveST() {
   const role=gv('st-role')||'ST', region=gv('st-region'), asmId=gv('st-asm-select');
   if (!name) return showToast('⚠️ Name required');
   if (!username||!password) return showToast('⚠️ Username and password required for ST login');
+  const editId = gv('st-edit-id');
   setLoading(true,'Saving ST...');
   try {
-    const takenBy = await stBdoUsernameTaken(username);
+    const takenBy = await stBdoUsernameTaken(username, editId);
     if (takenBy) { showToast(`⚠️ Emp no ${username} is already used by ${takenBy} — same person? Edit the existing record instead`); return; }
     const asms=await DATA_getASMs();
     const asm=asms.find(a=>a.id===asmId);
+    if (editId) {
+      // Edit mode — patch the row; if the name changed, refresh the denormalized stName on their ISCs
+      const orig = _stAdminCache.find(x=>String(x.id)===String(editId));
+      await sheetsUpdate('STs','id',editId,{name,email,phone,username,password,empNo:username,role,region,asmId:asmId||'',asmName:asm?.name||''});
+      if (orig && String(orig.name||'')!==name) { try { await bulkReassign('Users','stId',editId,{stName:name}); } catch(e){ console.warn('stName propagation failed:', e.message); } }
+      closeModal('modal-st');renderSTList();
+      showToast('✅ ST updated!'); return;
+    }
     const newSt = {id:'st'+Date.now(),name,email,phone,username,password,empNo:username,role,region,
       asmId:asmId||'',asmName:asm?.name||'',status:'Active'};
     await DATA_addST(newSt);
@@ -6008,12 +6098,21 @@ async function saveBDO() {
   const role=gv('bdo-role')||'bdo', region=gv('bdo-region'), location=gv('bdo-location').trim(), asmId=gv('bdo-asm-select');
   if (!name) return showToast('⚠️ Name required');
   if (!username||!password) return showToast('⚠️ Username and password required for BDO login');
+  const editId = gv('bdo-edit-id');
   setLoading(true,'Saving BDO...');
   try {
-    const takenBy = await stBdoUsernameTaken(username);
+    const takenBy = await stBdoUsernameTaken(username, editId);
     if (takenBy) { showToast(`⚠️ Emp no ${username} is already used by ${takenBy} — same person? Edit the existing record instead`); return; }
     const asms=await DATA_getASMs();
     const asm=asms.find(a=>a.id===asmId);
+    if (editId) {
+      // Edit mode — patch the row; if the name changed, refresh the denormalized bdoName on their ISCs
+      const orig = _bdoAdminCache.find(x=>String(x.id)===String(editId));
+      await sheetsUpdate('BDOs','id',editId,{name,email,phone,username,password,empNo:username,role,region,location,asmId:asmId||'',asmName:asm?.name||''});
+      if (orig && String(orig.name||'')!==name) { try { await bulkReassign('Users','bdoId',editId,{bdoName:name}); } catch(e){ console.warn('bdoName propagation failed:', e.message); } }
+      closeModal('modal-bdo');renderBDOList();
+      showToast('✅ BDO updated!'); return;
+    }
     const newBdo = {id:'bdo'+Date.now(),name,email,phone,username,password,empNo:username,role,region,location,
       asmId:asmId||'',asmName:asm?.name||'',status:'Active'};
     await DATA_addBDO(newBdo);
