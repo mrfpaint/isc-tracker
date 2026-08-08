@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.32</div>
+        <div class="auth-tagline">FIELD ONE · v4.33</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2420,8 +2420,20 @@ function isConfigured() { const c=getConfig(); return !!(c.sheetId && c.apiKey);
 // Update: uses batchUpdate to find and update a specific row
 
 // Read every row of a named sheet/tab and turn it into an array of {header: value} objects, using row 1 as the header names.
+// Tells the worker who is asking so D1 returns only their slice of the big tables
+// (Entries/Attendance/visits) — an ISC downloads ~40 rows instead of 10,000+.
+// Empty for admin/view-only and before login, which means "no filter".
+function scopeParam() {
+  try {
+    if (!currentUser || !currentUser.id || currentUser.role === 'admin' || currentUser.viewOnly) return '';
+    let role = currentUser.role;
+    if (role === 'bdo') role = currentUser.isST ? 'st' : 'bdo';
+    return `&as=${encodeURIComponent(role + ':' + currentUser.id)}`;
+  } catch (_) { return ''; }
+}
+
 async function sheetsGet(sheet) {
-  const resp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet)}`);
+  const resp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet)}${scopeParam()}`);
   if (!resp.ok) throw new Error(`Sheets read error (${sheet}): ${resp.status}`);
   const data = await resp.json();
   if (data.error) throw new Error(`Sheets read error (${sheet}): ${data.error.message||JSON.stringify(data.error)}`);
