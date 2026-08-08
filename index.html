@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.31</div>
+        <div class="auth-tagline">FIELD ONE · v4.32</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1105,7 +1105,10 @@
     <div class="section-card">
       <div class="section-header">
         <div class="section-title">🩺 Data Health Check <span style="font-size:11px;color:var(--gray);font-weight:400">AI-assisted</span></div>
-        <button class="btn-sm btn-blue" onclick="runDataHealthCheck()">▶ Run Check</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sm btn-green" onclick="syncDisplayNames()">🔁 Fix Name Mismatches</button>
+          <button class="btn-sm btn-blue" onclick="runDataHealthCheck()">▶ Run Check</button>
+        </div>
       </div>
       <div class="section-body">
         <div style="font-size:12px;color:var(--gray)">Scans the Users, STs, BDOs, ASMs &amp; RSMs sheets for broken mappings, duplicate ids/usernames and name mismatches — the data problems that make people invisible in the app — and asks Claude to prioritise what to fix first.</div>
@@ -2255,6 +2258,52 @@ async function generateWeeklyBrief() {
   } catch(e) {
     body.innerHTML=`<span style="color:#991b1b">Could not generate: ${escapeHtml(e.message)}</span>`;
   } finally { btn.disabled=false; }
+}
+
+// Admin "Fix Name Mismatches": display names (asmName, stName, bdoName, rsmName) are copied
+// onto rows when people are mapped, so renaming someone in their master sheet leaves stale
+// copies everywhere. This walks Users/STs/BDOs/ASMs and rewrites every copy from the
+// authoritative record (matched by id) via the worker — one click clears every
+// "display mismatch" finding in the health check, and dual-write keeps D1 in step.
+async function syncDisplayNames() {
+  if (!confirm('Sync all stale display names (ASM/ST/BDO/RSM name copies) from the master records?')) return;
+  const el = document.getElementById('dh-results');
+  setLoading(true,'Scanning for stale names...');
+  try {
+    const [iscs, sts, bdos, asms, rsms] = await Promise.all([
+      DATA_getISCs(), DATA_getSTs(), DATA_getBDOs(), DATA_getASMs(), DATA_getRSMs()]);
+    const byId = list => { const m={}; list.forEach(r=>{ if(r.id) m[String(r.id)]=r; }); return m; };
+    const asmById=byId(asms), rsmById=byId(rsms), stById=byId(sts), bdoById=byId(bdos);
+    const diff=(a,b)=>String(a||'').replace(/\s+/g,' ').trim().toLowerCase()!==String(b||'').replace(/\s+/g,' ').trim().toLowerCase();
+    const fixes=[];
+    sts.forEach(s=>{ const a=s.asmId&&asmById[String(s.asmId)]; if(a&&a.name&&diff(s.asmName,a.name)) fixes.push({sheet:'STs',id:s.id,who:s.name,updates:{asmName:a.name}}); });
+    bdos.forEach(b=>{ const a=b.asmId&&asmById[String(b.asmId)]; if(a&&a.name&&diff(b.asmName,a.name)) fixes.push({sheet:'BDOs',id:b.id,who:b.name,updates:{asmName:a.name}}); });
+    asms.forEach(x=>{ const r=x.rsmId&&rsmById[String(x.rsmId)]; if(r&&r.name&&diff(x.rsmName,r.name)) fixes.push({sheet:'ASMs',id:x.id,who:x.name,updates:{rsmName:r.name}}); });
+    iscs.forEach(u=>{
+      const upd={};
+      const a=u.asmId&&asmById[String(u.asmId)];
+      if(a&&a.name&&diff(u.asmName,a.name)){ upd.asmName=a.name; if(a.email)upd.asmEmail=a.email; if(a.phone)upd.asmPhone=a.phone; }
+      const s=u.stId&&stById[String(u.stId)];
+      if(s&&s.name&&diff(u.stName,s.name)) upd.stName=s.name;
+      const b=u.bdoId&&bdoById[String(u.bdoId)];
+      if(b&&b.name&&diff(u.bdoName,b.name)) upd.bdoName=b.name;
+      if(Object.keys(upd).length) fixes.push({sheet:'Users',id:u.id,who:u.name,updates:upd});
+    });
+    if (!fixes.length) { setLoading(false); showToast('✅ No stale names found'); return; }
+    let done=0, failed=0;
+    for (const f of fixes) {
+      setLoading(true,`Fixing names ${done+1}/${fixes.length}...`);
+      try { await sheetsUpdate(f.sheet,'id',f.id,f.updates); done++; }
+      catch(e){ failed++; console.warn('name sync failed for',f.sheet,f.id,e.message); }
+    }
+    showToast(`✅ ${done} record(s) updated${failed?` · ⚠️ ${failed} failed`:''}`);
+    if (el) el.innerHTML = `<div style="font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
+      🔁 Name sync: ${done} fixed${failed?`, ${failed} failed`:''}.<br>
+      ${fixes.slice(0,25).map(f=>`${escapeHtml(f.sheet)} · ${escapeHtml(f.who||f.id)} → ${escapeHtml(Object.entries(f.updates).map(([k,v])=>k+': '+v).join(', '))}`).join('<br>')}
+      ${fixes.length>25?`<br>+${fixes.length-25} more`:''}
+      <br><span style="color:var(--gray)">Run the health check again to confirm.</span></div>`;
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
 }
 
 // Admin "Data Health Check": asks the AI worker to scan the master sheets for broken
