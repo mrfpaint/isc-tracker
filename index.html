@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.33</div>
+        <div class="auth-tagline">FIELD ONE · v4.34</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2420,6 +2420,39 @@ function isConfigured() { const c=getConfig(); return !!(c.sheetId && c.apiKey);
 // Update: uses batchUpdate to find and update a specific row
 
 // Read every row of a named sheet/tab and turn it into an array of {header: value} objects, using row 1 as the header names.
+// ── AUTO-UPDATE CHECK ──
+// Field phones keep the app open for days, so new releases used to need a WhatsApp
+// "please refresh" campaign. This checks the deployed page for a newer "FIELD ONE · vX.YY"
+// tag (30-min interval + whenever the app returns to the foreground) and shows an
+// Update button. The ?upd= query busts every cache layer on reload.
+function currentAppVersion() {
+  const m = (document.querySelector('.auth-tagline')?.textContent || '').match(/v(\d+)\.(\d+)/);
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
+async function checkForUpdate() {
+  try {
+    const r = await fetch(location.pathname + '?vchk=' + Date.now(), { cache: 'no-store', headers: { 'Range': 'bytes=0-4000' } });
+    const t = await r.text();
+    const m = t.match(/FIELD ONE · v(\d+)\.(\d+)/);
+    const cur = currentAppVersion();
+    if (!m || !cur) return;
+    const nv = [Number(m[1]), Number(m[2])];
+    if (nv[0] > cur[0] || (nv[0] === cur[0] && nv[1] > cur[1])) showUpdateBanner(`v${m[1]}.${m[2]}`);
+  } catch (_) { /* offline etc. — try again later */ }
+}
+function showUpdateBanner(ver) {
+  if (document.getElementById('upd-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'upd-banner';
+  b.style.cssText = 'position:fixed;bottom:74px;left:12px;right:12px;z-index:9999;background:var(--dark);color:white;padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:13px';
+  b.innerHTML = `<span>🔄 FIELD ONE ${ver} is available</span>
+    <button onclick="location.replace(location.pathname + '?upd=' + Date.now())" style="background:var(--red);color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0">Update now</button>`;
+  document.body.appendChild(b);
+}
+setInterval(checkForUpdate, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+setTimeout(checkForUpdate, 20000);
+
 // Tells the worker who is asking so D1 returns only their slice of the big tables
 // (Entries/Attendance/visits) — an ISC downloads ~40 rows instead of 10,000+.
 // Empty for admin/view-only and before login, which means "no filter".
