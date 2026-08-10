@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.34</div>
+        <div class="auth-tagline">FIELD ONE · v4.35</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -997,6 +997,11 @@
     <div class="page-title">My Profile</div>
     <div class="page-subtitle">Your saved details</div>
     <div class="profile-card" id="profile-card-content"></div>
+    <!-- Reporting chain resolved LIVE from the master records — users spot wrong/missing mappings themselves -->
+    <div class="section-card" id="reporting-line-section" style="display:none">
+      <div class="section-header"><div class="section-title">🧭 My Reporting Line</div></div>
+      <div class="section-body" id="reporting-line-content"></div>
+    </div>
     <div class="section-card" id="asm-profile-section">
       <div class="section-header"><div class="section-title">ASM Details</div></div>
       <div class="section-body" id="asm-profile-content"></div>
@@ -5679,6 +5684,92 @@ function renderProfile() {
     const codes=(u.dealerCodes||'').split(',').map(c=>c.trim()).filter(Boolean);
     document.getElementById('isc-details-content').innerHTML=`<div class="detail-row"><div class="detail-label">ST</div><div class="detail-value">${u.stName||'—'}</div></div><div class="detail-row"><div class="detail-label">BDO</div><div class="detail-value">${u.bdoName||'—'}</div></div><div class="detail-row"><div class="detail-label">Region</div><div class="detail-value">${u.region||'—'}</div></div><div class="detail-row"><div class="detail-label">Dealer Codes</div><div class="detail-value">${codes.join(', ')||'—'}</div></div>`;
   }
+  renderReportingLine();
+}
+
+// "My Reporting Line": every user's chain upward, resolved LIVE by id from the master
+// records (never the name copies stamped on their row) — so a wrong or broken mapping
+// shows up as an amber warning the user can report. This crowdsources data hygiene.
+async function renderReportingLine() {
+  const el = document.getElementById('reporting-line-content');
+  const card = document.getElementById('reporting-line-section');
+  if (!el || !card) return;
+  const u = currentUser;
+  if (!u || u.role==='admin') { card.style.display='none'; return; }
+  card.style.display='block';
+  el.innerHTML = '<div style="color:var(--gray);font-size:13px;padding:6px">⏳ Loading...</div>';
+  try {
+    const [iscs, sts, bdos, asms, rsms] = await Promise.all([
+      DATA_getISCs(), DATA_getSTs(), DATA_getBDOs(), DATA_getASMs(), DATA_getRSMs()]);
+    const by = list => { const m={}; list.forEach(r=>{ if(r.id) m[String(r.id)]=r; }); return m; };
+    const asmById=by(asms), rsmById=by(rsms), stById=by(sts), bdoById=by(bdos);
+    const steps = [];
+    const missing = (role, hint) => ({icon:'⚠️', role, name:'Not assigned', sub:hint, warn:true});
+    const rsmStepFor = (asmRec) => {
+      if (!asmRec) return null;
+      if (!asmRec.rsmId) return missing('RSM','Your ASM has no RSM mapped — report to admin');
+      const r = rsmById[String(asmRec.rsmId)];
+      return r ? {icon:'🌐', role:'RSM', name:r.name, sub:r.region||''}
+               : {icon:'⚠️', role:'RSM', name:asmRec.rsmName||'Unknown', sub:'RSM link broken — report to admin', warn:true};
+    };
+
+    if (u.role==='isc') {
+      steps.push({icon:'🏗️', role:'You (ISC)', name:u.name, sub:u.region||''});
+      const st = u.stId ? stById[String(u.stId)] : null;
+      steps.push(u.stId ? (st ? {icon:'🧑‍💼', role:(st.role||'ST').toUpperCase(), name:st.name, sub:st.phone||''}
+        : {icon:'⚠️', role:'ST', name:u.stName||'Unknown', sub:'ST link broken — report to your ASM', warn:true})
+        : missing('ST','No ST mapped to you'));
+      if (u.bdoId || u.bdoName) {
+        const bdo = u.bdoId ? bdoById[String(u.bdoId)] : null;
+        steps.push(bdo ? {icon:'📈', role:(bdo.role||'BDO').toUpperCase(), name:bdo.name, sub:bdo.phone||''}
+          : {icon:'⚠️', role:'BDO', name:u.bdoName||'Unknown', sub:'BDO link broken — report to your ASM', warn:true});
+      }
+      const asm = u.asmId ? asmById[String(u.asmId)] : null;
+      steps.push(u.asmId ? (asm ? {icon:'👥', role:'ASM', name:asm.name, sub:asm.phone||''}
+        : {icon:'⚠️', role:'ASM', name:u.asmName||'Unknown', sub:'ASM link broken — report to admin', warn:true})
+        : missing('ASM','No ASM mapped to you'));
+      const rstep = rsmStepFor(asm); if (rstep) steps.push(rstep);
+    } else if (u.role==='bdo') {   // ST / SE / BDO / BDE
+      const meRole = u.empRole || (u.isST ? 'ST' : 'BDO');
+      const mine = iscs.filter(i => (u.isST ? String(i.stId||'')===String(u.id) : String(i.bdoId||'')===String(u.id))
+        && String(i.status||'Active')!=='Inactive');
+      steps.push({icon: u.isST?'🧑‍💼':'📈', role:`You (${meRole})`, name:u.name, sub:`${mine.length} ISC${mine.length!==1?'s':''} mapped to you`});
+      const asm = u.asmId ? asmById[String(u.asmId)] : null;
+      steps.push(u.asmId ? (asm ? {icon:'👥', role:'ASM', name:asm.name, sub:asm.phone||''}
+        : {icon:'⚠️', role:'ASM', name:u.asmName||'Unknown', sub:'ASM link broken — report to admin', warn:true})
+        : missing('ASM','No ASM mapped to you'));
+      const rstep = rsmStepFor(asm); if (rstep) steps.push(rstep);
+    } else if (u.role==='asm') {
+      const live = r => String(r.status||'Active')!=='Inactive' && String(r.status||'')!=='Vacant';
+      const nSt = sts.filter(s=>live(s)&&String(s.asmId||'')===String(u.id)).length;
+      const nBdo = bdos.filter(b=>live(b)&&String(b.asmId||'')===String(u.id)).length;
+      const nIsc = iscs.filter(i=>live(i)&&String(i.asmId||'')===String(u.id)).length;
+      steps.push({icon:'👥', role:'You (ASM)', name:u.name, sub:`${nSt} ST · ${nBdo} BDO · ${nIsc} ISC report to you`});
+      const rstep = rsmStepFor(asmById[String(u.id)] || u); if (rstep) steps.push(rstep);
+    } else if (u.role==='rsm') {
+      const zone = headZoneOf(u);
+      const myAsms = await scopeASMsForRSM(asms.filter(a=>String(a.status||'')!=='Vacant'));
+      const asmIdSet = new Set(myAsms.map(a=>String(a.id)));
+      const nIsc = iscs.filter(i=>asmIdSet.has(String(i.asmId||''))).length;
+      steps.push({icon:'🌐', role:`You (${u.empRole|| (zone==='ALL'?'NSH':zone?'Zone Head':'RSM')})`, name:u.name,
+        sub:`${myAsms.length} ASM${myAsms.length!==1?'s':''} · ${nIsc} ISCs under you`});
+      if (!zone) steps.push({icon:'🏢', role:'Reports to', name:'Sales Head (SH/NH/NSH)', sub:u.region||''});
+    }
+
+    el.innerHTML = steps.map((s,i)=>`
+      <div style="display:flex;gap:12px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div style="width:34px;height:34px;border-radius:50%;background:${s.warn?'#fef3c7':i===0?'#fee2e2':'#eef2ff'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${s.icon}</div>
+          ${i<steps.length-1?'<div style="width:2px;flex:1;min-height:16px;background:var(--border)"></div>':''}
+        </div>
+        <div style="padding-bottom:14px">
+          <div style="font-size:10px;color:${s.warn?'#92400e':'var(--gray)'};text-transform:uppercase;letter-spacing:.5px;font-weight:700">${escapeHtml(s.role)}</div>
+          <div style="font-weight:600;color:${s.warn?'#92400e':'var(--dark)'};font-size:14px">${escapeHtml(s.name||'—')}</div>
+          ${s.sub?`<div style="font-size:12px;color:${s.warn?'#92400e':'var(--gray)'}">${escapeHtml(s.sub)}</div>`:''}
+        </div>
+      </div>`).join('')
+      + `<div style="font-size:11px;color:var(--gray);margin-top:2px">See something wrong? Tell your manager or IT so the mapping can be corrected.</div>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--gray);font-size:12px">Could not load reporting line</div>`; }
 }
 
 // ══════════════════════════════════════════════
