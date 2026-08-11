@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.37</div>
+        <div class="auth-tagline">FIELD ONE · v4.38</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1132,6 +1132,21 @@
       </div>
       <div class="collapsible-body" id="body-vacant" style="max-height:none">
         <div class="section-body"><div id="vacant-list"></div></div>
+      </div>
+    </div>
+
+    <!-- RELIEVED >1 MONTH — leavers stay Inactive for one month so payroll can read their details;
+         after that they should not remain in the system. This section lists everyone past the
+         window and removes their master record (history rows are kept for reports). -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('purge')" style="cursor:pointer">
+        <div class="section-title">🧹 Relieved &gt; 1 Month <span id="purge-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="collapse-btn open" id="toggle-purge">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body" id="body-purge" style="max-height:none">
+        <div class="section-body"><div id="purge-list"></div></div>
       </div>
     </div>
 
@@ -5782,7 +5797,7 @@ function renderAdminPanel() {
   if (cfg.sheetId) sv('cfg-sheetid',cfg.sheetId);
   if (cfg.apiKey) sv('cfg-apikey',cfg.apiKey);
   if (cfg.clientId) sv('cfg-gclientid',cfg.clientId||'');
-  renderAsmList(); renderAdminISCList(); renderSTList(); renderBDOList(); renderRSMList(); renderVacantPositions();
+  renderAsmList(); renderAdminISCList(); renderSTList(); renderBDOList(); renderRSMList(); renderVacantPositions(); renderPurgeList();
   _contactsCache = null; // refresh directory data on every admin panel load
   renderContactDirectory();
 }
@@ -5802,6 +5817,7 @@ function toggleSection(id) {
     if (id==='bdos') renderBDOList();
     if (id==='rsms') renderRSMList();
     if (id==='vacant') renderVacantPositions();
+    if (id==='purge') renderPurgeList();
   } else {
     body.classList.add('collapsed');
     body.style.maxHeight = '0';
@@ -6387,8 +6403,12 @@ async function reassignReports(role, sourceId, target) {
 }
 
 // Blanks out a row entirely (no delete-row endpoint exists on the Worker, so every column is overwritten with '' — sheetsGet already treats a fully-blank row as "no data" and skips it). Used to clear a vacant placeholder once it's been filled, since it has no further purpose.
-async function blankRoleRecord(role, id) {
-  const sheet = ROLE_SHEET[role];
+async function blankRoleRecord(role, id) { return blankSheetRecord(ROLE_SHEET[role], id); }
+
+// Generic row-blanking for any sheet (Users included) — used by vacant-placeholder cleanup and the
+// relieved-leaver purge below.
+async function blankSheetRecord(sheet, id) {
+  if (currentUser && currentUser.viewOnly) throw new Error('View-only account — changes are not allowed');
   const resp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet)}`);
   const data = await resp.json();
   const rowIdx = data.values.findIndex(r => r[0] === id); // 0-based index into values[]; row 1 (index 0) is the header
@@ -6399,6 +6419,72 @@ async function blankRoleRecord(role, id) {
     body: JSON.stringify({sheet, rowNum: rowIdx+1, row: Array(width).fill('')})
   });
   return true;
+}
+
+// ── RELIEVED >1 MONTH — PURGE ──
+// Policy: a leaver stays Inactive (with relievedDate) for one month so payroll can read their
+// details; past that window the person should not remain in the system. Purging blanks their
+// master row only — attendance/entries/visit history rows are kept for historical reports.
+const PURGE_SHEETS = [
+  {sheet:'RSMs',  getter:()=>DATA_getRSMs(),  label:'RSM'},
+  {sheet:'ASMs',  getter:()=>DATA_getASMs(),  label:'ASM'},
+  {sheet:'STs',   getter:()=>DATA_getSTs(),   label:'ST'},
+  {sheet:'BDOs',  getter:()=>DATA_getBDOs(),  label:'BDO'},
+  {sheet:'Users', getter:()=>DATA_getISCs(),  label:'ISC'},
+];
+let _purgeDue = [];
+
+async function renderPurgeList() {
+  const el = document.getElementById('purge-list'); if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    const cut = new Date(); cut.setDate(cut.getDate()-30);
+    const cutoff = `${cut.getFullYear()}-${String(cut.getMonth()+1).padStart(2,'0')}-${String(cut.getDate()).padStart(2,'0')}`;
+    const due = [];
+    for (const cfg of PURGE_SHEETS) {
+      const rows = await cfg.getter();
+      rows.forEach(r=>{
+        if (String(r.status||'').toLowerCase()==='inactive' && String(r.relievedDate||'') && String(r.relievedDate).slice(0,10) <= cutoff)
+          due.push({sheet:cfg.sheet, label: cfg.label==='ISC'?'ISC':String(r.role||cfg.label).toUpperCase(), r});
+      });
+    }
+    _purgeDue = due;
+    const countEl = document.getElementById('purge-count'); if (countEl) countEl.textContent = `(${due.length} due)`;
+    if (!due.length) { el.innerHTML = emptyState('🧹','Nothing to remove','Leavers appear here one month after their relieved date'); return; }
+    el.innerHTML =
+      `<div class="entry-sub" style="margin-bottom:10px">These people left more than a month ago. Removing deletes their record permanently — their logged history stays for reports.</div>` +
+      due.map((d,i)=>`<div class="entry-card" style="cursor:default">
+        <div class="entry-card-top">
+          <div>
+            <div class="entry-name">${escapeHtml(d.r.name||'(no name)')} <span style="font-size:10px;color:var(--gray)">${d.label}</span></div>
+            <div class="entry-sub">👤 ${escapeHtml(d.r.username||'—')} · left ${escapeHtml(String(d.r.relievedDate).slice(0,10))}</div>
+          </div>
+          <button class="btn-sm btn-red" onclick="purgeOne(${i})">🗑️ Remove</button>
+        </div>
+      </div>`).join('') +
+      `<button class="btn-primary" style="width:100%;margin-top:10px;background:#ef4444" onclick="purgeAll()">🗑️ Remove all ${due.length}</button>`;
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">Could not load: ${e.message}</div>`; }
+}
+
+async function purgeOne(i) {
+  const d = _purgeDue[i]; if (!d) return;
+  if (!confirm(`Permanently remove ${d.r.name} (${d.label}, left ${String(d.r.relievedDate).slice(0,10)})?\nThis cannot be undone. Their attendance/activity history is kept.`)) return;
+  setLoading(true,'Removing...');
+  try { await blankSheetRecord(d.sheet, d.r.id); showToast(`🗑️ ${d.r.name} removed`); renderPurgeList(); }
+  catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
+async function purgeAll() {
+  if (!_purgeDue.length) return;
+  if (!confirm(`Permanently remove all ${_purgeDue.length} relieved record(s)?\nThis cannot be undone. Their attendance/activity history is kept.`)) return;
+  setLoading(true,'Removing...');
+  try {
+    let n=0;
+    for (const d of _purgeDue) { try { if (await blankSheetRecord(d.sheet, d.r.id)) n++; } catch(e){ console.warn('Purge failed for', d.r.name, e.message); } }
+    showToast(`🗑️ Removed ${n} record${n!==1?'s':''}`);
+    renderPurgeList();
+  } finally { setLoading(false); }
 }
 
 // Opens the Deactivate modal for someone currently Active: pick a real successor now, or leave the seat vacant.
