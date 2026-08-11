@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.36</div>
+        <div class="auth-tagline">FIELD ONE · v4.37</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -7620,15 +7620,30 @@ async function renderOrgDash() {
 
     list.innerHTML = _ogdNodes.map((n,i)=>{
       const ids = ogdIds(D, n), ppl = ids.length;
-      let metrics;
+      let metrics, ownBadge = '';
       if (_ogdMode==='attendance') {
         const c = attFor(ids);
         metrics = single
           ? `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H} · <span style="color:#ef4444">❌ ${ppl-c.marked} unmarked</span>`
           : `✅ ${c.P} present · 🏖️ ${c.L} leave · 🎉 ${c.H} holiday <span style="color:#999">(marks in range)</span>`;
+        // The person's OWN attendance, separate from the team rollup — so e.g. an RSM on
+        // leave is visible at the top level without drilling in.
+        const mine = D.att.filter(a=>String(a.iscId)===String(n.p.id) && inRange(String(a.date||'')));
+        if (single) {
+          const st = mine[0]?.status;
+          const map = {Present:['✅ Present','background:#d1fae5;color:#065f46'],Leave:['🏖️ Leave','background:#fef3c7;color:#92400e'],Holiday:['🎉 Holiday','background:#ede9fe;color:#4c1d95']};
+          ownBadge = st && map[st]
+            ? `<span class="status-badge" style="${map[st][1]}">${map[st][0]}</span>`
+            : `<span class="status-badge" style="background:#fee2e2;color:#991b1b">❌ Not marked</span>`;
+        } else {
+          const sp = mine.filter(a=>a.status==='Present').length, sl = mine.filter(a=>a.status==='Leave').length;
+          ownBadge = `<span class="status-badge" style="background:#f3f4f6;color:#374151">Self ✅${sp} 🏖️${sl}</span>`;
+        }
       } else {
         const cnt = actFor(ids);
         metrics = `🕒 ${cnt} activit${cnt===1?'y':'ies'}`;
+        const own = actFor([String(n.p.id)]);
+        ownBadge = `<span class="status-badge" style="background:#f3f4f6;color:#374151">Self: ${own}</span>`;
       }
       const drillable = n.role!=='isc';
       return `<div class="entry-card" style="cursor:${drillable?'pointer':'default'}" ${drillable?`onclick="ogdDrill(${i})"`:''}>
@@ -7638,7 +7653,10 @@ async function renderOrgDash() {
             <div class="entry-sub">👥 ${ppl} ${ppl===1?'person':'people'}${n.p.region?' · 🗺️ '+escapeHtml(n.p.region):''}</div>
             <div class="entry-sub" style="margin-top:4px">${metrics}</div>
           </div>
-          ${drillable?'<div style="color:#999;font-size:20px;align-self:center">›</div>':''}
+          <div style="display:flex;align-items:center;gap:6px;align-self:center">
+            ${ownBadge}
+            ${drillable?'<div style="color:#999;font-size:20px">›</div>':''}
+          </div>
         </div>
       </div>`;
     }).join('');
