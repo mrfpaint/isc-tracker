@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.38</div>
+        <div class="auth-tagline">FIELD ONE · v4.39</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -6407,17 +6407,22 @@ async function blankRoleRecord(role, id) { return blankSheetRecord(ROLE_SHEET[ro
 
 // Generic row-blanking for any sheet (Users included) — used by vacant-placeholder cleanup and the
 // relieved-leaver purge below.
+// NOTE: this used to POST to /sheets/writerow, which fails SILENTLY on the current worker (the
+// response was never checked, so purges looked successful while changing nothing). It now blanks
+// every column through /sheets/update — the endpoint every other write in the app already uses —
+// and then re-reads the sheet to verify the record is really gone before reporting success.
 async function blankSheetRecord(sheet, id) {
   if (currentUser && currentUser.viewOnly) throw new Error('View-only account — changes are not allowed');
-  const resp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet)}`);
-  const data = await resp.json();
-  const rowIdx = data.values.findIndex(r => r[0] === id); // 0-based index into values[]; row 1 (index 0) is the header
-  if (rowIdx < 1) return false;
-  const width = data.values[0].length;
-  await fetch(`${WORKER_URL}/sheets/writerow`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({sheet, rowNum: rowIdx+1, row: Array(width).fill('')})
-  });
+  const hResp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet+'!1:1')}`);
+  if (!hResp.ok) throw new Error(`Cannot read headers from ${sheet}`);
+  const hData = await hResp.json();
+  const headers = (hData.values && hData.values[0]) || [];
+  if (!headers.length) throw new Error(`Sheet "${sheet}" has no headers`);
+  const updates = {}; headers.forEach(h=>{ if (h) updates[h]=''; });   // match by id first, then empty every field (id included)
+  await sheetsUpdate(sheet, 'id', id, updates);
+  // Trust nothing: confirm the record actually vanished
+  const check = await sheetsGet(sheet);
+  if (check.some(r=>String(r.id||'')===String(id))) throw new Error('Record still present after removal — the worker did not apply the change');
   return true;
 }
 
