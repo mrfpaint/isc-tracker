@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.41</div>
+        <div class="auth-tagline">FIELD ONE · v4.42</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2793,26 +2793,36 @@ const byName = (a,b)=>String(a.name||'').localeCompare(String(b.name||''));
 
 // ── HEAD (NSH / SH / NH) SCOPING ──
 // National/zone heads are rows in the RSMs sheet with a COARSE region instead of a specific one:
-//   'All India' → NSH (sees every RSM's branch) · 'South' → SH (South I–V) · 'North' → NH (North I–II)
-// East and West RSM regions have no zone head — they roll up to NSH only (decided 2026-07-31).
+//   'All India' → NSH (everything) · 'South' → SH (South I–V) · 'North' → NH (North I–II + East + West)
+// There is no East/West head — those regions report to the NH (decided 2026-08-12). IMPORTANT:
+// bare 'East' / 'West' are REAL RSM regions in the data (e.g. Biswajit Chakraborty = 'East'), so
+// they must NEVER be treated as head markers — only 'All India', 'South' and 'North' are.
 // Heads sign in via the NSH / SH-NH screens, get role 'rsm', and inherit every RSM screen; only the
 // ASM scoping widens from "ASMs with rsmId=me" to "ASMs under every RSM in my zone".
 function headZoneOf(u) {
   const r = String((u&&u.region)||'').trim().toLowerCase();
   if (r==='all india' || r==='all') return 'ALL';
-  if (['south','north','east','west'].includes(r)) return r;
-  return null;   // specific region (e.g. 'South II') or blank → a normal RSM, not a head
+  if (r==='south' || r==='north') return r;
+  return null;   // specific region (incl. bare 'East'/'West') or blank → a normal RSM, not a head
+}
+// Which RSM-region prefixes each zone head covers
+const ZONE_PREFIXES = {south:['south'], north:['north','east','west']};
+function rsmZoneBucket(r) {
+  const g = String((r&&r.region)||'').trim().toLowerCase();
+  if (ZONE_PREFIXES.south.some(p=>g.startsWith(p))) return 'south';
+  if (ZONE_PREFIXES.north.some(p=>g.startsWith(p))) return 'north';
+  return '';
 }
 let _headRsmIds = null;   // per-login cache of the zone's rsmId set (cleared on sign-out/login)
 // Filters an ASMs array down to the current rsm-role user's scope. Plain RSM → ASMs with rsmId=me;
-// NSH → all ASMs; SH/NH → ASMs under every RSM whose region starts with the zone word.
+// NSH → all ASMs; SH/NH → ASMs under every RSM in their zone bucket.
 async function scopeASMsForRSM(asms) {
   const zone = headZoneOf(currentUser);
   if (!zone) return asms.filter(a=>String(a.rsmId||'')===String(currentUser.id));
   if (zone==='ALL') return asms.slice();
   if (!_headRsmIds) {
     const rsms = await DATA_getRSMs();
-    _headRsmIds = new Set(rsms.filter(r=>String(r.region||'').trim().toLowerCase().startsWith(zone)).map(r=>String(r.id)));
+    _headRsmIds = new Set(rsms.filter(r=>!headZoneOf(r) && rsmZoneBucket(r)===zone).map(r=>String(r.id)));
   }
   return asms.filter(a=>_headRsmIds.has(String(a.rsmId||'')));
 }
@@ -7661,14 +7671,13 @@ async function loadOrgDashData(force=false) {
   return _ogdData;
 }
 
-// The next level down from `node`, mirroring the org chart: NSH → SH/NH (+ RSMs in zones with no
-// zone head, i.e. East/West) → zone RSMs → ASMs → STs/BDOs → ISCs. If no NSH row exists the top
-// level shows SH/NH + uncovered RSMs; with no heads at all it falls back to all RSMs. ISCs with an
-// ASM but no ST/BDO mapping surface directly under their ASM so nobody drops out of the tree.
-const _zoneOfRSM = r => { const g=String(r.region||'').trim().toLowerCase(); return ['south','north','east','west'].find(z=>g.startsWith(z))||''; };
+// The next level down from `node`, mirroring the org chart: NSH → SH (South I–V) / NH (North I–II
+// + East + West) → zone RSMs → ASMs → STs/BDOs → ISCs. If no NSH row exists the top level shows
+// SH/NH + RSMs whose zone has no head; with no heads at all it falls back to all RSMs. ISCs with
+// an ASM but no ST/BDO mapping surface directly under their ASM so nobody drops out of the tree.
 function ogdChildren(D, node) {
   const zoneHeadExists = z => D.heads.some(h=>headZoneOf(h)===z);
-  const uncoveredRSMs = () => D.rsms.filter(r=>!zoneHeadExists(_zoneOfRSM(r))).sort(byName).map(r=>({p:r, role:'rsm'}));
+  const uncoveredRSMs = () => D.rsms.filter(r=>!zoneHeadExists(rsmZoneBucket(r))).sort(byName).map(r=>({p:r, role:'rsm'}));
   if (!node) {
     if (!D.heads.length) return D.rsms.slice().sort(byName).map(r=>({p:r, role:'rsm'}));
     const nsh = D.heads.filter(h=>headZoneOf(h)==='ALL');
@@ -7681,7 +7690,7 @@ function ogdChildren(D, node) {
       const zoneHeads = D.heads.filter(h=>headZoneOf(h) && headZoneOf(h)!=='ALL').sort(byName).map(h=>({p:h, role:'head'}));
       return [...zoneHeads, ...uncoveredRSMs()];
     }
-    return D.rsms.filter(r=>_zoneOfRSM(r)===z).sort(byName).map(r=>({p:r, role:'rsm'}));
+    return D.rsms.filter(r=>rsmZoneBucket(r)===z).sort(byName).map(r=>({p:r, role:'rsm'}));
   }
   if (node.role==='rsm') return D.asms.filter(a=>String(a.rsmId||'')===String(node.p.id)).sort(byName).map(a=>({p:a, role:'asm'}));
   if (node.role==='asm') {
@@ -7731,7 +7740,7 @@ async function renderOrgDash() {
       return c; };
     const actFor = ids => { const set=new Set(ids); return D.visits.filter(v=>set.has(v.pid)&&inRange(v.date)).length; };
     const roleLabel = n => {
-      if (n.role==='head') { const z=headZoneOf(n.p); return z==='ALL'?'NSH':z==='south'?'SH':z==='north'?'NH':'Head'; }
+      if (n.role==='head') { const z=headZoneOf(n.p); return z==='ALL'?'NSH':z==='south'?'SH':'NH'; }
       return n.role==='rsm'?'RSM':n.role==='asm'?'ASM':n.role==='isc'?'ISC':(n.p._role||'ST');
     };
 
