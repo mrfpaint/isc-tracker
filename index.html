@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.39</div>
+        <div class="auth-tagline">FIELD ONE · v4.40</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2498,7 +2498,7 @@ async function sheetsGet(sheet) {
     const obj={};
     headers.forEach((h,i)=>obj[h]=row[i]??'');
     return obj;
-  });
+  }).filter(o=>String(o.status||'')!=='Purged');   // tombstoned leavers are invisible app-wide
 }
 
 // Add one new row to a sheet: fetches the header row first so values line up in the right columns, then POSTs to the Worker's append endpoint.
@@ -6405,12 +6405,13 @@ async function reassignReports(role, sourceId, target) {
 // Blanks out a row entirely (no delete-row endpoint exists on the Worker, so every column is overwritten with '' — sheetsGet already treats a fully-blank row as "no data" and skips it). Used to clear a vacant placeholder once it's been filled, since it has no further purpose.
 async function blankRoleRecord(role, id) { return blankSheetRecord(ROLE_SHEET[role], id); }
 
-// Generic row-blanking for any sheet (Users included) — used by vacant-placeholder cleanup and the
-// relieved-leaver purge below.
-// NOTE: this used to POST to /sheets/writerow, which fails SILENTLY on the current worker (the
-// response was never checked, so purges looked successful while changing nothing). It now blanks
-// every column through /sheets/update — the endpoint every other write in the app already uses —
-// and then re-reads the sheet to verify the record is really gone before reporting success.
+// Generic record removal for any sheet (Users included) — used by vacant-placeholder cleanup and
+// the relieved-leaver purge below.
+// HISTORY: v4.38 used /sheets/writerow (fails silently on the current worker). v4.39 blanked every
+// column including id via /sheets/update — but id is effectively the primary key on the D1-backed
+// worker, so wiping it doesn't stick / 500s on the second attempt. Now: TOMBSTONE — keep the id,
+// blank all personal fields, set status='Purged'. sheetsGet() hides Purged rows app-wide, so the
+// person vanishes everywhere without touching the key. Verified after write, like everything else.
 async function blankSheetRecord(sheet, id) {
   if (currentUser && currentUser.viewOnly) throw new Error('View-only account — changes are not allowed');
   const hResp = await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(sheet+'!1:1')}`);
@@ -6418,9 +6419,12 @@ async function blankSheetRecord(sheet, id) {
   const hData = await hResp.json();
   const headers = (hData.values && hData.values[0]) || [];
   if (!headers.length) throw new Error(`Sheet "${sheet}" has no headers`);
-  const updates = {}; headers.forEach(h=>{ if (h) updates[h]=''; });   // match by id first, then empty every field (id included)
+  const updates = {};
+  headers.forEach(h=>{ if (h && h!=='id') updates[h]=''; });   // blank everything EXCEPT the key
+  updates.status = 'Purged';
   await sheetsUpdate(sheet, 'id', id, updates);
-  // Trust nothing: confirm the record actually vanished
+  // Trust nothing: confirm the record is really tombstoned (sheetsGet hides Purged rows, so a
+  // still-visible record means the worker didn't apply the change)
   const check = await sheetsGet(sheet);
   if (check.some(r=>String(r.id||'')===String(id))) throw new Error('Record still present after removal — the worker did not apply the change');
   return true;
