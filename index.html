@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.42</div>
+        <div class="auth-tagline">FIELD ONE · v4.43</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -3697,15 +3697,24 @@ async function renderBDOSites(filter) {
       document.getElementById('bdo-entries-list').innerHTML = emptyState('👥','No ISCs mapped to you yet','Ask your ASM to assign your ISCs in the system');
       return;
     }
-    // ISC dropdown — rebuilt from the scoped entries each load, keeping the current selection
+    // ISC dropdown — built from the MAPPED ISC roster, not just ISCs with entries, so all mapped
+    // ISCs are selectable (idle ones are labelled "no sites yet"). Entry-derived names are the
+    // fallback for old entries whose ISC is no longer in the roster.
     const iscSel = document.getElementById('bdo-isc-filter');
     if (iscSel) {
       const cur = iscSel.value;
-      const opts = [...new Map(all.map(e=>[String(e.iscId||''), e.iscName||'(unnamed)'])).entries()]
-        .filter(([id])=>id).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+      const entryCount = {}; all.forEach(e=>{ const k=String(e.iscId||''); entryCount[k]=(entryCount[k]||0)+1; });
+      let roster = [];
+      try {
+        const iscs = await DATA_getISCs();
+        roster = iscs.filter(i=>!myIds || myIds.has(String(i.id))).map(i=>[String(i.id), i.name||'(unnamed)']);
+      } catch(e) {}
+      const seen = new Set(roster.map(([id])=>id));
+      all.forEach(e=>{ const k=String(e.iscId||''); if (k && !seen.has(k)) { seen.add(k); roster.push([k, e.iscName||'(unnamed)']); } });
+      roster.sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
       iscSel.innerHTML = '<option value="">👤 All ISCs</option>' +
-        opts.map(([id,name])=>`<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join('');
-      if (opts.some(([id])=>id===cur)) iscSel.value = cur;
+        roster.map(([id,name])=>`<option value="${escapeHtml(id)}">${escapeHtml(name)}${entryCount[id]?'':' (no sites yet)'}</option>`).join('');
+      if (roster.some(([id])=>id===cur)) iscSel.value = cur;
     }
     // Status + ISC + date filters
     let shown = all.filter(e=>matchesSiteStatus(e.status, _bdoSitesFilter));
