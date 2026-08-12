@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.40</div>
+        <div class="auth-tagline">FIELD ONE · v4.41</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -7647,7 +7647,8 @@ async function loadOrgDashData(force=false) {
   ]);
   const live = r => !['inactive','vacant'].includes(String(r.status||'Active').toLowerCase());
   _ogdData = {
-    rsms:   rsms.filter(r=>live(r) && !headZoneOf(r)),   // real RSMs only — NSH/SH/NH rows aren't a drill level
+    heads:  rsms.filter(r=>live(r) && headZoneOf(r)),    // NSH / SH / NH — the top of the tree
+    rsms:   rsms.filter(r=>live(r) && !headZoneOf(r)),   // real RSMs
     asms:   asms.filter(live),
     stbdos: [...sts.filter(live).map(s=>({...s,_role:(s.role||'ST').toUpperCase()})),
              ...bdos.filter(live).map(b=>({...b,_role:(b.role||'BDO').toUpperCase()}))],
@@ -7660,10 +7661,28 @@ async function loadOrgDashData(force=false) {
   return _ogdData;
 }
 
-// The next level down from `node` (null = top level → all RSMs). ISCs with an ASM but no ST/BDO
-// mapping surface directly under their ASM so nobody drops out of the tree.
+// The next level down from `node`, mirroring the org chart: NSH → SH/NH (+ RSMs in zones with no
+// zone head, i.e. East/West) → zone RSMs → ASMs → STs/BDOs → ISCs. If no NSH row exists the top
+// level shows SH/NH + uncovered RSMs; with no heads at all it falls back to all RSMs. ISCs with an
+// ASM but no ST/BDO mapping surface directly under their ASM so nobody drops out of the tree.
+const _zoneOfRSM = r => { const g=String(r.region||'').trim().toLowerCase(); return ['south','north','east','west'].find(z=>g.startsWith(z))||''; };
 function ogdChildren(D, node) {
-  if (!node) return D.rsms.slice().sort(byName).map(r=>({p:r, role:'rsm'}));
+  const zoneHeadExists = z => D.heads.some(h=>headZoneOf(h)===z);
+  const uncoveredRSMs = () => D.rsms.filter(r=>!zoneHeadExists(_zoneOfRSM(r))).sort(byName).map(r=>({p:r, role:'rsm'}));
+  if (!node) {
+    if (!D.heads.length) return D.rsms.slice().sort(byName).map(r=>({p:r, role:'rsm'}));
+    const nsh = D.heads.filter(h=>headZoneOf(h)==='ALL');
+    if (nsh.length) return nsh.map(h=>({p:h, role:'head'}));
+    return [...D.heads.sort(byName).map(h=>({p:h, role:'head'})), ...uncoveredRSMs()];
+  }
+  if (node.role==='head') {
+    const z = headZoneOf(node.p);
+    if (z==='ALL') {
+      const zoneHeads = D.heads.filter(h=>headZoneOf(h) && headZoneOf(h)!=='ALL').sort(byName).map(h=>({p:h, role:'head'}));
+      return [...zoneHeads, ...uncoveredRSMs()];
+    }
+    return D.rsms.filter(r=>_zoneOfRSM(r)===z).sort(byName).map(r=>({p:r, role:'rsm'}));
+  }
   if (node.role==='rsm') return D.asms.filter(a=>String(a.rsmId||'')===String(node.p.id)).sort(byName).map(a=>({p:a, role:'asm'}));
   if (node.role==='asm') {
     const kids = D.stbdos.filter(s=>String(s.asmId||'')===String(node.p.id)).sort(byName).map(s=>({p:s, role:'stbdo'}));
@@ -7696,7 +7715,7 @@ async function renderOrgDash() {
     const D = await loadOrgDashData();
 
     const bc = document.getElementById('ogd-breadcrumb');
-    const crumbs = [`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(0)">🌍 All RSMs</a>`];
+    const crumbs = [`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(0)">🌍 Organisation</a>`];
     _ogdPath.forEach((n,i)=>crumbs.push(`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(${i+1})">${escapeHtml(n.p.name||'')}</a>`));
     bc.innerHTML = crumbs.join(' <span style="color:#999">›</span> ');
 
@@ -7711,7 +7730,10 @@ async function renderOrgDash() {
         if (a.status==='Present') c.P++; else if (a.status==='Leave') c.L++; else if (a.status==='Holiday') c.H++; } });
       return c; };
     const actFor = ids => { const set=new Set(ids); return D.visits.filter(v=>set.has(v.pid)&&inRange(v.date)).length; };
-    const roleLabel = n => n.role==='rsm'?'RSM':n.role==='asm'?'ASM':n.role==='isc'?'ISC':(n.p._role||'ST');
+    const roleLabel = n => {
+      if (n.role==='head') { const z=headZoneOf(n.p); return z==='ALL'?'NSH':z==='south'?'SH':z==='north'?'NH':'Head'; }
+      return n.role==='rsm'?'RSM':n.role==='asm'?'ASM':n.role==='isc'?'ISC':(n.p._role||'ST');
+    };
 
     list.innerHTML = _ogdNodes.map((n,i)=>{
       const ids = ogdIds(D, n), ppl = ids.length;
