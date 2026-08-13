@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.43</div>
+        <div class="auth-tagline">FIELD ONE · v4.44</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -3565,9 +3565,11 @@ async function _repLoadData(dates) {
   try { bdoVisits = await DATA_getBDOVisits(); } catch(e){}
   try { const r = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions'); const j = await r.json(); pcms = Array.isArray(j)?j:[]; } catch(e){}
 
-  const map = {};   // pid -> {p, att:{date:status}, actDates:Set, newSites, updates, visits, pcm}
-  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, updates:0, visits:0, pcm:0}; });
-  const byName = {}; people.forEach(p=>{ byName[String(p.name||'').trim().toLowerCase()] = String(p.id); });
+  const map = {};   // pid -> {p, att:{date:status}, actDates:Set, newSites, existingSites, updates, visits, converted, convValue, pcm}
+  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0, visits:0, converted:0, convValue:0, pcm:0}; });
+  // Name lookup — SKIP blank names: a person with an empty name would otherwise become the
+  // catch-all for every record whose name fields are blank (the "6031 visits on a nameless row" bug).
+  const byName = {}; people.forEach(p=>{ const nm=String(p.name||'').trim().toLowerCase(); if (nm) byName[nm] = String(p.id); });
 
   [...att1, ...att2].forEach(a=>{
     const pid = String(a.iscId||a.userId||a.empId||''); const d = String(a.date||'').slice(0,10);
@@ -3577,24 +3579,44 @@ async function _repLoadData(dates) {
     const cd=String(e.createdAt||'').slice(0,10), ud=String(e.updatedAt||'').slice(0,10);
     const pid=String(e.iscId||'');
     if (map[pid]) {
-      if (dateSet.has(cd)) { map[pid].newSites++; map[pid].actDates.add(cd); }
+      if (dateSet.has(cd)) {
+        // Split by the entry's Site Status field; legacy rows with a blank siteStatus count as New Site (old behaviour).
+        if (String(e.siteStatus||'').trim().toLowerCase()==='existing site') map[pid].existingSites++;
+        else map[pid].newSites++;
+        map[pid].actDates.add(cd);
+      }
       else if (ud && dateSet.has(ud)) { map[pid].updates++; map[pid].actDates.add(ud); }
+      // Converted in range: entry is marked Site Converted AND its conversion date
+      // (falling back to last-updated, then created date) falls inside the range. Credited to the ISC only.
+      if (siteStatusKey(e.status)==='Confirmed') {
+        const convD = String(e.conversionDate||'').slice(0,10) || ud || cd;
+        if (dateSet.has(convD)) {
+          map[pid].converted++;
+          map[pid].convValue += Number(e.refDocValue)||Number(e.siteValue)||0;   // actual billed value, est. site value as fallback
+        }
+      }
     }
     // ST/BDO tagged on the entry
     if (dateSet.has(cd)) ['stName','bdoName'].forEach(k=>{
-      const tid = byName[String(e[k]||'').trim().toLowerCase()];
+      const nm = String(e[k]||'').trim().toLowerCase();
+      const tid = nm ? byName[nm] : '';
       if (tid && map[tid]) { map[tid].visits++; map[tid].actDates.add(cd); }
     });
   });
   [...stVisits, ...bdoVisits].forEach(v=>{
     const d=_actRecDate(v); if (!dateSet.has(d)) return;
-    let pid = String(v.stId||v.bdoId||v.userId||v.iscId||'');
-    if (!map[pid]) pid = byName[String(v.stName||v.bdoName||v.name||'').trim().toLowerCase()]||'';
-    if (map[pid]) { map[pid].visits++; map[pid].actDates.add(d); }
+    // ST_Visits / BDO_Visits rows store the person as empId/empName (see baseActivityRow) — match those first.
+    let pid = String(v.empId||v.stId||v.bdoId||v.userId||'');
+    if (!map[pid]) {
+      const nm = String(v.empName||v.stName||v.bdoName||v.name||'').trim().toLowerCase();
+      pid = nm ? (byName[nm]||'') : '';
+    }
+    if (pid && map[pid]) { map[pid].visits++; map[pid].actDates.add(d); }
   });
   pcms.forEach(e=>{
     const d=String(e.datetime||e.createdAt||'').slice(0,10); if (!dateSet.has(d)) return;
-    const pid = byName[String(e.executedBy||'').trim().toLowerCase()];
+    const nm = String(e.executedBy||'').trim().toLowerCase();
+    const pid = nm ? byName[nm] : '';
     if (pid && map[pid]) { map[pid].pcm++; map[pid].actDates.add(d); }
   });
   return map;
@@ -3652,11 +3674,17 @@ async function runReport() {
     }
 
     else if (type==='activity') {
-      const rows = persons.map(x=>[x.p.name, x.p._role, x.p.region||'', x.newSites, x.updates, x.visits, x.pcm, x.newSites+x.updates+x.visits+x.pcm])
-        .sort((a,b)=>b[7]-a[7]);
+      // Converted / Conv. value are outcomes of entries already counted under New/Existing,
+      // so Total = new + existing + updates + visits + pcm (converted deliberately excluded to avoid double counting).
+      const rows = persons.map(x=>[x.p.name, x.p._role, x.p.region||'', x.newSites, x.existingSites, x.updates, x.visits, x.converted, x.convValue, x.pcm, x.newSites+x.existingSites+x.updates+x.visits+x.pcm])
+        .sort((a,b)=>b[10]-a[10]);
       const tot=(i)=>rows.reduce((s,r)=>s+r[i],0);
-      html = `<div class="stats-row"><div class="stat-card green"><div class="stat-value">${tot(3)}</div><div class="stat-label">New sites</div></div><div class="stat-card"><div class="stat-value">${tot(5)}</div><div class="stat-label">Visits</div></div><div class="stat-card"><div class="stat-value">${tot(6)}</div><div class="stat-label">PCM meets</div></div></div>`
-        + _repTable(['Name','Role','Region','New sites','Site updates','Visits','PCM meets','Total'], rows);
+      const inr=(n)=>'₹'+Number(n||0).toLocaleString('en-IN');
+      const totConvValue = tot(8);
+      // Format the value column for display AFTER computing totals (CSV export reuses these cells).
+      const dispRows = rows.map(r=>{ const c=r.slice(); c[8]=c[8]?inr(c[8]):'—'; return c; });
+      html = `<div class="stats-row"><div class="stat-card green"><div class="stat-value">${tot(3)}</div><div class="stat-label">New sites</div></div><div class="stat-card"><div class="stat-value">${tot(4)}</div><div class="stat-label">Existing sites</div></div><div class="stat-card"><div class="stat-value">${tot(6)}</div><div class="stat-label">Visits</div></div><div class="stat-card green"><div class="stat-value">${tot(7)}</div><div class="stat-label">Converted</div></div><div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value</div></div><div class="stat-card"><div class="stat-value">${tot(9)}</div><div class="stat-label">PCM meets</div></div></div>`
+        + _repTable(['Name','Role','Region','New sites','Existing sites','Site updates','Visits','Converted','Conv. value','PCM meets','Total'], dispRows);
     }
 
     document.getElementById('rep-result').innerHTML = html;
