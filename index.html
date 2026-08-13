@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.44</div>
+        <div class="auth-tagline">FIELD ONE · v4.45</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -5738,7 +5738,16 @@ async function toggleISCStatus(id,newStatus) {
 function renderProfile() {
   const u=currentUser;
   const initials=(u.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('profile-card-content').innerHTML=`<div class="profile-avatar">${initials}</div><div class="profile-name">${u.name||u.username}</div><div class="profile-role">${u.role==='isc'?'Independent Sales Consultant':u.role==='asm'?'Area Sales Manager':u.role==='rsm'?'Regional Sales Manager':u.role==='bdo'?'Business Development Officer':'System Admin'}</div>${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''} ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}<div class="profile-row">👤 @${u.username}</div><div class="profile-row" style="margin-top:8px;font-size:11px;opacity:.6">${isConfigured()?'🟢 Google Sheets Connected':'🟡 Demo Mode'}</div>`;
+  // ST/SE/BDO/BDE all carry role:'bdo' internally (shared login flow) — the real designation
+  // lives in empRole/isST, so resolve the display title from that, never from role alone.
+  const bdoTitles={ST:'Sales Technologist (ST)',SE:'Sales Executive (SE)',BDO:'Business Development Officer (BDO)',BDE:'Business Development Executive (BDE)'};
+  const rsmTitles={NSH:'National Sales Head',SH:'South Head',NH:'North Head'};
+  const roleTitle = u.role==='isc'?'Independent Sales Consultant'
+    : u.role==='asm'?'Area Sales Manager'
+    : u.role==='rsm'?(rsmTitles[u.empRole]||'Regional Sales Manager')
+    : u.role==='bdo'?(bdoTitles[u.empRole||(u.isST?'ST':'BDO')]||'Business Development Officer (BDO)')
+    : 'System Admin';
+  document.getElementById('profile-card-content').innerHTML=`<div class="profile-avatar">${initials}</div><div class="profile-name">${u.name||u.username}</div><div class="profile-role">${roleTitle}</div>${u.email?`<div class="profile-row">📧 ${u.email}</div>`:''} ${u.phone?`<div class="profile-row">📞 ${u.phone}</div>`:''}<div class="profile-row">👤 @${u.username}</div><div class="profile-row" style="margin-top:8px;font-size:11px;opacity:.6">${isConfigured()?'🟢 Google Sheets Connected':'🟡 Demo Mode'}</div>`;
   document.getElementById('asm-profile-section').style.display=u.role==='isc'?'block':'none';
   document.getElementById('isc-details-section').style.display=u.role==='isc'?'block':'none';
   document.getElementById('change-password-section').style.display=u.role==='isc'?'block':'none';
