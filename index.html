@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.48</div>
+        <div class="auth-tagline">FIELD ONE · v4.49</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2142,6 +2142,19 @@ window.onerror = (msg,src,line) => { console.error('JS Error:',msg,'Line:',line)
 // ══════════════════════════════════════════════
 const CFG_KEY = 'isc_gs_config';
 
+// localStorage can be BLOCKED by phone privacy settings (seen in the field: "Failed to read the
+// 'localStorage' property from 'Window': Access is denied"). Every storage access goes through
+// this shim — when real localStorage is unavailable the app silently falls back to an in-memory
+// store: nothing persists between reloads on that device, but login and every online feature work.
+const LS = (() => {
+  try { const t='__ls_probe__'; window.localStorage.setItem(t,'1'); window.localStorage.removeItem(t); return window.localStorage; }
+  catch(e) {
+    console.warn('localStorage unavailable — using in-memory fallback (online-only mode):', e.message);
+    const m = new Map();
+    return { getItem:k=>m.has(k)?m.get(k):null, setItem:(k,v)=>m.set(k,String(v)), removeItem:k=>m.delete(k), clear:()=>m.clear() };
+  }
+})();
+
 // DEFAULT CONFIG — embedded so every device works without Admin setup on each browser
 const DEFAULT_CONFIG = {
   sheetId: '1btcPvNfUx_9GJOmAPH48UmwXknFQtZg-1r5NBjN0rCY',
@@ -2153,7 +2166,7 @@ const DEFAULT_CONFIG = {
 function colName(n){let s='';while(n>0){s=String.fromCharCode(64+(n%26||26))+s;n=Math.floor((n-1)/26);}return s;}
 // Read the saved Google Sheets config from localStorage, falling back to DEFAULT_CONFIG for anything not overridden.
 function getConfig() {
-  const saved = JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
+  const saved = JSON.parse(LS.getItem(CFG_KEY)||'{}');
   return { ...DEFAULT_CONFIG, ...saved };
 }
 // Admin action: pre-create the "Attendance" sheet/tab with the correct headers so it exists before anyone marks attendance.
@@ -2619,7 +2632,7 @@ async function requestOAuthPopup() {
 // isConfigured defined above
 // LDB = "Local DataBase" — a tiny wrapper around localStorage that JSON-encodes/decodes automatically.
 // get: read a single value (or null). set: write a value. arr: read a value defaulting to []. push: append to a stored array.
-const LDB = { get:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'null'), set:(k,v)=>localStorage.setItem('isc_l_'+k,JSON.stringify(v)), arr:k=>JSON.parse(localStorage.getItem('isc_l_'+k)||'[]'), push:(k,v)=>{const a=JSON.parse(localStorage.getItem('isc_l_'+k)||'[]');a.push(v);localStorage.setItem('isc_l_'+k,JSON.stringify(a));} };
+const LDB = { get:k=>JSON.parse(LS.getItem('isc_l_'+k)||'null'), set:(k,v)=>LS.setItem('isc_l_'+k,JSON.stringify(v)), arr:k=>JSON.parse(LS.getItem('isc_l_'+k)||'[]'), push:(k,v)=>{const a=JSON.parse(LS.getItem('isc_l_'+k)||'[]');a.push(v);LS.setItem('isc_l_'+k,JSON.stringify(a));} };
 
 // One-time setup for the offline/local-storage fallback: makes sure a default admin login always exists, and seeds empty lists the first time the app ever runs.
 function seedLocal() {
@@ -4895,7 +4908,7 @@ async function loadProductMaster(forceRefresh=false) {
   if (_prodMaster && !forceRefresh) { populateAllCategorySelects(); return _prodMaster; }
   if (!forceRefresh) {
     try {
-      const cached = JSON.parse(localStorage.getItem('prod_master_v1')||'null');
+      const cached = JSON.parse(LS.getItem('prod_master_v1')||'null');
       if (cached && cached.groups) {
         _prodMaster = cached; populateAllCategorySelects();
         if (Date.now()-(cached.savedAt||0) > 86400000) loadProductMaster(true); // silent daily refresh
@@ -4918,7 +4931,7 @@ async function loadProductMaster(forceRefresh=false) {
     const order  = ['Wall','Wood','Metal','Others'];
     const cats   = [...order.filter(c=>groups[c]), ...Object.keys(groups).filter(c=>!order.includes(c))];
     _prodMaster = { cats, groups, data, savedAt: Date.now() };
-    try { localStorage.setItem('prod_master_v1', JSON.stringify(_prodMaster)); } catch(e) {}
+    try { LS.setItem('prod_master_v1', JSON.stringify(_prodMaster)); } catch(e) {}
     populateAllCategorySelects();
     return _prodMaster;
   } catch(e) { console.warn('Product master load failed:', e.message); return _prodMaster; }
