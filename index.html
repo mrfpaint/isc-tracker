@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.45</div>
+        <div class="auth-tagline">FIELD ONE · v4.46</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1147,6 +1147,20 @@
       </div>
       <div class="collapsible-body" id="body-purge" style="max-height:none">
         <div class="section-body"><div id="purge-list"></div></div>
+      </div>
+    </div>
+
+    <!-- AUDIT TRAIL — who corrected whose attendance, who purged/deactivated whom, remappings.
+         Loaded lazily on expand; events append best-effort to the AuditLog sheet. -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection('audit')" style="cursor:pointer">
+        <div class="section-title">📜 Audit Trail <span id="audit-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="collapse-btn" id="toggle-audit">▼</button>
+        </div>
+      </div>
+      <div class="collapsible-body collapsed" id="body-audit" style="max-height:0">
+        <div class="section-body"><div id="audit-list"></div></div>
       </div>
     </div>
 
@@ -5696,6 +5710,7 @@ async function saveISC() {
     if (editId) {
       await DATA_updateISC(editId,{name,empNo,phone,email,username,password,stId,stName:st?.name||'',bdoId,bdoName:bdo?.name||'',region,dealerCodes,...(owner||{})});
       showToast('✅ ISC account updated!');
+      auditLog('ISC record edited', name, `ST: ${st?.name||'—'} · BDO: ${bdo?.name||'—'}`);
     } else {
       const iscs=await DATA_getISCs();
       if (iscs.find(i=>(i.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
@@ -5726,6 +5741,8 @@ async function toggleISCStatus(id,newStatus) {
   try {
     await DATA_updateISC(id,updates);
     showToast(`✅ ISC ${newStatus==='Inactive'?'deactivated':'activated'}!`);
+    const _nm = ((_adminISCCache||[]).find(i=>String(i.id)===String(id))||{}).name || id;
+    auditLog(`ISC ${newStatus==='Inactive'?'deactivated':'reactivated'}`, _nm, updates.relievedDate?('last day '+updates.relievedDate):'');
     refreshISCViews();
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
@@ -5874,6 +5891,7 @@ function toggleSection(id) {
     if (id==='rsms') renderRSMList();
     if (id==='vacant') renderVacantPositions();
     if (id==='purge') renderPurgeList();
+    if (id==='audit') renderAuditTrail();
   } else {
     body.classList.add('collapsed');
     body.style.maxHeight = '0';
@@ -6090,6 +6108,8 @@ async function saveRSMAssignment() {
     const rsm = rsms.find(r=>r.id===rsmId);
     await DATA_updateASMRSM(asmId, rsmId, rsm?.name||'');
     showToast('✅ RSM assigned to ASM!');
+    const _an = (document.getElementById('assign-rsm-asm-name').textContent||'').replace('Assigning RSM for: ','');
+    auditLog('RSM assigned', _an, `ASM → RSM ${rsm?.name||rsmId}`);
     closeModal('modal-assign-rsm');
     renderAsmList();
   } catch(e){showToast('⚠️ '+e.message);}
@@ -6334,6 +6354,8 @@ async function saveASMAssignment() {
     const asm = asms.find(a=>a.id===asmId);
     await sheetsUpdate(role==='st'?'STs':'BDOs','id',personId,{asmId, asmName:asm?.name||''});
     showToast('✅ ASM assigned!');
+    const _pn = (document.getElementById('assign-asm-person-name').textContent||'').replace('Assigning ASM for: ','');
+    auditLog('ASM assigned', _pn, `${role.toUpperCase()} → ASM ${asm?.name||asmId}`);
     closeModal('modal-assign-asm');
     if (role==='st') renderSTList(); else renderBDOList();
   } catch(e){showToast('⚠️ '+e.message);}
@@ -6428,6 +6450,7 @@ async function toggleRoleStatus(role, id, newStatus) {
   try {
     await sheetsUpdate(ROLE_SHEET[role], 'id', id, updates);
     showToast('✅ Activated!');
+    auditLog('Reactivated', id, ROLE_LABEL[role]);
     ROLE_RENDER[role]();
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
@@ -6486,6 +6509,59 @@ async function blankSheetRecord(sheet, id) {
   return true;
 }
 
+// ── AUDIT LOG ──
+// Best-effort trail of sensitive actions (who corrected whose attendance, who purged/deactivated
+// whom, remappings). Never blocks the action itself: events queue in localStorage and flush to the
+// AuditLog sheet; if the sheet doesn't exist yet we try to create it once, else events stay queued.
+const AUDIT_HEADERS = ['id','timestamp','actor','actorRole','action','targetName','details'];
+function auditLog(action, targetName, details) {
+  const rec = {
+    id: 'AUD'+Date.now()+Math.random().toString(36).slice(2,6),
+    timestamp: new Date().toISOString(),
+    actor: (currentUser&&(currentUser.name||currentUser.username))||'unknown',
+    actorRole: (currentUser&&(currentUser.empRole||currentUser.role))||'',
+    action: String(action||''), targetName: String(targetName||''), details: String(details||''),
+  };
+  const q = LDB.arr('audit_queue'); q.push(rec); LDB.set('audit_queue', q);
+  flushAuditQueue();
+}
+let _auditEnsureTried = false;
+async function flushAuditQueue() {
+  if (!isConfigured()) return;
+  const q = LDB.arr('audit_queue');
+  while (q.length) {
+    try { await sheetsAppend('AuditLog', q[0]); q.shift(); LDB.set('audit_queue', q); }
+    catch(e) {
+      if (!_auditEnsureTried) {
+        _auditEnsureTried = true;
+        try {
+          await fetch(`${WORKER_URL}/sheets/createsheet`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'AuditLog'})});
+          await fetch(`${WORKER_URL}/sheets/writerow`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sheet:'AuditLog',rowNum:1,row:AUDIT_HEADERS})});
+          continue;   // sheet may exist now — retry the append
+        } catch(e2) {}
+      }
+      console.warn('Audit append failed (kept queued):', e.message);
+      break;
+    }
+  }
+}
+async function renderAuditTrail() {
+  const el = document.getElementById('audit-list'); if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
+  try {
+    await flushAuditQueue();
+    const rows = (await sheetsGet('AuditLog'))
+      .sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||''))).slice(0,100);
+    const c = document.getElementById('audit-count'); if (c) c.textContent = rows.length?`(last ${rows.length})`:'';
+    if (!rows.length) { el.innerHTML = emptyState('📜','No audit entries yet','Corrections, purges, remaps and status changes will appear here'); return; }
+    el.innerHTML = rows.map(r=>`<div class="entry-card" style="cursor:default">
+      <div class="entry-name" style="font-size:13px">${escapeHtml(r.action||'')} — ${escapeHtml(r.targetName||'')}</div>
+      ${r.details?`<div class="entry-sub">${escapeHtml(r.details)}</div>`:''}
+      <div class="entry-sub" style="margin-top:4px">👤 ${escapeHtml(r.actor||'')}${r.actorRole?' ('+escapeHtml(String(r.actorRole).toUpperCase())+')':''} · 🕐 ${escapeHtml(String(r.timestamp||'').replace('T',' ').slice(0,16))}</div>
+    </div>`).join('');
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">AuditLog not readable yet: ${e.message}</div>`; }
+}
+
 // ── RELIEVED >1 MONTH — PURGE ──
 // Policy: a leaver stays Inactive (with relievedDate) for one month so payroll can read their
 // details; past that window the person should not remain in the system. Purging blanks their
@@ -6535,7 +6611,12 @@ async function purgeOne(i) {
   const d = _purgeDue[i]; if (!d) return;
   if (!confirm(`Permanently remove ${d.r.name} (${d.label}, left ${String(d.r.relievedDate).slice(0,10)})?\nThis cannot be undone. Their attendance/activity history is kept.`)) return;
   setLoading(true,'Removing...');
-  try { await blankSheetRecord(d.sheet, d.r.id); showToast(`🗑️ ${d.r.name} removed`); renderPurgeList(); }
+  try {
+    await blankSheetRecord(d.sheet, d.r.id);
+    showToast(`🗑️ ${d.r.name} removed`);
+    auditLog('Record purged', d.r.name, `${d.label} · left ${String(d.r.relievedDate).slice(0,10)}`);
+    renderPurgeList();
+  }
   catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
 }
@@ -6546,7 +6627,7 @@ async function purgeAll() {
   setLoading(true,'Removing...');
   try {
     let n=0;
-    for (const d of _purgeDue) { try { if (await blankSheetRecord(d.sheet, d.r.id)) n++; } catch(e){ console.warn('Purge failed for', d.r.name, e.message); } }
+    for (const d of _purgeDue) { try { if (await blankSheetRecord(d.sheet, d.r.id)) { n++; auditLog('Record purged', d.r.name, `${d.label} · left ${String(d.r.relievedDate).slice(0,10)}`); } } catch(e){ console.warn('Purge failed for', d.r.name, e.message); } }
     showToast(`🗑️ Removed ${n} record${n!==1?'s':''}`);
     renderPurgeList();
   } finally { setLoading(false); }
@@ -7515,6 +7596,7 @@ async function applyAttCorrection(idx, newStatus) {
       });
     }
     showToast(`✅ ${r.isc.name} → ${newStatus} for ${_tattDate}`);
+    auditLog('Attendance corrected', r.isc.name, `${_tattDate}: ${r.status} → ${newStatus}`);
     renderTeamAttendance();
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
