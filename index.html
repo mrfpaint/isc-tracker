@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.46</div>
+        <div class="auth-tagline">FIELD ONE · v4.47</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1334,6 +1334,12 @@
           </div>
           <div id="gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
         </div>
+        <div class="form-group">
+          <label class="form-label">Site Photo <span style="color:var(--gray);font-size:11px">(optional · AI-verified)</span></label>
+          <input type="file" id="entry-photo" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this,'entry-photo-status','entry-photo-btn')">
+          <button type="button" id="entry-photo-btn" onclick="document.getElementById('entry-photo').click()" style="width:100%;padding:11px;background:#f9fafb;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">📸 Take / attach site photo</button>
+          <div id="entry-photo-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Building Type *</label>
@@ -2166,6 +2172,7 @@ async function adminEnsureAttendanceSheet() {
 // a server-side API key/secret (e.g. appending rows) rather than the
 // client-side Google API key alone.
 const WORKER_URL = 'https://mrf-isc-tracker.jofran81.workers.dev';
+const PHOTOS_WORKER_URL = 'https://mrf-photos.jofran81.workers.dev';   // site-photo storage + AI verification
 // Separate AI worker (worker-ai/ in this repo) — deploy with wrangler, then update if the URL differs.
 const AI_WORKER_URL = 'https://mrf-ai.jofran81.workers.dev';
 
@@ -4741,7 +4748,75 @@ function syncDocNumberField() {
   valInput.placeholder = noun ? ('Enter '+noun.toLowerCase()+' value') : 'Select a document type first';
 }
 
-function closeWizard() { document.getElementById('wizard-entry').classList.remove('show'); }
+function closeWizard() { document.getElementById('wizard-entry').classList.remove('show'); resetSitePhoto(); }
+
+// ── SITE PHOTO — capture, client-side compression, AI verification via the mrf-photos worker ──
+let _pendingPhoto = null;   // compressed JPEG dataURL awaiting upload with the next saved entry
+function resetSitePhoto() {
+  _pendingPhoto = null;
+  const inp=document.getElementById('entry-photo'); if (inp) inp.value='';
+  const btn=document.getElementById('entry-photo-btn'); if (btn) btn.textContent='📸 Take / attach site photo';
+  const st=document.getElementById('entry-photo-status'); if (st) st.textContent='';
+}
+async function photoPicked(input, statusId, btnId) {
+  const f = input.files && input.files[0];
+  const st = document.getElementById(statusId);
+  if (!f) { _pendingPhoto=null; if (st) st.textContent=''; return; }
+  if (st) st.textContent = '⏳ Compressing photo...';
+  try {
+    _pendingPhoto = await compressImage(f, 1280, 0.72);
+    if (st) st.textContent = `✅ Photo attached (~${Math.round(_pendingPhoto.length*3/4/1024)} KB) — AI-verified on save`;
+    const btn = document.getElementById(btnId); if (btn) btn.textContent = '📸 Photo attached — tap to change';
+  } catch(e) { _pendingPhoto=null; if (st) st.textContent = '⚠️ Could not read photo: '+e.message; }
+}
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', quality));
+      } catch(e) { reject(e); }
+      finally { URL.revokeObjectURL(img.src); }
+    };
+    img.onerror = () => reject(new Error('unreadable image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function uploadSitePhoto(refId, claim) {
+  if (!_pendingPhoto) return null;
+  const r = await fetch(PHOTOS_WORKER_URL+'/verify', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({refId, empId:currentUser.id, empName:currentUser.name, claim, image:_pendingPhoto})
+  });
+  if (!r.ok) throw new Error('upload failed ('+r.status+')');
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  resetSitePhoto();
+  return d;
+}
+// Lazily loads photos + AI verdicts into the entry Detail modal (nothing shown if none exist).
+async function loadDetailPhotos(refId) {
+  const el = document.getElementById('detail-photos'); if (!el) return;
+  try {
+    const r = await fetch(PHOTOS_WORKER_URL+'/photos?refId='+encodeURIComponent(refId));
+    if (!r.ok) return;
+    const list = await r.json();
+    if (!Array.isArray(list) || !list.length) return;
+    el.innerHTML = `<div class="detail-label" style="margin:10px 0 6px">📸 Site Photos (AI-verified)</div>` + list.map(p=>{
+      const v = p.verdict || {};
+      const good = v.verdict === 'plausible';
+      return `<div style="margin-bottom:12px">
+        <img src="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(p.key)}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--border)">
+        <div style="font-size:12px;margin-top:4px;color:${good?'#059669':'#b45309'}">${good?'✅':'⚠️'} ${escapeHtml(v.summary||v.verdict||'no verdict')}${(v.flags&&v.flags.length)?' · '+escapeHtml(v.flags.join(', ')):''}</div>
+        <div style="font-size:11px;color:var(--gray)">by ${escapeHtml(p.empName||'')} · ${new Date(p.ts).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { /* photos are best-effort — never break the detail view */ }
+}
 
 // Resets every wizard field/step back to blank and opens it fresh — this is the "+" FAB button's handler for logging a brand-new site visit.
 function showNewEntryModal() {
@@ -5121,6 +5196,7 @@ async function saveEntry() {
     if(n) products.push({name:n,qty:q});
   });
   const editId=gv('entry-edit-id');
+  const entryId = editId || ('E'+Date.now());   // known up-front so the site photo can reference it
   setLoading(true,'Saving...');
   try {
     const entryData = {
@@ -5160,8 +5236,17 @@ async function saveEntry() {
         if (!confirm(msg)) return;   // back to the form to fix
         setLoading(true,'Saving...');
       }
-      await DATA_addEntry({id:'E'+Date.now(), iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, createdAt:new Date().toISOString()});
+      await DATA_addEntry({id:entryId, iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, createdAt:new Date().toISOString()});
       showToast('✅ Site entry saved!');
+    }
+    // Site photo (optional) — upload + AI-verify against the claimed details, non-fatal on failure
+    if (_pendingPhoto) {
+      try {
+        setLoading(true,'Verifying site photo with AI...');
+        const res = await uploadSitePhoto(entryId, {siteName:entryData.siteName, buildType:entryData.buildType, siteStage:entryData.siteStage, address:entryData.address});
+        const v = res && res.verdict;
+        if (v) showToast(v.verdict==='plausible' ? `📸 ✅ Photo verified — ${v.summary||'genuine site'}` : `📸 ⚠️ Photo flagged — ${v.summary||v.verdict}`);
+      } catch(e) { showToast('⚠️ Photo could not be uploaded: '+e.message); }
     }
     closeWizard();
     // Brief delay before refreshing — Google Sheets can have a short read-after-write
@@ -5210,6 +5295,8 @@ function showDetail(id) {
     ${e.sapRef?`<div class="detail-row"><div class="detail-label">${e.refDocType||'SAP Ref #'}</div><div class="detail-value">${e.sapRef}</div></div>`:''}
     ${e.refDocValue?`<div class="detail-row"><div class="detail-label">${(e.refDocType||'').replace(/ Number$/,'')||'Document'} Value</div><div class="detail-value">₹${Number(e.refDocValue).toLocaleString('en-IN')}</div></div>`:''}`;
   document.getElementById('modal-detail-actions').innerHTML=currentUser.role==='isc'?`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`:`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
+  document.getElementById('modal-detail-body').insertAdjacentHTML('beforeend', '<div id="detail-photos"></div>');
+  loadDetailPhotos(e.id);   // lazy — fills in only if photos exist
   openModal('modal-detail');
 }
 // ══════════════════════════════════════════════
