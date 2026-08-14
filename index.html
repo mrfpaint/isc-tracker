@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.47</div>
+        <div class="auth-tagline">FIELD ONE · v4.48</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1657,6 +1657,7 @@
     <div class="modal-handle"></div>
     <div class="modal-title">Add ASM</div>
     <div class="modal-subtitle" id="modal-asm-subtitle">Add a new Area Sales Manager</div>
+    <input type="hidden" id="asm-edit-id">
     <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="asm-name" placeholder="Full name"></div>
     <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="asm-email" placeholder="asm@mrfpaint.com"></div>
     <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="asm-phone" placeholder="10-digit number"></div>
@@ -6095,6 +6096,7 @@ async function renderAsmList() {
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
     const asms=(await DATA_getASMs()).filter(a=>a.status!=='Vacant'); // vacant seats live in the dedicated Vacant Positions section, not here
+    _asmAdminCache = asms;
     const countEl=document.getElementById('asm-count');
     if(countEl) countEl.textContent=`(${asms.length} total)`;
     if (!asms.length){el.innerHTML=emptyState('👥','No ASMs yet');return;}
@@ -6110,6 +6112,7 @@ async function renderAsmList() {
         </div>
       </div>
       <div class="isc-actions" style="margin-top:8px">
+        <button class="btn-sm btn-blue" onclick="editASM('${a.id}')">✏️ Edit</button>
         <button class="btn-sm btn-blue" onclick="openAssignRSMModal('${a.id}','${(a.name||'').replace(/'/g,"\\'")}','${a.rsmId||''}')">🌐 Assign RSM</button>
         ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('asm','${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('asm','${a.id}','Active')">🟢 Activate</button>`}
@@ -6314,9 +6317,24 @@ async function renderBDOList(refetch=true) {
   } catch(e){el.innerHTML=`<div class="alert alert-error">Could not load: ${e.message}</div>`;}
 }
 
+let _asmAdminCache = [];
+// Reuses the Add ASM modal in edit mode (hidden asm-edit-id) — covers password resets too.
+async function editASM(id) {
+  const a = _asmAdminCache.find(x=>String(x.id)===String(id));
+  if (!a) return showToast('⚠️ ASM not found');
+  await openAddAsmModal();
+  document.getElementById('modal-asm-subtitle').textContent = `Edit — ${a.name}`;
+  sv('asm-edit-id', a.id);
+  sv('asm-name', a.name||''); sv('asm-email', a.email||''); sv('asm-phone', a.phone||'');
+  sv('asm-username', a.username||''); sv('asm-password', a.password||'');
+  sv('asm-rsm-select', a.rsmId||'');
+}
+
 // Populates the RSM dropdown, then opens the Add ASM modal.
 async function openAddAsmModal() {
   document.getElementById('modal-asm-subtitle').textContent = 'Add a new Area Sales Manager';
+  sv('asm-edit-id','');
+  ['asm-name','asm-email','asm-phone','asm-username','asm-password'].forEach(id=>sv(id,''));
   const sel = document.getElementById('asm-rsm-select');
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
@@ -6365,13 +6383,29 @@ async function openAddBDOModal() {
 async function saveAsm() {
   const name=gv('asm-name').trim(),email=gv('asm-email').trim(),phone=gv('asm-phone').trim(),username=gv('asm-username').trim(),password=gv('asm-password').trim();
   const rsmId=gv('asm-rsm-select');
+  const editId=gv('asm-edit-id');
   if (!name||!email||!phone||!username||!password) return showToast('⚠️ All fields required');
   setLoading(true,'Saving ASM...');
   try {
     const asms=await DATA_getASMs();
-    if (asms.find(a=>(a.username||'').toLowerCase()===username.toLowerCase())){showToast('⚠️ Username already taken');return;}
+    if (asms.find(a=>(a.username||'').toLowerCase()===username.toLowerCase() && String(a.id)!==String(editId))){showToast('⚠️ Username already taken');return;}
     const rsms=await DATA_getRSMs();
     const rsm=rsms.find(r=>r.id===rsmId);
+    if (editId) {
+      // Edit mode — patch the row; if the name changed, refresh the denormalized asmName everywhere
+      const orig = _asmAdminCache.find(x=>String(x.id)===String(editId));
+      await sheetsUpdate('ASMs','id',editId,{name,email,phone,username,password,rsmId:rsmId||'',rsmName:rsm?.name||''});
+      if (orig && String(orig.name||'')!==name) {
+        try {
+          await bulkReassign('Users','asmId',editId,{asmName:name});
+          await bulkReassign('STs','asmId',editId,{asmName:name});
+          await bulkReassign('BDOs','asmId',editId,{asmName:name});
+        } catch(e){ console.warn('asmName propagation failed:', e.message); }
+      }
+      auditLog('ASM record edited', name, orig&&orig.password!==password ? 'incl. password change' : '');
+      closeModal('modal-asm');renderAsmList();
+      showToast('✅ ASM updated!'); return;
+    }
     const newAsm = {id:'asm'+Date.now(),name,email,phone,username,password,rsmId:rsmId||'',rsmName:rsm?.name||'',status:'Active'};
     await DATA_addASM(newAsm);
     closeModal('modal-asm');renderAsmList();
