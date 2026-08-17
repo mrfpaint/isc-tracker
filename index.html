@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.49</div>
+        <div class="auth-tagline">FIELD ONE · v4.50</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1297,6 +1297,7 @@
             <option value="">— Select —</option>
             <option>Individual Home Owner</option>
             <option>Builder / Developer</option>
+            <option>Committee Member</option>
             <option>Contractor</option>
             <option>Architect / Interior Designer</option>
             <option>Commercial / Industrial</option>
@@ -1365,6 +1366,7 @@
               <option>Plastering</option>
               <option>Primer Stage</option>
               <option>Finishing / Painting</option>
+              <option>Repainting</option>
               <option>Completed</option>
             </select>
           </div>
@@ -1916,7 +1918,7 @@
     <div class="form-group"><label class="form-label">Customer Phone</label><input type="tel" class="form-input" id="as-custphone" placeholder="10-digit mobile"></div>
     <div class="form-group"><label class="form-label">Customer Type</label><select class="form-select" id="as-custtype">
       <option value="">— Select —</option>
-      <option>Individual Home Owner</option><option>Builder / Developer</option><option>Contractor</option>
+      <option>Individual Home Owner</option><option>Builder / Developer</option><option>Committee Member</option><option>Contractor</option>
       <option>Architect / Interior Designer</option><option>Commercial / Industrial</option><option>Government / Institution</option>
     </select></div>
     <div class="form-group"><label class="form-label">Site / Project Name *</label><input type="text" class="form-input" id="as-sitename" placeholder="e.g. Sai Residency, Block B"></div>
@@ -1939,7 +1941,7 @@
     <div class="form-group"><label class="form-label">Site Stage</label><select class="form-select" id="as-sitestage">
       <option value="">— Select —</option>
       <option>Foundation</option><option>Structure / RCC</option><option>Plastering</option>
-      <option>Putty / Primer</option><option>Painting In Progress</option><option>Completed</option>
+      <option>Putty / Primer</option><option>Painting In Progress</option><option>Repainting</option><option>Completed</option>
     </select></div>
     <div class="form-group"><label class="form-label">Area (sq ft)</label><input type="number" class="form-input" id="as-area" placeholder="e.g. 2500"></div>
     <div class="form-group"><label class="form-label">Products Discussed</label><textarea class="form-input" id="as-products" rows="2" placeholder="e.g. Vapocure 2K Epoxy — 50 L, Damp Proof — 20 L"></textarea></div>
@@ -7177,10 +7179,10 @@ async function renderDashboard() {
 
     // ── SITE STAGE PIPELINE (siteStage funnel) ────────────────────────
     try {
-      const stageOrder=['Foundation / Structure','Plastering','Primer Stage','Finishing / Painting','Completed'];
+      const stageOrder=['Foundation / Structure','Plastering','Primer Stage','Finishing / Painting','Repainting','Completed'];
       const stageMap={};filteredEntries.forEach(e=>{if(e.siteStage)stageMap[e.siteStage]=(stageMap[e.siteStage]||0)+1;});
       const stageMax=Math.max(...stageOrder.map(s=>stageMap[s]||0),1);
-      const stageColors={'Foundation / Structure':'#6b7280','Plastering':'#f59e0b','Primer Stage':'#3b82f6','Finishing / Painting':'#8b5cf6','Completed':'#10b981'};
+      const stageColors={'Foundation / Structure':'#6b7280','Plastering':'#f59e0b','Primer Stage':'#3b82f6','Finishing / Painting':'#8b5cf6','Repainting':'#0ea5e9','Completed':'#10b981'};
       const stageHtml=stageOrder.filter(s=>stageMap[s]).map(s=>miniBar(s,stageMap[s],stageMax,stageColors[s]||'#1565C0')).join('');
       if(stageHtml) html+=dashSection('🪜 Site Stage Pipeline',stageHtml);
     } catch(e) { console.warn('Site stage error:',e.message); }
