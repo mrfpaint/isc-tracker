@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.51</div>
+        <div class="auth-tagline">FIELD ONE · v4.52</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -3609,15 +3609,17 @@ async function renderActivityReport() {
     } else {
       // ST / BDO — their own visit sheets
       const visits = p._role==='ST' ? await DATA_getSTVisits() : await DATA_getBDOVisits();
-      visits.filter(v=>String(v.stId||v.bdoId||v.userId||v.iscId||'')===pid
-                     || String(v.stName||v.bdoName||v.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
+      // ST_Visits / BDO_Visits rows store the person as empId/empName (see baseActivityRow) — match those first
+      // (same fix as the v4.44 Reports-tab visit attribution fix; stId/bdoId/stName etc. don't exist on these rows).
+      visits.filter(v=>String(v.empId||v.stId||v.bdoId||v.userId||v.iscId||'')===pid
+                     || String(v.empName||v.stName||v.bdoName||v.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
         .forEach(v=>{
           const d = _actRecDate(v);
           if (!dateSet.has(d)) return;
           if (String(v.activityType||'')==='Office')
             acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏢', text:`Office${v.remarks?': '+v.remarks:''}`, place:v.gps||''});
           else
-            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`Visit: ${v.siteName||v.customer||v.purpose||v.dealerName||'(site)'}`, place:v.address||v.location||''});
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`${v.activityType?v.activityType+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
         });
       // ...plus any ISC site entries where they were tagged
       const entries = await DATA_getEntries();
