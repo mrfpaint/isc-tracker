@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.52</div>
+        <div class="auth-tagline">FIELD ONE · v4.53</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -2136,7 +2136,12 @@
 
 <script>
 // ── DATE HELPERS (defined first — used throughout) ───────────────────────────
-function todayStr() { return new Date().toISOString().slice(0,10); }
+// LOCAL calendar date (yyyy-mm-dd). Never use toISOString() for calendar dates:
+// it converts to UTC, so in IST (UTC+5:30) any time before 05:30 — including a
+// parsed local midnight like new Date('2026-08-19T00:00:00') — lands on the
+// PREVIOUS day (the "manager sees yesterday" bug fixed in v4.53).
+function localDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayStr() { return localDateStr(new Date()); }
 // Was this ISC still employed on the given date? Counts them up to their relieved date, ignores them after.
 function iscActiveOn(isc, dateStr) {
   if (String(isc.status||'Active') !== 'Inactive') return true;   // still working — always count
@@ -3578,7 +3583,7 @@ function _actDatesInRange() {
   const days = parseInt(document.getElementById('act-range').value||'1',10);
   const end = new Date(endStr+'T00:00:00');
   const list = [];
-  for (let i=0;i<days;i++){ const d=new Date(end); d.setDate(end.getDate()-i); list.push(d.toISOString().slice(0,10)); }
+  for (let i=0;i<days;i++){ const d=new Date(end); d.setDate(end.getDate()-i); list.push(localDateStr(d)); }
   return list;   // newest first
 }
 
@@ -3690,7 +3695,7 @@ let _repCols = [];
 // Defaults the Reports date pickers to "last 7 days" the first time the tab is opened.
 function renderReportsTab() {
   const f=document.getElementById('rep-from'), t=document.getElementById('rep-to');
-  if (f && !f.value) { const d=new Date(); d.setDate(d.getDate()-6); f.value=d.toISOString().slice(0,10); }
+  if (f && !f.value) { const d=new Date(); d.setDate(d.getDate()-6); f.value=localDateStr(d); }
   if (t && !t.value) t.value = todayStr();
 }
 
@@ -3699,13 +3704,13 @@ function repQuickRange(k) {
   const f=document.getElementById('rep-from'), t=document.getElementById('rep-to');
   t.value = todayStr();
   if (k==='month') { f.value = todayStr().slice(0,7)+'-01'; }
-  else { const d=new Date(); d.setDate(d.getDate()-k); f.value=d.toISOString().slice(0,10); }
+  else { const d=new Date(); d.setDate(d.getDate()-k); f.value=localDateStr(d); }
   runReport();
 }
 
 function _repDates(fromStr, toStr) {
   const out=[]; let d=new Date(fromStr+'T00:00:00'); const end=new Date(toStr+'T00:00:00');
-  while (d<=end) { out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+  while (d<=end) { out.push(localDateStr(d)); d.setDate(d.getDate()+1); }
   return out;
 }
 
