@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.50</div>
+        <div class="auth-tagline">FIELD ONE · v4.51</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1036,6 +1036,15 @@
         </div>
         <div id="cp-alert"></div>
         <button class="btn-primary" onclick="changeISCPassword()">🔑 Update Password</button>
+      </div>
+    </div>
+    <!-- v4.51: self-service fix for "storage full" phones — drops the offline caches only,
+         never the offline queues, so nothing unsynced is lost. -->
+    <div class="section-card">
+      <div class="section-header"><div class="section-title">🧹 Device Storage</div></div>
+      <div class="section-body">
+        <div style="font-size:12px;color:#666;margin-bottom:10px" id="storage-usage">—</div>
+        <button class="btn-secondary" onclick="freeUpSpace()">🧹 Free up space</button>
       </div>
     </div>
   </div>
@@ -2148,13 +2157,68 @@ const CFG_KEY = 'isc_gs_config';
 // 'localStorage' property from 'Window': Access is denied"). Every storage access goes through
 // this shim — when real localStorage is unavailable the app silently falls back to an in-memory
 // store: nothing persists between reloads on that device, but login and every online feature work.
+// v4.51 — the shim is ALSO quota-safe now. iOS Safari caps localStorage at ~5 MB per origin and
+// throws QuotaExceededError ("The quota has been exceeded.") once it is reached. Because the read-
+// through caches (attendance_all, visits, masters…) grow with the D1 tables, phones that keep the
+// app open for weeks used to hit that ceiling — and the throw landed in whatever catch was running,
+// including the one in markSelfAttendance(), which blocked attendance marking outright.
+// Now: a full store evicts disposable caches and retries; cache writes never throw.
 const LS = (() => {
-  try { const t='__ls_probe__'; window.localStorage.setItem(t,'1'); window.localStorage.removeItem(t); return window.localStorage; }
-  catch(e) {
-    console.warn('localStorage unavailable — using in-memory fallback (online-only mode):', e.message);
-    const m = new Map();
-    return { getItem:k=>m.has(k)?m.get(k):null, setItem:(k,v)=>m.set(k,String(v)), removeItem:k=>m.delete(k), clear:()=>m.clear() };
+  const raw = (() => {
+    try { const t='__ls_probe__'; window.localStorage.setItem(t,'1'); window.localStorage.removeItem(t); return window.localStorage; }
+    catch(e) {
+      console.warn('localStorage unavailable — using in-memory fallback (online-only mode):', e.message);
+      const m = new Map();
+      return { getItem:k=>m.has(k)?m.get(k):null, setItem:(k,v)=>m.set(k,String(v)), removeItem:k=>m.delete(k), clear:()=>m.clear(), get length(){return m.size}, key:i=>Array.from(m.keys())[i] };
+    }
+  })();
+
+  // NEVER evict these — unsynced field data, offline queues and login state live here.
+  const PROTECTED = new Set(['isc_gs_config','isc_l_attendance','isc_l_attendance_offline_queue','isc_l_offline_queue','isc_l_audit_queue','isc_l_currentUser','isc_l_admins','isc_l_seeded','isc_l_sts_login','isc_l_bdos_login']);
+  const isQuota = e => !!e && (e.name==='QuotaExceededError' || e.name==='NS_ERROR_DOM_QUOTA_REACHED' || e.code===22 || e.code===1014 || /quota/i.test(e.message||''));
+
+  // Throw away the single biggest disposable cache. Returns false when nothing is left to drop.
+  function evictOne() {
+    let victim = null, best = 0;
+    try {
+      for (let i=0; i<raw.length; i++) {
+        const k = raw.key(i);
+        if (!k || PROTECTED.has(k)) continue;
+        if (!(k.indexOf('isc_l_')===0 || k==='prod_master_v1')) continue;   // leave non-app keys alone
+        const n = (raw.getItem(k)||'').length;
+        if (n > best) { best = n; victim = k; }
+      }
+    } catch(_) {}
+    if (!victim) return false;
+    try { raw.removeItem(victim); console.warn(`Storage full — evicted cache ${victim} (${Math.round(best/1024)} KB)`); return true; }
+    catch(_) { return false; }
   }
+
+  return {
+    getItem: k => { try { return raw.getItem(k); } catch(_) { return null; } },
+    removeItem: k => { try { raw.removeItem(k); } catch(_) {} },
+    clear: () => { try { raw.clear(); } catch(_) {} },
+    // Frees every disposable cache in one go (used by Profile → "Free up space").
+    purgeCaches() { let n=0; while (evictOne()) n++; return n; },
+    // critical=true → rethrow if the value truly cannot be stored, so the caller can react.
+    // critical=false (default, i.e. cache writes) → give up quietly; a missing cache is harmless,
+    // an exception thrown mid-save is not.
+    setItem(k, v, critical) {
+      for (let attempt=0; attempt<15; attempt++) {
+        try { raw.setItem(k, v); return true; }
+        catch(e) {
+          if (!isQuota(e)) { if (critical) throw e; console.warn(`Storage write failed for ${k}:`, e.message); return false; }
+          if (!evictOne()) {
+            if (critical) throw new Error('Device storage is full — clear this site’s website data in your browser settings.');
+            console.warn('Storage full — skipped cache write '+k);
+            return false;
+          }
+        }
+      }
+      if (critical) throw new Error('Device storage is full — clear this site’s website data in your browser settings.');
+      return false;
+    }
+  };
 })();
 
 // DEFAULT CONFIG — embedded so every device works without Admin setup on each browser
@@ -2634,7 +2698,59 @@ async function requestOAuthPopup() {
 // isConfigured defined above
 // LDB = "Local DataBase" — a tiny wrapper around localStorage that JSON-encodes/decodes automatically.
 // get: read a single value (or null). set: write a value. arr: read a value defaulting to []. push: append to a stored array.
-const LDB = { get:k=>JSON.parse(LS.getItem('isc_l_'+k)||'null'), set:(k,v)=>LS.setItem('isc_l_'+k,JSON.stringify(v)), arr:k=>JSON.parse(LS.getItem('isc_l_'+k)||'[]'), push:(k,v)=>{const a=JSON.parse(LS.getItem('isc_l_'+k)||'[]');a.push(v);LS.setItem('isc_l_'+k,JSON.stringify(a));} };
+// v4.51: keys holding data that is NOT on the server yet are written as "critical" (they survive
+// eviction and report failure); everything else is a read-through cache that may be dropped silently.
+const LDB_CRITICAL = new Set(['attendance','attendance_offline_queue','offline_queue','audit_queue','currentUser','admins','seeded']);
+const LDB = {
+  get:k=>{ try { return JSON.parse(LS.getItem('isc_l_'+k)||'null'); } catch(_) { return null; } },
+  arr:k=>{ try { const a=JSON.parse(LS.getItem('isc_l_'+k)||'[]'); return Array.isArray(a)?a:[]; } catch(_) { return []; } },
+  set:(k,v)=>LS.setItem('isc_l_'+k, JSON.stringify(v), LDB_CRITICAL.has(k)),
+  push:(k,v)=>{ const a=LDB.arr(k); a.push(v); return LS.setItem('isc_l_'+k, JSON.stringify(a), LDB_CRITICAL.has(k)); }
+};
+
+// Read-through caches only exist so the app still shows something offline — they do not need the
+// whole table. Trimming them to the recent window is what stops localStorage filling up at all.
+function cacheTrim(rows, days, max) {
+  try {
+    if (!Array.isArray(rows)) return rows;
+    days = days || 45; max = max || 1200;
+    const cut = new Date(Date.now() - days*86400000).toISOString().slice(0,10);
+    const dOf = r => String((r && (r.date || r.visitDate || r.entryDate || r.createdAt)) || '').slice(0,10);
+    let out = rows.filter(r => { const d = dOf(r); return !d || d >= cut; });
+    if (out.length > max) out = out.slice(-max);
+    return out;
+  } catch(_) { return rows; }
+}
+
+// How much of this browser's ~5 MB localStorage the app is using, and how much of that is
+// throw-away cache. Shown in Profile → Device Storage.
+function storageStats() {
+  let total = 0, cache = 0, pending = 0;
+  try {
+    for (let i=0; i<localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const n = ((localStorage.getItem(k)||'').length + (k||'').length) * 2;   // UTF-16 bytes
+      total += n;
+      if (k && (k.indexOf('isc_l_')===0 || k==='prod_master_v1') && !['isc_l_attendance','isc_l_attendance_offline_queue','isc_l_offline_queue','isc_l_audit_queue','isc_l_currentUser','isc_l_admins','isc_l_seeded','isc_l_sts_login','isc_l_bdos_login'].includes(k)) cache += n;
+    }
+    pending = LDB.arr('attendance_offline_queue').length + LDB.arr('offline_queue').length;
+  } catch(_) {}
+  return { total, cache, pending };
+}
+function renderStorageUsage() {
+  const el = document.getElementById('storage-usage'); if (!el) return;
+  const s = storageStats(), kb = n => Math.round(n/1024)+' KB';
+  el.textContent = `Using ${kb(s.total)} of roughly 5 MB · ${kb(s.cache)} is offline cache that can be cleared safely`
+    + (s.pending ? ` · ⚠️ ${s.pending} record(s) still waiting to sync — sync them before clearing` : '');
+}
+// Drops the read-through caches only. Offline queues, attendance and login state are protected.
+function freeUpSpace() {
+  const before = storageStats();
+  const n = LS.purgeCaches();
+  const after = storageStats();
+  renderStorageUsage();
+  showToast(n ? `🧹 Freed ${Math.round((before.total-after.total)/1024)} KB (${n} cached table${n>1?'s':''})` : '✅ Nothing to clear — cache is already empty.');
+}
 
 // One-time setup for the offline/local-storage fallback: makes sure a default admin login always exists, and seeds empty lists the first time the app ever runs.
 function seedLocal() {
@@ -2777,7 +2893,7 @@ async function DATA_getAttendanceAll() {
   if (!isConfigured()) return LDB.arr('attendance_all') || [];
   try {
     const remote = await sheetsGet('Attendance_All');
-    LDB.set('attendance_all', remote);
+    LDB.set('attendance_all', cacheTrim(remote, 45, 2000));
     return remote;
   } catch(e) {
     console.warn('Attendance_All fetch failed:', e.message);
@@ -2790,7 +2906,7 @@ async function DATA_getSTVisits() {
   if (!isConfigured()) return LDB.arr('st_visits') || [];
   try {
     const remote = await sheetsGet('ST_Visits');
-    LDB.set('st_visits', remote);
+    LDB.set('st_visits', cacheTrim(remote, 45, 1500));
     return remote;
   } catch(e) {
     return LDB.arr('st_visits') || [];
@@ -2802,7 +2918,7 @@ async function DATA_getBDOVisits() {
   if (!isConfigured()) return LDB.arr('bdo_visits') || [];
   try {
     const remote = await sheetsGet('BDO_Visits');
-    LDB.set('bdo_visits', remote);
+    LDB.set('bdo_visits', cacheTrim(remote, 45, 1500));
     return remote;
   } catch(e) {
     return LDB.arr('bdo_visits') || [];
@@ -2891,7 +3007,7 @@ async function scopedISCIdSet() {
 async function DATA_getMyVisits() {
   const sheet = activitySheetFor(currentUser), cache = ACTIVITY_SHEET_CACHE[sheet];
   if (!isConfigured()) return LDB.arr(cache) || [];
-  try { const remote = await sheetsGet(sheet); LDB.set(cache, remote); return remote; }
+  try { const remote = await sheetsGet(sheet); LDB.set(cache, cacheTrim(remote, 45, 1500)); return remote; }
   catch(e) { return LDB.arr(cache) || []; }
 }
 
@@ -3012,8 +3128,9 @@ async function DATA_getAttendance(iscId=null) {
 const ATTENDANCE_HEADERS = ['id','iscId','iscName','asmId','asmName','region','date','status','checkInTime','gps','gpsRaw','createdAt'];
 
 async function DATA_addAttendance(record) {
-  // Save locally FIRST so it shows immediately even if Worker fails
-  LDB.push('attendance', record);
+  // Save locally FIRST so it shows immediately even if Worker fails.
+  // Guarded: on a storage-full device this must NOT abort the server write below (v4.51).
+  try { LDB.push('attendance', record); } catch(e) { console.warn('Local attendance cache write failed:', e.message); }
   if (isConfigured()) {
     try {
       const row = ATTENDANCE_HEADERS.map(h=>String(record[h]??''));
@@ -3386,7 +3503,7 @@ function showTab(tab) {
   if (tab==='attendance') renderMyAttendance();
   if (tab==='team-attendance') renderSelfAttendanceCard();
   if (tab==='team-attendance') renderTeamAttendance();
-  if (tab==='profile') renderProfile();
+  if (tab==='profile') { renderProfile(); renderStorageUsage(); }
   if (tab==='admin') renderAdminPanel();
   if (tab==='dashboard') renderDashboard();
   if (tab==='activity') renderActivityTab();
@@ -7461,8 +7578,11 @@ async function markAttendance(status) {
       } catch(e) { /* GPS optional */ }
     }
 
-    // Save to local cache immediately
-    LDB.push('attendance', record);
+    // Send/queue for the server FIRST — the local cache write must never be what blocks a save (v4.51)
+    DATA_addAttendanceToSheets(record);
+
+    // Save to local cache (best effort — storage may be full on old field phones)
+    try { LDB.push('attendance', record); } catch(e) { console.warn('Local attendance cache write failed:', e.message); }
 
     // Hide mark buttons immediately to prevent double-marking
     const markBtns = document.getElementById('att-mark-buttons');
@@ -7471,9 +7591,7 @@ async function markAttendance(status) {
     // Update UI immediately
     showToast(`✅ Attendance marked — ${status}!`);
     updateAttendanceUIImmediately(record);
-
-    // Write to Sheets in background
-    DATA_addAttendanceToSheets(record);
+    // (the Sheets/D1 write was already kicked off above)
 
   } catch(e) {
     showToast('⚠️ '+e.message);
@@ -7511,8 +7629,12 @@ function updateAttendanceUIImmediately(record) {
 // autoSyncAttendanceQueue() pushes it on the next app open. Nothing is silently lost.
 async function DATA_addAttendanceToSheets(record) {
   if (!isConfigured()) return;
-  const q0 = LDB.arr('attendance_offline_queue');
-  if (!q0.find(r=>r.id===record.id)) { q0.push(record); LDB.set('attendance_offline_queue', q0); }
+  // Queue-first so a killed app never loses the record. Guarded (v4.51): if the device is so full
+  // that even this fails after cache eviction, still attempt the network write below.
+  try {
+    const q0 = LDB.arr('attendance_offline_queue');
+    if (!q0.find(r=>r.id===record.id)) { q0.push(record); LDB.set('attendance_offline_queue', q0); }
+  } catch(e) { console.warn('Could not queue attendance locally (storage full):', e.message); }
   try {
     const row = ATTENDANCE_HEADERS.map(h=>String(record[h]??''));
     const wresp = await fetch(`${WORKER_URL}/sheets/append`, {
@@ -7658,7 +7780,10 @@ async function markSelfAttendance(status) {
       } catch(e) { /* GPS optional */ }
     }
 
-    LDB.push('attendance', record);
+    // Send/queue for the server FIRST — a full localStorage used to throw here and silently
+    // block the whole marking (the "The quota has been exceeded." toast in the field). v4.51
+    DATA_addAttendanceToSheets(record);
+    try { LDB.push('attendance', record); } catch(e) { console.warn('Local attendance cache write failed:', e.message); }
 
     const markBtns = document.getElementById('satt-mark-buttons');
     if (markBtns) markBtns.style.display = 'none';
@@ -7671,7 +7796,7 @@ async function markSelfAttendance(status) {
     if (markedInfo) { markedInfo.style.display = 'block'; markedInfo.textContent = `Marked at ${record.checkInTime} · ${record.gps||''}`; }
     if (statusEl) { statusEl.textContent = `${icons[record.status]||''} ${record.status}`; statusEl.style.color = colors[record.status]||'white'; }
 
-    DATA_addAttendanceToSheets(record);
+    // (the Sheets/D1 write was already kicked off above)
     // Refresh the team list below too, since this user may also appear there
     setTimeout(() => renderTeamAttendance(), 3000);
 
