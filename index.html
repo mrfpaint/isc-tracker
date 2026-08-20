@@ -3706,8 +3706,12 @@ async function renderActivityReport() {
           else if (t==='Work Along')
             // Work Along rows carry the partner in withName/withRole, not partyName — without this they read as "(site)".
             acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🤝', text:`Work along with ${v.withName||'(no name)'}${v.withRole?' · '+v.withRole:''}`, place:v.address||v.gps||''});
-          else
-            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`${t?t+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
+          else {
+            // For a Site row partySubType holds 'New Site' / 'Existing Site' — worth showing, since
+            // that is the one thing the old line left out about a site visit.
+            const kind = t==='Site' && v.partySubType ? ` (${v.partySubType})` : '';
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`${t?t+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${kind}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
+          }
         });
       // ...plus any ISC site entries where they were tagged (ST/BDO only — see ACT_ROLE_SRC)
       if (src.nameKey) {
@@ -3799,6 +3803,14 @@ function _repDates(fromStr, toStr) {
 }
 
 // Loads everything once and builds a per-person map: attendance by date + activity dates/counts
+// Which Field-activity column each logged activity type counts towards. 'Site' is absent on purpose:
+// site rows are split into New/Existing sites instead. Anything not listed falls into 'Other', so a
+// future activity type shows up as an unexplained number rather than silently vanishing from Total.
+const ACT_TYPE_COL = {
+  'Dealer':'dealer', 'Contractor/Painter':'contractor', 'Influencer':'influencer',
+  'Work Along':'workAlong', 'Office':'office',
+};
+
 async function _repLoadData(dates) {
   const dateSet = new Set(dates);
   const people = await loadActivityPeople();   // same role-based scoping as the Activity tab
@@ -3812,8 +3824,9 @@ async function _repLoadData(dates) {
   try { rsmVisits = await DATA_getRSMVisits(); } catch(e){}
   try { const r = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions'); const j = await r.json(); pcms = Array.isArray(j)?j:[]; } catch(e){}
 
-  const map = {};   // pid -> {p, att:{date:status}, actDates:Set, newSites, existingSites, updates, visits, converted, convValue, pcm}
-  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0, visits:0, converted:0, convValue:0, pcm:0}; });
+  const map = {};   // pid -> {p, att:{date:status}, actDates:Set, one counter per report column}
+  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0,
+    tagged:0, dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, pcm:0}; });
   // Name lookups, used only when a record's ids match nobody. SKIP blank names: a nameless person
   // would otherwise become the catch-all for every record whose name fields are blank (the "6031
   // visits on a nameless row" bug). byName is keyed by LEVEL so that people who share a name across
@@ -3859,7 +3872,7 @@ async function _repLoadData(dates) {
     if (dateSet.has(cd)) [['stName','ST'],['bdoName','BDO']].forEach(([k,level])=>{
       const nm = String(e[k]||'').trim().toLowerCase();
       const tid = nm ? byName[level+'|'+nm] : '';
-      if (tid && map[tid]) { map[tid].visits++; map[tid].actDates.add(cd); }
+      if (tid && map[tid]) { map[tid].tagged++; map[tid].actDates.add(cd); }
     });
   });
   // Each visits sheet holds exactly one level, so a row's sheet tells us which name index to use.
@@ -3871,7 +3884,21 @@ async function _repLoadData(dates) {
       const nm = String(v.empName||v.stName||v.bdoName||v.name||'').trim().toLowerCase();
       pid = nm ? (byName[level+'|'+nm]||'') : '';
     }
-    if (pid && map[pid]) { map[pid].visits++; map[pid].actDates.add(d); }
+    if (pid && map[pid]) {
+      // A 'Site' activity IS a site visit, so it belongs in the New/Existing columns alongside the
+      // ISCs' entries rather than buried in the generic Visits count — that was why only ISCs ever
+      // showed sites. The Site form stores which one in partySubType ('New Site' / 'Existing Site'),
+      // the same split Entries keeps in siteStatus; a blank counts as New, as it does for entries.
+      // Counted in one column only, never both, so the Total column stays a true sum.
+      const t = String(v.activityType||'').trim();
+      if (t==='Site') {
+        if (String(v.partySubType||'').trim().toLowerCase()==='existing site') map[pid].existingSites++;
+        else map[pid].newSites++;
+      } else {
+        map[pid][ACT_TYPE_COL[t] || 'other']++;   // 'other' catches any activity type added later
+      }
+      map[pid].actDates.add(d);
+    }
   }));
   pcms.forEach(e=>{
     const d=String(e.datetime||e.createdAt||'').slice(0,10); if (!dateSet.has(d)) return;
@@ -3934,17 +3961,40 @@ async function runReport() {
     }
 
     else if (type==='activity') {
-      // Converted / Conv. value are outcomes of entries already counted under New/Existing,
-      // so Total = new + existing + updates + visits + pcm (converted deliberately excluded to avoid double counting).
-      const rows = persons.map(x=>[x.p.name, x.p._role, x.p.region||'', x.newSites, x.existingSites, x.updates, x.visits, x.converted, x.convValue, x.pcm, x.newSites+x.existingSites+x.updates+x.visits+x.pcm])
-        .sort((a,b)=>b[10]-a[10]);
-      const tot=(i)=>rows.reduce((s,r)=>s+r[i],0);
+      // One column per kind of work, so "Visits" is no longer an opaque lump: sites split New/Existing,
+      // the ST/BDO credit for being tagged on an ISC's site stands on its own, and each activity type
+      // is counted separately. Converted / Conv. value are OUTCOMES of entries already counted under
+      // New/Existing, so they stay out of Total — everything else in the row adds up to it exactly.
+      const COL = ['newSites','existingSites','updates','tagged','dealer','contractor','influencer','workAlong','office','other'];
+      const rows = persons.map(x=>{
+        const cells = COL.map(k=>x[k]);
+        const total = cells.reduce((s,n)=>s+n,0) + x.pcm;
+        return [x.p.name, x.p._role, x.p.region||'', ...cells, x.converted, x.convValue, x.pcm, total];
+      }).sort((a,b)=>b[b.length-1]-a[a.length-1]);
+      const H = ['Name','Role','Region','New sites','Existing sites','Site updates','Tagged on site',
+                 'Dealer','Contractor','Influencer','Work along','Office','Other',
+                 'Converted','Conv. value','PCM meets','Total'];
+      const at = name => H.indexOf(name);
+      const tot=(name)=>rows.reduce((s,r)=>s+r[at(name)],0);
       const inr=(n)=>'₹'+Number(n||0).toLocaleString('en-IN');
-      const totConvValue = tot(8);
+      const totConvValue = tot('Conv. value');
       // Format the value column for display AFTER computing totals (CSV export reuses these cells).
-      const dispRows = rows.map(r=>{ const c=r.slice(); c[8]=c[8]?inr(c[8]):'—'; return c; });
-      html = `<div class="stats-row"><div class="stat-card green"><div class="stat-value">${tot(3)}</div><div class="stat-label">New sites</div></div><div class="stat-card"><div class="stat-value">${tot(4)}</div><div class="stat-label">Existing sites</div></div><div class="stat-card"><div class="stat-value">${tot(6)}</div><div class="stat-label">Visits</div></div><div class="stat-card green"><div class="stat-value">${tot(7)}</div><div class="stat-label">Converted</div></div><div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value</div></div><div class="stat-card"><div class="stat-value">${tot(9)}</div><div class="stat-label">PCM meets</div></div></div>`
-        + _repTable(['Name','Role','Region','New sites','Existing sites','Site updates','Visits','Converted','Conv. value','PCM meets','Total'], dispRows);
+      const dispRows = rows.map(r=>{ const c=r.slice(); c[at('Conv. value')]=c[at('Conv. value')]?inr(c[at('Conv. value')]):'—'; return c; });
+      const card=(label,val,cls='')=>`<div class="stat-card ${cls}"><div class="stat-value">${val}</div><div class="stat-label">${label}</div></div>`;
+      html = `<div class="stats-row">`
+        + card('New sites', tot('New sites'), 'green')
+        + card('Existing sites', tot('Existing sites'))
+        + card('Tagged on site', tot('Tagged on site'))
+        + card('Dealer', tot('Dealer'))
+        + card('Contractor', tot('Contractor'))
+        + card('Influencer', tot('Influencer'))
+        + card('Work along', tot('Work along'))
+        + card('Office', tot('Office'))
+        + card('PCM meets', tot('PCM meets'))
+        + card('Converted', tot('Converted'), 'green')
+        + `<div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value</div></div>`
+        + `</div>`
+        + _repTable(H, dispRows);
     }
 
     document.getElementById('rep-result').innerHTML = html;
