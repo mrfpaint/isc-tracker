@@ -3580,6 +3580,35 @@ const ACT_ROLE_SRC = {
 // Display label for an RSMs-sheet row — the heads live there too, marked by a coarse region.
 function actHeadLabel(r) { const z = headZoneOf(r); return z ? (z==='ALL'?'NSH':(z==='south'?'SH':'NH')) : 'RSM'; }
 
+// The ASMs sheet has no region column, which left the Region cell blank for EVERY ASM in these
+// reports. Derive one instead of changing the schema: an ASM's area is simply the region their own
+// ISCs/STs/BDOs carry, so take the most common one, and fall back to their RSM's region when they
+// have no mapped team yet. Team first on purpose — one RSM's region is typed 'West III' while their
+// whole team uses 'West-3', and this column should speak the same vocabulary as every other row.
+function asmRegionResolver(field, rsms) {
+  const tally = {};                                     // asmId -> {region: count}
+  field.forEach(p=>{
+    const a = String(p.asmId||''), r = String(p.region||'').trim();
+    if (a && r) { (tally[a] = tally[a] || {})[r] = (tally[a][r] || 0) + 1; }
+  });
+  const rsmRegion = {};
+  rsms.forEach(r=>{ rsmRegion[String(r.id)] = String(r.region||'').trim(); });
+  return asm => {
+    const t = tally[String(asm.id)];
+    if (t) return Object.keys(t).sort((x,y)=>t[y]-t[x])[0];
+    const viaRsm = rsmRegion[String(asm.rsmId||'')] || '';
+    return headZoneOf({region:viaRsm}) ? '' : viaRsm;   // a head's zone ('South') is not an ASM's region
+  };
+}
+
+// Tags an ASMs-sheet row for display: role label plus the derived region. Shared by the Activity /
+// Reports tabs and the Attendance tab so an ASM's region reads the same on every screen. A real
+// region on the row always wins, so adding the column to the sheet later just works.
+function asmTagger(field, rsms) {
+  const resolve = asmRegionResolver(field, rsms);
+  return a => ({...a, _role:'ASM', region: a.region || resolve(a)});
+}
+
 // Builds the list of people the current viewer is allowed to see in the Activity report. Managers
 // are included alongside their team — an ASM or RSM logs field activity of their own, so leaving
 // them out made that work invisible here and in the Reports tab.
@@ -3597,11 +3626,14 @@ async function loadActivityPeople() {
     ...sts.map(p=>({...p, _role:'ST'})),
     ...bdos.map(p=>({...p, _role:'BDO'}))
   ];
+  // Built from the FULL field list, never the viewer's slice, so an ASM's region resolves the same
+  // way no matter who is looking at the report.
+  const tagASM = asmTagger(field, rsms);
 
   if (currentUser.role==='asm') {
     return [
       ...field.filter(p=>String(p.asmId||'')===me),
-      ...asms.filter(a=>String(a.id)===me).map(a=>({...a, _role:'ASM'}))
+      ...asms.filter(a=>String(a.id)===me).map(tagASM)
     ];
   }
 
@@ -3614,14 +3646,14 @@ async function loadActivityPeople() {
       || (zone && !headZoneOf(r) && (zone==='ALL' || rsmZoneBucket(r)===zone)));
     return [
       ...field.filter(p=>myAsmIds.has(String(p.asmId||''))),
-      ...myAsms.map(a=>({...a, _role:'ASM'})),
+      ...myAsms.map(tagASM),
       ...myRsms.map(r=>({...r, _role:actHeadLabel(r)}))
     ];
   }
 
   return [                                                                          // Admin / view-only: everyone
     ...field,
-    ...asms.map(a=>({...a, _role:'ASM'})),
+    ...asms.map(tagASM),
     ...rsms.map(r=>({...r, _role:actHeadLabel(r)}))
   ];
 }
@@ -8037,7 +8069,10 @@ async function applyAttCorrection(idx, newStatus) {
 async function teamAttendancePeople(activeOnDate) {
   const activeOnly = p => !['inactive','vacant'].includes(String(p.status||'Active').toLowerCase());
   const tagRole = (arr,fallback) => arr.map(p=>({...p, _role:(p.role||fallback).toUpperCase()}));
-  let iscs = await DATA_getISCs();
+  // allIscs stays UNSCOPED and unfiltered: it only feeds the ASM region tally below, which must not
+  // change with who is looking or which date is being shown. `iscs` is the viewer's actual slice.
+  const allIscs = await DATA_getISCs();
+  let iscs = allIscs;
   if (activeOnDate) iscs = iscs.filter(i=>iscActiveOn(i, activeOnDate));
   const scope = await scopedISCIdSet();
   if (scope) iscs = iscs.filter(i=>scope.has(String(i.id)));
@@ -8046,16 +8081,18 @@ async function teamAttendancePeople(activeOnDate) {
     const [sts,bdos] = await Promise.all([DATA_getST(), DATA_getBDO()]);
     people.push(...tagRole([...sts,...bdos].filter(activeOnly).filter(p=>String(p.asmId||'')===String(currentUser.id)),'ST'));
   } else if (currentUser.role==='rsm') {
-    const [asms,sts,bdos] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
+    const [asms,sts,bdos,rsms] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO(), DATA_getRSMs()]);
+    const tagASM = asmTagger([...allIscs,...sts,...bdos], rsms);   // ASMs have no region column of their own
     const myAsms = (await scopeASMsForRSM(asms)).filter(activeOnly);
     const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
-    people.push(...myAsms.map(a=>({...a,_role:'ASM'})));
+    people.push(...myAsms.map(tagASM));
     people.push(...tagRole([...sts,...bdos].filter(activeOnly).filter(p=>myAsmIds.has(String(p.asmId||''))),'ST'));
   } else if (currentUser.role==='admin') {
     const [rsms,asms,sts,bdos] = await Promise.all([DATA_getRSMs(), DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
+    const tagASM = asmTagger([...allIscs,...sts,...bdos], rsms);   // ASMs have no region column of their own
     const headLbl = r => { const z=headZoneOf(r); return z ? (z==='ALL'?'NSH':(z==='south'?'SH':'NH')) : 'RSM'; };
     people.push(...rsms.filter(activeOnly).map(r=>({...r,_role:headLbl(r)})));
-    people.push(...asms.filter(activeOnly).map(a=>({...a,_role:'ASM'})));
+    people.push(...asms.filter(activeOnly).map(tagASM));
     people.push(...tagRole([...sts,...bdos].filter(activeOnly),'ST'));
   }
   people.push(...iscs.map(i=>({...i,_role:'ISC'})));
