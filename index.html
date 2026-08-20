@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.53</div>
+        <div class="auth-tagline">FIELD ONE · v4.54</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -909,7 +909,7 @@
     <div class="page-title">Employee Activity</div>
     <div class="page-subtitle">Attendance vs actual field work — spot who's really working</div>
     <div style="position:relative;margin-bottom:12px">
-      <input id="act-search" placeholder="🔍 Type a name to search (ISC / ST / BDO)..." autocomplete="off" oninput="actSearchInput()" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;box-sizing:border-box">
+      <input id="act-search" placeholder="🔍 Type a name to search (ISC / ST / BDO / ASM / RSM)..." autocomplete="off" oninput="actSearchInput()" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;box-sizing:border-box">
       <div id="act-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--border);border-radius:10px;max-height:260px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.12)"></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
@@ -2930,6 +2930,39 @@ async function DATA_getBDOVisits() {
   }
 }
 
+// Get ASM visits — ASMs log the same activity types as STs/BDOs, into their own sheet.
+async function DATA_getASMVisits() {
+  if (!isConfigured()) return LDB.arr('asm_visits') || [];
+  try {
+    const remote = await sheetsGet('ASM_Visits');
+    LDB.set('asm_visits', cacheTrim(remote, 45, 1500));
+    return remote;
+  } catch(e) {
+    return LDB.arr('asm_visits') || [];
+  }
+}
+
+// Get RSM visits — RSMs and the heads (SH/NH/NSH, who sign in as role 'rsm') all log here.
+async function DATA_getRSMVisits() {
+  if (!isConfigured()) return LDB.arr('rsm_visits') || [];
+  try {
+    const remote = await sheetsGet('RSM_Visits');
+    LDB.set('rsm_visits', cacheTrim(remote, 45, 1500));
+    return remote;
+  } catch(e) {
+    return LDB.arr('rsm_visits') || [];
+  }
+}
+
+// Fetch one visits sheet by name — lets the Activity/Reports tabs pick a sheet from the viewed
+// person's role instead of hard-coding ST vs BDO. Unknown names fall back to BDO_Visits.
+async function DATA_getVisitsBySheet(sheet) {
+  if (sheet==='ST_Visits')  return DATA_getSTVisits();
+  if (sheet==='ASM_Visits') return DATA_getASMVisits();
+  if (sheet==='RSM_Visits') return DATA_getRSMVisits();
+  return DATA_getBDOVisits();
+}
+
 // ══════════════════════════════════════════════
 //  ST/BDO ACTIVITY DATA LAYER
 //  ST and SE both log into ST_Visits; BDO and BDE both log into BDO_Visits (the `role` column on each
@@ -3461,6 +3494,9 @@ window.addEventListener('online', autoSyncAttendanceQueue);
 
 // Called right after any successful login: switches to the main app screen, fills in the header, builds the role-specific bottom nav, and opens that role's default tab.
 function launchApp() {
+  // Per-login caches — without this the Activity tab keeps showing the PREVIOUS account's people
+  // list (it only ever loads when empty), which now matters more since managers appear in it too.
+  _actPeople = []; _actSelected = null; _headRsmIds = null;
   autoSyncAttendanceQueue();
   showScreen('screen-app');
   document.getElementById('header-user-badge').textContent = currentUser.name||currentUser.username;
@@ -3531,21 +3567,63 @@ let _actSelected = null;  // currently selected person
 function _actTime(v){ if(!v) return ''; const s=String(v); if(/^\d{4}-\d{2}-\d{2}T/.test(s)){ try{ return new Date(s).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} } return s; }
 function _actRecDate(r){ return String(r.date||r.visitDate||r.createdAt||'').slice(0,10); }
 
-// Builds the list of people the current viewer is allowed to see in the Activity report: ASMs see only their own team, RSMs see everyone under their ASMs, Admin sees everyone.
+// Which visits sheet each role in this report logs into, and (ST/BDO only) which Entries column
+// tags them on an ISC's site. ASMs/RSMs are deliberately left out of the tagging: `asmName` sits on
+// EVERY entry of every ISC under them, so counting those would credit them with their team's work.
+const ACT_ROLE_SRC = {
+  ISC: {},
+  ST:  {sheet:'ST_Visits',  nameKey:'stName'},
+  BDO: {sheet:'BDO_Visits', nameKey:'bdoName'},
+  ASM: {sheet:'ASM_Visits'},
+  RSM: {sheet:'RSM_Visits'}, SH: {sheet:'RSM_Visits'}, NH: {sheet:'RSM_Visits'}, NSH: {sheet:'RSM_Visits'},
+};
+// Display label for an RSMs-sheet row — the heads live there too, marked by a coarse region.
+function actHeadLabel(r) { const z = headZoneOf(r); return z ? (z==='ALL'?'NSH':(z==='south'?'SH':'NH')) : 'RSM'; }
+
+// Builds the list of people the current viewer is allowed to see in the Activity report. Managers
+// are included alongside their team — an ASM or RSM logs field activity of their own, so leaving
+// them out made that work invisible here and in the Reports tab.
+//   ASM   → own ISCs/STs/BDOs, plus themselves
+//   RSM   → everyone under their ASMs, those ASMs, and themselves
+//   Heads → same, widened to their whole zone, plus every RSM in it
+//   Admin → everyone
 async function loadActivityPeople() {
-  const [iscs, sts, bdos, asms] = await Promise.all([DATA_getISCs(), DATA_getST(), DATA_getBDO(), DATA_getASMs()]);
-  let people = [
+  const [iscs, sts, bdos, asms, rsms] = await Promise.all([
+    DATA_getISCs(), DATA_getST(), DATA_getBDO(), DATA_getASMs(), DATA_getRSMs()
+  ]);
+  const me = String(currentUser.id||'');
+  const field = [
     ...iscs.map(p=>({...p, _role:'ISC'})),
     ...sts.map(p=>({...p, _role:'ST'})),
     ...bdos.map(p=>({...p, _role:'BDO'}))
   ];
+
   if (currentUser.role==='asm') {
-    people = people.filter(p=>String(p.asmId||'')===String(currentUser.id));       // ASM: own team only
-  } else if (currentUser.role==='rsm') {
-    const myAsmIds = new Set((await scopeASMsForRSM(asms)).map(a=>String(a.id)));
-    people = people.filter(p=>myAsmIds.has(String(p.asmId||'')));                  // RSM: everyone under their ASMs (heads: whole zone / country)
+    return [
+      ...field.filter(p=>String(p.asmId||'')===me),
+      ...asms.filter(a=>String(a.id)===me).map(a=>({...a, _role:'ASM'}))
+    ];
   }
-  return people;                                                                    // Admin: everyone
+
+  if (currentUser.role==='rsm') {
+    const myAsms = await scopeASMsForRSM(asms);
+    const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
+    const zone = headZoneOf(currentUser);
+    // A head also oversees the RSMs in their zone; a plain RSM covers only themselves.
+    const myRsms = rsms.filter(r=>String(r.id)===me
+      || (zone && !headZoneOf(r) && (zone==='ALL' || rsmZoneBucket(r)===zone)));
+    return [
+      ...field.filter(p=>myAsmIds.has(String(p.asmId||''))),
+      ...myAsms.map(a=>({...a, _role:'ASM'})),
+      ...myRsms.map(r=>({...r, _role:actHeadLabel(r)}))
+    ];
+  }
+
+  return [                                                                          // Admin / view-only: everyone
+    ...field,
+    ...asms.map(a=>({...a, _role:'ASM'})),
+    ...rsms.map(r=>({...r, _role:actHeadLabel(r)}))
+  ];
 }
 
 async function renderActivityTab() {
@@ -3612,27 +3690,33 @@ async function renderActivityReport() {
         else if (ud && dateSet.has(ud)) acts.push({date:ud, time:_actTime(e.updatedAt), icon:'📝', text:`Site updated: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
       });
     } else {
-      // ST / BDO — their own visit sheets
-      const visits = p._role==='ST' ? await DATA_getSTVisits() : await DATA_getBDOVisits();
-      // ST_Visits / BDO_Visits rows store the person as empId/empName (see baseActivityRow) — match those first
+      // ST / BDO / ASM / RSM / heads — their own visit sheet, one per level (see activitySheetFor).
+      const src = ACT_ROLE_SRC[p._role] || ACT_ROLE_SRC.BDO;
+      const visits = await DATA_getVisitsBySheet(src.sheet);
+      // Visit rows store the person as empId/empName (see baseActivityRow) — match those first
       // (same fix as the v4.44 Reports-tab visit attribution fix; stId/bdoId/stName etc. don't exist on these rows).
       visits.filter(v=>String(v.empId||v.stId||v.bdoId||v.userId||v.iscId||'')===pid
                      || String(v.empName||v.stName||v.bdoName||v.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
         .forEach(v=>{
           const d = _actRecDate(v);
           if (!dateSet.has(d)) return;
-          if (String(v.activityType||'')==='Office')
+          const t = String(v.activityType||'');
+          if (t==='Office')
             acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏢', text:`Office${v.remarks?': '+v.remarks:''}`, place:v.gps||''});
+          else if (t==='Work Along')
+            // Work Along rows carry the partner in withName/withRole, not partyName — without this they read as "(site)".
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🤝', text:`Work along with ${v.withName||'(no name)'}${v.withRole?' · '+v.withRole:''}`, place:v.address||v.gps||''});
           else
-            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`${v.activityType?v.activityType+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`${t?t+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
         });
-      // ...plus any ISC site entries where they were tagged
-      const entries = await DATA_getEntries();
-      const nameKey = p._role==='ST' ? 'stName' : 'bdoName';
-      entries.filter(e=>String(e[nameKey]||'').trim() && String(e[nameKey]).trim().toLowerCase()===String(p.name||'').trim().toLowerCase()).forEach(e=>{
-        const cd = String(e.createdAt||'').slice(0,10);
-        if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🤝', text:`Tagged on site: ${e.siteName||e.customer||'(unnamed)'} (entered by ${e.iscName||'ISC'})`, place:e.address||''});
-      });
+      // ...plus any ISC site entries where they were tagged (ST/BDO only — see ACT_ROLE_SRC)
+      if (src.nameKey) {
+        const entries = await DATA_getEntries();
+        entries.filter(e=>String(e[src.nameKey]||'').trim() && String(e[src.nameKey]).trim().toLowerCase()===String(p.name||'').trim().toLowerCase()).forEach(e=>{
+          const cd = String(e.createdAt||'').slice(0,10);
+          if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🤝', text:`Tagged on site: ${e.siteName||e.customer||'(unnamed)'} (entered by ${e.iscName||'ISC'})`, place:e.address||''});
+        });
+      }
     }
 
     // ── PCM meets executed by this person (any role) ──
@@ -3721,16 +3805,30 @@ async function _repLoadData(dates) {
   const [att1, att2, entries] = await Promise.all([
     DATA_getAttendance(), DATA_getAttendanceAll().catch(()=>[]), DATA_getEntries()
   ]);
-  let stVisits=[], bdoVisits=[], pcms=[];
+  let stVisits=[], bdoVisits=[], asmVisits=[], rsmVisits=[], pcms=[];
   try { stVisits = await DATA_getSTVisits(); } catch(e){}
   try { bdoVisits = await DATA_getBDOVisits(); } catch(e){}
+  try { asmVisits = await DATA_getASMVisits(); } catch(e){}
+  try { rsmVisits = await DATA_getRSMVisits(); } catch(e){}
   try { const r = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions'); const j = await r.json(); pcms = Array.isArray(j)?j:[]; } catch(e){}
 
   const map = {};   // pid -> {p, att:{date:status}, actDates:Set, newSites, existingSites, updates, visits, converted, convValue, pcm}
   people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0, visits:0, converted:0, convValue:0, pcm:0}; });
-  // Name lookup — SKIP blank names: a person with an empty name would otherwise become the
-  // catch-all for every record whose name fields are blank (the "6031 visits on a nameless row" bug).
-  const byName = {}; people.forEach(p=>{ const nm=String(p.name||'').trim().toLowerCase(); if (nm) byName[nm] = String(p.id); });
+  // Name lookups, used only when a record's ids match nobody. SKIP blank names: a nameless person
+  // would otherwise become the catch-all for every record whose name fields are blank (the "6031
+  // visits on a nameless row" bug). byName is keyed by LEVEL so that people who share a name across
+  // levels stay distinct — there is an ST and an ASM both called Velmurugan Arumugam, and an ST who
+  // is also listed as a BDO. A name shared by two people at the SAME level is stored as null and
+  // never matches, since guessing between them would credit one person's work to the other.
+  const LEVEL = {ISC:'ISC', ST:'ST', BDO:'BDO', ASM:'ASM', RSM:'RSM', SH:'RSM', NH:'RSM', NSH:'RSM'};
+  const byName = {};      // "<level>|<name>" -> id
+  const byAnyName = {};   // "<name>" -> id, across every level (PCM rows name the executor, no role)
+  people.forEach(p=>{
+    const nm = String(p.name||'').trim().toLowerCase(); if (!nm) return;
+    const k = (LEVEL[p._role]||p._role)+'|'+nm;
+    byName[k]      = byName[k]===undefined      ? String(p.id) : null;
+    byAnyName[nm]  = byAnyName[nm]===undefined  ? String(p.id) : null;
+  });
 
   [...att1, ...att2].forEach(a=>{
     const pid = String(a.iscId||a.userId||a.empId||''); const d = String(a.date||'').slice(0,10);
@@ -3757,27 +3855,28 @@ async function _repLoadData(dates) {
         }
       }
     }
-    // ST/BDO tagged on the entry
-    if (dateSet.has(cd)) ['stName','bdoName'].forEach(k=>{
+    // ST/BDO tagged on the entry — the column itself says which level the name belongs to
+    if (dateSet.has(cd)) [['stName','ST'],['bdoName','BDO']].forEach(([k,level])=>{
       const nm = String(e[k]||'').trim().toLowerCase();
-      const tid = nm ? byName[nm] : '';
+      const tid = nm ? byName[level+'|'+nm] : '';
       if (tid && map[tid]) { map[tid].visits++; map[tid].actDates.add(cd); }
     });
   });
-  [...stVisits, ...bdoVisits].forEach(v=>{
+  // Each visits sheet holds exactly one level, so a row's sheet tells us which name index to use.
+  [[stVisits,'ST'], [bdoVisits,'BDO'], [asmVisits,'ASM'], [rsmVisits,'RSM']].forEach(([rows,level])=>rows.forEach(v=>{
     const d=_actRecDate(v); if (!dateSet.has(d)) return;
-    // ST_Visits / BDO_Visits rows store the person as empId/empName (see baseActivityRow) — match those first.
+    // Visit rows store the person as empId/empName (see baseActivityRow) — match those first.
     let pid = String(v.empId||v.stId||v.bdoId||v.userId||'');
     if (!map[pid]) {
       const nm = String(v.empName||v.stName||v.bdoName||v.name||'').trim().toLowerCase();
-      pid = nm ? (byName[nm]||'') : '';
+      pid = nm ? (byName[level+'|'+nm]||'') : '';
     }
     if (pid && map[pid]) { map[pid].visits++; map[pid].actDates.add(d); }
-  });
+  }));
   pcms.forEach(e=>{
     const d=String(e.datetime||e.createdAt||'').slice(0,10); if (!dateSet.has(d)) return;
     const nm = String(e.executedBy||'').trim().toLowerCase();
-    const pid = nm ? byName[nm] : '';
+    const pid = nm ? (byAnyName[nm]||'') : '';   // PCM rows carry only a name, so this one spans levels
     if (pid && map[pid]) { map[pid].pcm++; map[pid].actDates.add(d); }
   });
   return map;
@@ -4441,8 +4540,15 @@ async function renderMyActivity() {
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
+    // Rows are stamped with the logger's empId, but an id changes whenever that person's master
+    // record is re-created (a bulk re-upload, a duplicate row being cleaned up) — their older
+    // activity then keeps the retired id and vanishes from this list. Fall back to an exact name
+    // match so the history stays visible, the same attribution fallback the Activity and Reports
+    // tabs already use on these sheets.
+    const myName = String(currentUser.name||'').trim().toLowerCase();
     const all = (await DATA_getMyVisits())
-      .filter(a=>a.id && String(a.empId)===String(currentUser.id));
+      .filter(a=>a.id && (String(a.empId)===String(currentUser.id)
+        || (myName && String(a.empName||'').trim().toLowerCase()===myName)));
     _myActivityCache = all;
     const today = todayStr(), month = today.slice(0,7);
     document.getElementById('myact-total').textContent = all.length;
