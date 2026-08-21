@@ -906,7 +906,11 @@
 
   <!-- ═══ EMPLOYEE ACTIVITY TAB (Admin / RSM / ASM own team) ═══ -->
   <div id="tab-activity" class="main-content" style="display:none">
-    <div class="page-title">Employee Activity</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="page-title">Employee Activity</div>
+      <!-- Stays hidden until a person's report is on screen — there is nothing to export before that. -->
+      <button id="act-export-btn" onclick="exportActivityReport()" style="display:none;padding:7px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif;flex-shrink:0">⬇ Export Excel</button>
+    </div>
     <div class="page-subtitle">Attendance vs actual field work — spot who's really working</div>
     <div style="position:relative;margin-bottom:12px">
       <input id="act-search" placeholder="🔍 Type a name to search (ISC / ST / BDO / ASM / RSM)..." autocomplete="off" oninput="actSearchInput()" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;box-sizing:border-box">
@@ -3496,7 +3500,7 @@ window.addEventListener('online', autoSyncAttendanceQueue);
 function launchApp() {
   // Per-login caches — without this the Activity tab keeps showing the PREVIOUS account's people
   // list (it only ever loads when empty), which now matters more since managers appear in it too.
-  _actPeople = []; _actSelected = null; _headRsmIds = null;
+  _actPeople = []; _actSelected = null; _actExport = null; _headRsmIds = null;
   autoSyncAttendanceQueue();
   showScreen('screen-app');
   document.getElementById('header-user-badge').textContent = currentUser.name||currentUser.username;
@@ -3563,6 +3567,7 @@ function showTab(tab) {
 // ═══════════════════════════════════════════════
 let _actPeople = [];      // people this viewer is allowed to see
 let _actSelected = null;  // currently selected person
+let _actExport = null;    // last rendered report {p, dates, attByDate, acts} — feeds the Excel export
 
 function _actTime(v){ if(!v) return ''; const s=String(v); if(/^\d{4}-\d{2}-\d{2}T/.test(s)){ try{ return new Date(s).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} } return s; }
 function _actRecDate(r){ return String(r.date||r.visitDate||r.createdAt||'').slice(0,10); }
@@ -3661,6 +3666,9 @@ async function loadActivityPeople() {
 async function renderActivityTab() {
   const df = document.getElementById('act-date');
   if (df && !df.value) df.value = todayStr();
+  // The tab's markup survives a sign-out, so re-hide the export until a report is on screen again.
+  const xb = document.getElementById('act-export-btn');
+  if (xb && !_actSelected) xb.style.display = 'none';
   if (!_actPeople.length) {
     setLoading(true,'Loading employees...');
     try { _actPeople = await loadActivityPeople(); }
@@ -3718,8 +3726,8 @@ async function renderActivityReport() {
       entries.filter(e=>String(e.iscId||'')===pid).forEach(e=>{
         const cd = String(e.createdAt||'').slice(0,10);
         const ud = String(e.updatedAt||'').slice(0,10);
-        if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🏗️', text:`New site: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
-        else if (ud && dateSet.has(ud)) acts.push({date:ud, time:_actTime(e.updatedAt), icon:'📝', text:`Site updated: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
+        if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🏗️', kind:'New site', text:`New site: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
+        else if (ud && dateSet.has(ud)) acts.push({date:ud, time:_actTime(e.updatedAt), icon:'📝', kind:'Site updated', text:`Site updated: ${e.siteName||e.customer||'(unnamed)'}`, place:e.address||''});
       });
     } else {
       // ST / BDO / ASM / RSM / heads — their own visit sheet, one per level (see activitySheetFor).
@@ -3734,15 +3742,15 @@ async function renderActivityReport() {
           if (!dateSet.has(d)) return;
           const t = String(v.activityType||'');
           if (t==='Office')
-            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏢', text:`Office${v.remarks?': '+v.remarks:''}`, place:v.gps||''});
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏢', kind:'Office', text:`Office${v.remarks?': '+v.remarks:''}`, place:v.gps||''});
           else if (t==='Work Along')
             // Work Along rows carry the partner in withName/withRole, not partyName — without this they read as "(site)".
-            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🤝', text:`Work along with ${v.withName||'(no name)'}${v.withRole?' · '+v.withRole:''}`, place:v.address||v.gps||''});
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🤝', kind:'Work Along', text:`Work along with ${v.withName||'(no name)'}${v.withRole?' · '+v.withRole:''}`, place:v.address||v.gps||''});
           else {
             // For a Site row partySubType holds 'New Site' / 'Existing Site' — worth showing, since
             // that is the one thing the old line left out about a site visit.
             const kind = t==='Site' && v.partySubType ? ` (${v.partySubType})` : '';
-            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', text:`${t?t+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${kind}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
+            acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏗️', kind:(t||'Visit'), text:`${t?t+' visit':'Visit'}: ${v.partyName||v.siteName||v.customer||v.dealerName||v.purpose||'(site)'}${kind}${v.partyFirm?' · '+v.partyFirm:''}`, place:v.address||v.location||v.gps||''});
           }
         });
       // ...plus any ISC site entries where they were tagged (ST/BDO only — see ACT_ROLE_SRC)
@@ -3750,7 +3758,7 @@ async function renderActivityReport() {
         const entries = await DATA_getEntries();
         entries.filter(e=>String(e[src.nameKey]||'').trim() && String(e[src.nameKey]).trim().toLowerCase()===String(p.name||'').trim().toLowerCase()).forEach(e=>{
           const cd = String(e.createdAt||'').slice(0,10);
-          if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🤝', text:`Tagged on site: ${e.siteName||e.customer||'(unnamed)'} (entered by ${e.iscName||'ISC'})`, place:e.address||''});
+          if (dateSet.has(cd)) acts.push({date:cd, time:_actTime(e.createdAt), icon:'🤝', kind:'Tagged on site', text:`Tagged on site: ${e.siteName||e.customer||'(unnamed)'} (entered by ${e.iscName||'ISC'})`, place:e.address||''});
         });
       }
     }
@@ -3761,7 +3769,7 @@ async function renderActivityReport() {
       const pcms = await pcmRes.json();
       (Array.isArray(pcms)?pcms:[]).filter(e=>String(e.executedBy||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase()).forEach(e=>{
         const d = String(e.datetime||e.createdAt||'').slice(0,10);
-        if (dateSet.has(d)) acts.push({date:d, time:_actTime(e.datetime||e.createdAt), icon:'🎨', text:`PCM meet: ${e.dealerName||''} (${e.attendeesAttended||0} attended${e.kycEnrolled?', '+e.kycEnrolled+' KYC':''})`, place:[e.town,e.area].filter(Boolean).join(', ')});
+        if (dateSet.has(d)) acts.push({date:d, time:_actTime(e.datetime||e.createdAt), icon:'🎨', kind:'PCM meet', text:`PCM meet: ${e.dealerName||''} (${e.attendeesAttended||0} attended${e.kycEnrolled?', '+e.kycEnrolled+' KYC':''})`, place:[e.town,e.area].filter(Boolean).join(', ')});
       });
     } catch(e) { console.warn('PCM fetch for activity failed:', e.message); }
 
@@ -3802,8 +3810,38 @@ async function renderActivityReport() {
     }).join('');
 
     document.getElementById('act-result').innerHTML = html;
+    // Keep what was just rendered so the Excel export is exactly the report on screen.
+    _actExport = {p, dates, attByDate, acts};
+    const xb = document.getElementById('act-export-btn'); if (xb) xb.style.display = '';
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
+}
+
+// Downloads the Employee Activity report on screen as a CSV Excel opens: one row per logged activity,
+// plus a single row for any day with none, so the "Present but did nothing" days — the whole point of
+// this screen — survive into the spreadsheet instead of being invisible gaps between dates.
+function exportActivityReport() {
+  const d = _actExport;
+  if (!d || !d.dates.length) return showToast('⚠️ Pick an employee first');
+  const dayName = ds => { try { return new Date(ds+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short'}); } catch(e){ return ''; } };
+  const headers = ['Date','Day','Employee','Role','Region','Emp No','Attendance','Check-in','Attendance location',
+                   'Activity time','Activity type','Activity details','Activity location','Present with NO activity'];
+  const rows = [];
+  // _actDatesInRange() hands back newest-first for the screen; export oldest-first, like the
+  // attendance range export, so the spreadsheet reads and charts chronologically.
+  [...d.dates].reverse().forEach(date=>{
+    const a = d.attByDate[date];
+    const dayActs = d.acts.filter(x=>x.date===date)
+      .sort((x,y)=>String(x.time||'').localeCompare(String(y.time||'')));
+    const base = [date, dayName(date), d.p.name, d.p._role, d.p.region||'', d.p.username||'',
+                  a ? (a.status||'Present') : 'Not marked', a?.checkInTime||'', a?.gps||''];
+    if (!dayActs.length) rows.push([...base, '', '', '', '', a?.status==='Present' ? 'YES' : '']);
+    else dayActs.forEach(x=>rows.push([...base, x.time||'', x.kind||'', x.text||'', x.place||'', '']));
+  });
+  const safe = String(d.p.name||'employee').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const from = d.dates[d.dates.length-1], to = d.dates[0];
+  exportToExcel([headers, ...rows],
+    from===to ? `MRF_EmployeeActivity_${safe}_${from}.csv` : `MRF_EmployeeActivity_${safe}_${from}_to_${to}.csv`);
 }
 
 // ═══════════════════════════════════════════════
