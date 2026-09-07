@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.54</div>
+        <div class="auth-tagline">FIELD ONE · v4.55</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -5021,6 +5021,29 @@ async function reverseGeocode(lat, lng) {
   return null;
 }
 
+// Is location HARD-blocked for this site? Once Chrome has been told to block an origin it will never
+// show the permission prompt again, so "tap 📍 to retry" is dead-end advice until the user resets it
+// by hand — we need to know which of the two situations we're in. The Permissions API is missing on
+// older iOS Safari, so a failure here just means "can't tell".
+async function gpsBlockedForSite() {
+  try { const s = await navigator.permissions.query({name:'geolocation'}); return s.state==='denied'; }
+  catch(e) { return false; }
+}
+
+// Turns a geolocation failure into something a field user can actually act on. The browser only ever
+// tells us THAT it failed, never where to fix it, and "Permission denied" on its own has had ISCs
+// tapping 📍 over and over with no prompt ever appearing.
+function gpsErrorHelp(err, blockedForSite) {
+  const code = err && err.code;
+  if (code===2) return {short:'Location unavailable',
+    html:`❌ <strong>Location unavailable</strong> — switch Location on in your phone's quick settings (pull down from the top of the screen), then tap 📍 again.`};
+  if (code===3) return {short:'Timed out',
+    html:`❌ <strong>Timed out</strong> — GPS could not get a fix. Step outdoors or near a window, then tap 📍 again.`};
+  return {short:'Permission denied', html: blockedForSite
+    ? `❌ <strong>Location is blocked for this site.</strong> Tap the 🔒 icon to the left of the web address → <strong>Permissions</strong> → <strong>Location</strong> → <strong>Allow</strong>, then tap 📍 again. Chrome will not ask on its own once it has been blocked.`
+    : `❌ <strong>Permission denied</strong> — tap 📍 again and choose <strong>Allow</strong> (choose "While using the app"). If no prompt appears, tap the 🔒 icon left of the web address → Permissions → Location → Allow.`};
+}
+
 // Silently grabs GPS + address as soon as the wizard opens, so the field is often already filled in by the time the user reaches the Site step (captureGPS() below is the manual retry version, triggered by tapping the 📍 button).
 function autoCapureGPS() {
   if (!navigator.geolocation) return;
@@ -5046,8 +5069,9 @@ function autoCapureGPS() {
       const btn = document.getElementById('gps-btn');
       if (btn) btn.style.background = '#065f46';
     },
-    (err) => {
-      if (status) status.innerHTML = `❌ Location ${err.code===1?'permission denied':'unavailable'} — GPS is required. <strong>Please enable location</strong> in your browser settings and tap 📍 again. <a href="https://support.google.com/chrome/answer/142065" target="_blank" style="color:var(--red)">How to enable →</a>`;
+    async (err) => {
+      const help = gpsErrorHelp(err, err.code===1 ? await gpsBlockedForSite() : false);
+      if (status) status.innerHTML = help.html + ` <a href="https://support.google.com/chrome/answer/142065" target="_blank" style="color:var(--red)">How to enable →</a>`;
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
@@ -5081,11 +5105,11 @@ function captureGPSInto(inputId='entry-gps', statusId='gps-status', btnId='gps-b
       }
       if (btn) { btn.textContent = '✅'; btn.disabled = false; btn.style.background = '#065f46'; }
     },
-    (err) => {
-      const msg = err.code===1?'Permission denied':err.code===2?'Location unavailable':'Timed out';
-      if (status) status.textContent = `❌ ${msg} — please allow location access`;
+    async (err) => {
+      const help = gpsErrorHelp(err, err.code===1 ? await gpsBlockedForSite() : false);
+      if (status) status.innerHTML = help.html;
       if (btn) { btn.textContent = '📍'; btn.disabled = false; btn.style.background = 'var(--dark)'; }
-      showToast('⚠️ GPS: '+msg);
+      showToast('⚠️ GPS: '+help.short);
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
