@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.59</div>
+        <div class="auth-tagline">FIELD ONE · v4.60</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -4220,6 +4220,23 @@ function _repTable(cols, rows) {
   </table></div>`;
 }
 
+// Shared by the Ghost and Attendance reports (v4.59/v4.60): which days of the range this person was
+// actually on the rolls, plus the Status cell. Every role (not just ISC) is counted only up to their
+// relieved date. Returns null when the person should not appear at all — a Vacant slot is a
+// placeholder, not a person, and an Inactive person with no relievedDate (or relieved before the
+// range) has no countable days. Leavers whose last day falls inside the range are kept and flagged,
+// because the one-month purge policy (see PURGE_SHEETS) retains them so payroll can read their days.
+function _repPersonDays(p, dates) {
+  if (String(p.status||'')==='Vacant') return null;
+  const myDates = dates.filter(d=>iscActiveOn(p,d));
+  if (!myDates.length) return null;
+  const inactive = String(p.status||'Active')==='Inactive';
+  const status = inactive
+    ? `<span style="color:#ef4444;font-weight:600">Inactive</span>${p.relievedDate?' · left '+String(p.relievedDate).slice(0,10):''}`
+    : 'Active';
+  return {myDates, status, inactive};
+}
+
 // Builds whichever report type is selected (ghost/attendance/activity) over the chosen date range, using the data _repLoadData() assembled, and renders it as a table with summary stat cards.
 async function runReport() {
   const from=document.getElementById('rep-from').value, to=document.getElementById('rep-to').value;
@@ -4234,44 +4251,42 @@ async function runReport() {
     let html='';
 
     if (type==='ghost') {
-      const rows=[];
+      // v4.60: same leaver handling as the Attendance report (see _repPersonDays). Present/Active day
+      // counts are taken over the person's own working days, so a leaver's post-relief dates never inflate them.
+      const H = ['Name','Role','Region','Status','Present days','Active days','Ghost days','Ghost dates'];
+      const GH = H.indexOf('Ghost days'), ghostN = r => parseInt(String(r[GH]).replace(/\D/g,''));
+      const rows=[]; let counted=0, leavers=0;
       persons.forEach(x=>{
-        const ghostDates = dates.filter(d=>{
-          if (x.p._role==='ISC' && !iscActiveOn(x.p,d)) return false;   // skip after relieved date
-          return x.att[d]==='Present' && !x.actDates.has(d);
-        });
-        if (ghostDates.length) rows.push([x.p.name, x.p._role, x.p.region||'', Object.values(x.att).filter(s=>s==='Present').length, x.actDates.size, `<strong style="color:#ef4444">${ghostDates.length}</strong>`, ghostDates.map(d=>d.slice(8)+'/'+d.slice(5,7)).join(', ')]);
+        const pd = _repPersonDays(x.p, dates); if (!pd) return;
+        counted++; if (pd.inactive) leavers++;
+        const ghostDates = pd.myDates.filter(d=>x.att[d]==='Present' && !x.actDates.has(d));
+        if (!ghostDates.length) return;
+        const presentDays = pd.myDates.filter(d=>x.att[d]==='Present').length;
+        const activeDays  = pd.myDates.filter(d=>x.actDates.has(d)).length;
+        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, presentDays, activeDays, `<strong style="color:#ef4444">${ghostDates.length}</strong>`, ghostDates.map(d=>d.slice(8)+'/'+d.slice(5,7)).join(', ')]);
       });
-      rows.sort((a,b)=>parseInt(String(b[5]).replace(/\D/g,''))-parseInt(String(a[5]).replace(/\D/g,'')));
-      html = `<div class="stats-row"><div class="stat-card red"><div class="stat-value">${rows.length}</div><div class="stat-label">People with ghost days</div></div><div class="stat-card"><div class="stat-value">${rows.reduce((s,r)=>s+parseInt(String(r[5]).replace(/\D/g,'')),0)}</div><div class="stat-label">Total ghost days</div></div><div class="stat-card green"><div class="stat-value">${persons.length-rows.length}</div><div class="stat-label">Clean records</div></div></div>`
-        + _repTable(['Name','Role','Region','Present days','Active days','Ghost days','Ghost dates'], rows);
+      rows.sort((a,b)=>ghostN(b)-ghostN(a));
+      html = `<div class="stats-row"><div class="stat-card red"><div class="stat-value">${rows.length}</div><div class="stat-label">People with ghost days</div></div><div class="stat-card"><div class="stat-value">${rows.reduce((s,r)=>s+ghostN(r),0)}</div><div class="stat-label">Total ghost days</div></div><div class="stat-card green"><div class="stat-value">${counted-rows.length}</div><div class="stat-label">Clean records</div></div>${leavers?`<div class="stat-card"><div class="stat-value">${leavers}</div><div class="stat-label">Left during range</div></div>`:''}</div>`
+        + _repTable(H, rows);
     }
 
     else if (type==='attendance') {
-      // v4.59: every role (not just ISC) is counted only up to their relieved date, people who were not
-      // employed on ANY day of the range are left out entirely, and a Status column flags leavers who
-      // still appear because their last working day falls inside the range (kept for payroll — see the
-      // one-month purge policy above PURGE_SHEETS). An Inactive person with no relievedDate has no
-      // countable days, so they drop out rather than showing a row of unmarked days.
+      // v4.59: leaver handling lives in _repPersonDays — every role is counted only up to their relieved
+      // date, people with no working days in the range are left out, and the Status column flags leavers.
       const H = ['Name','Role','Region','Status','Present','Leave','Holiday','Unmarked','% marked'];
       const PCT = H.indexOf('% marked');
-      const rows = [];
+      const rows = []; let inactiveN = 0;
       persons.forEach(x=>{
-        if (String(x.p.status||'')==='Vacant') return;   // an unfilled slot, not a person
-        const myDates = dates.filter(d=>iscActiveOn(x.p,d));
-        if (!myDates.length) return;   // not on the rolls during this range
+        const pd = _repPersonDays(x.p, dates); if (!pd) return;
+        if (pd.inactive) inactiveN++;
+        const myDates = pd.myDates;
         const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length, Hd=myDates.filter(d=>x.att[d]==='Holiday').length;
         const U=myDates.length-P-L-Hd;
         const pct = Math.round((P+L+Hd)*100/myDates.length);
-        const inactive = String(x.p.status||'Active')==='Inactive';
-        const status = inactive
-          ? `<span style="color:#ef4444;font-weight:600">Inactive</span>${x.p.relievedDate?' · left '+String(x.p.relievedDate).slice(0,10):''}`
-          : 'Active';
-        rows.push([x.p.name, x.p._role, x.p.region||'', status, P, L, Hd, U, pct+'%']);
+        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, P, L, Hd, U, pct+'%']);
       });
       rows.sort((a,b)=>parseInt(a[PCT])-parseInt(b[PCT]));
       const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[PCT]),0)/rows.length):0;
-      const inactiveN = rows.filter(r=>String(r[3]).indexOf('Inactive')>=0).length;
       html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Employees</div></div><div class="stat-card green"><div class="stat-value">${avg}%</div><div class="stat-label">Avg marked</div></div><div class="stat-card red"><div class="stat-value">${rows.filter(r=>parseInt(r[PCT])<50).length}</div><div class="stat-label">Below 50%</div></div>${inactiveN?`<div class="stat-card"><div class="stat-value">${inactiveN}</div><div class="stat-label">Left during range</div></div>`:''}</div>`
         + _repTable(H, rows);
     }
