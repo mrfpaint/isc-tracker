@@ -1,0 +1,24 @@
+// Wrangler config for the daily attendance mailer (worker-attendance-mailer.js).
+// Deploy from the repo root with:
+//   npx wrangler deploy --config wrangler.attendance-mailer.jsonc
+//
+// The worker was originally set up in the Cloudflare dashboard, so its variables (TENANT_ID, CLIENT_ID,
+// CLIENT_SECRET, SENDER, RECIPIENTS, TEST_TOKEN) live there, not here — keep_vars keeps them on deploy.
+// Everything else a deploy would otherwise wipe is declared below.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mrf-attendance-mailer",
+  "main": "worker-attendance-mailer.js",
+  "compatibility_date": "2026-08-12",
+  "keep_vars": true,
+
+  // Reads the Sheets via the tracker worker — plain fetch() between two Workers on one account is blocked.
+  "services": [
+    { "binding": "SHEETS", "service": "mrf-isc-tracker" }
+  ],
+
+  // 04:30 UTC = 10:00 IST daily report; 03:30 UTC Monday = 09:00 IST weekly digest.
+  "triggers": {
+    "crons": ["30 4 * * *", "30 3 * * 1"]
+  }
+}
