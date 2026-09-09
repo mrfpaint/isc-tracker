@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.62</div>
+        <div class="auth-tagline">FIELD ONE · v4.63</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -665,6 +665,7 @@
         <option value="Present">Present</option>
         <option value="Leave">Leave</option>
         <option value="Unmarked">Unmarked</option>
+        <option value="Holiday">Holiday</option>
       </select>
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
@@ -2239,6 +2240,18 @@
 // PREVIOUS day (the "manager sees yesterday" bug fixed in v4.53).
 function localDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function todayStr() { return localDateStr(new Date()); }
+// ── HOLIDAYS (v4.63) ── Sundays are weekly holidays for everyone, plus the company holidays the MRF 2026
+// consolidated holiday list marks for EVERY region (regional festivals are left out on purpose — a Kerala-only
+// Onam can't be a holiday for North-1). Every attendance surface treats a blank on one of these days as a
+// holiday, never as unmarked; a Present marked on one still counts as Present. Add next year's list here.
+// The attendance mailer worker (worker-attendance-mailer.js) carries its own copy — keep the two in sync.
+const PUBLIC_HOLIDAYS = {
+  '2026-01-01':"New Year's Day", '2026-01-26':'Republic Day', '2026-05-01':'May Day',
+  '2026-08-15':'Independence Day', '2026-10-02':'Gandhi Jayanti',
+};
+function isSunday(ds) { return new Date(ds+'T12:00:00').getDay()===0; }   // noon anchor so DST can never shift the day
+function holidayName(ds) { return PUBLIC_HOLIDAYS[ds] || (isSunday(ds) ? 'Sunday' : ''); }   // '' on a working day
+function isHoliday(ds) { return !!holidayName(ds); }
 // Was this person employed IN THIS ROLE on the given date? Used for every role, not just ISCs.
 // Two-sided window (v4.62): a record created by a role change carries activeFrom (first day in the new
 // role) and is not counted before it; an Inactive record is counted only up to its relievedDate.
@@ -2453,7 +2466,8 @@ async function generateWeeklyBrief() {
     const weekAtt=att.filter(a=>String(a.date||'')>=since);
     const presentDays=weekAtt.filter(a=>a.status==='Present').length;
     const markedToday=new Set(att.filter(a=>a.date===today).map(a=>String(a.iscId)));
-    const unmarkedToday=scope?[...scope].filter(id=>!markedToday.has(id)).length:0;
+    const holidayToday=holidayName(today);   // v4.63: nobody is "unmarked" on a Sunday / company holiday
+    const unmarkedToday=(scope&&!holidayToday)?[...scope].filter(id=>!markedToday.has(id)).length:0;
     const perISC={}; weekEntries.forEach(e=>{perISC[e.iscName||'?']=(perISC[e.iscName||'?']||0)+1;});
     const topISCs=Object.entries(perISC).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=>`${n} (${c})`);
     const activeISCIds=new Set(weekEntries.map(e=>String(e.iscId)));
@@ -2469,7 +2483,7 @@ async function generateWeeklyBrief() {
       window:{from:since, to:today},
       sites:{newThisWeek:weekEntries.length, converted:sc.Confirmed, pending:sc.Pending, notConverted:sc.NotConverted,
              estValueINR:weekValue, topISCs, iscsWithNoEntries:idleISCs, totalISCs:scope?scope.size:0, stalePendingOver14Days:stalePending},
-      attendance:{presentDaysThisWeek:presentDays, records:weekAtt.length, unmarkedToday},
+      attendance:{presentDaysThisWeek:presentDays, records:weekAtt.length, unmarkedToday, holidayToday:holidayToday||undefined},
       teamFieldActivity:{teamSize:team.length, visitsByType, membersWithZeroVisits:idleTeam},
       competitorMentions:comp,
       sampleRemarks:remarks,
@@ -4071,6 +4085,7 @@ async function renderActivityReport() {
         ? (a.status==='Present'
             ? `<span style="color:#10b981;font-weight:600">✅ Present</span> <span style="color:#999;font-size:11px">${a.checkInTime||''}${a.gps?' · 📍 '+a.gps:''}</span>`
             : `<span style="color:#f59e0b;font-weight:600">🏖️ ${a.status}</span>`)
+        : isHoliday(d) ? `<span style="color:#6366f1;font-weight:600">🎉 ${holidayName(d)}</span>`   // v4.63: a blank holiday is not a miss
         : `<span style="color:#ef4444;font-weight:600">✖ Not marked</span>`;
       const flag = (a?.status==='Present' && !dayActs.length)
         ? `<div style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-top:8px">⚠️ Marked Present but NO field activity recorded</div>` : '';
@@ -4110,7 +4125,7 @@ function exportActivityReport() {
     const dayActs = d.acts.filter(x=>x.date===date)
       .sort((x,y)=>String(x.time||'').localeCompare(String(y.time||'')));
     const base = [date, dayName(date), d.p.name, d.p._role, d.p.region||'', d.p.username||'', personStatusText(d.p),
-                  a ? (a.status||'Present') : 'Not marked', a?.checkInTime||'', a?.gps||''];
+                  a ? (a.status||'Present') : (isHoliday(date) ? 'Holiday' : 'Not marked'), a?.checkInTime||'', a?.gps||''];
     if (!dayActs.length) rows.push([...base, '', '', '', '', a?.status==='Present' ? 'YES' : '']);
     else dayActs.forEach(x=>rows.push([...base, x.time||'', x.kind||'', x.text||'', x.place||'', '']));
   });
@@ -4351,18 +4366,24 @@ async function runReport() {
 
     else if (type==='attendance') {
       // v4.59: leaver handling lives in _repPersonDays — every role is counted only up to their relieved
-      // date, people with no working days in the range are left out, and the Status column flags leavers.
-      const H = ['Name','Role','Region','Status','Present','Leave','Holiday','Unmarked','% marked'];
+      // date, people with no active days in the range are left out, and the Status column flags leavers.
+      // v4.63: Sundays and company holidays (PUBLIC_HOLIDAYS) are not working days. Unmarked counts only
+      // WORKING days left blank, so nobody is penalised for a blank Sunday, and a Present marked on a holiday
+      // still counts as Present. Holiday = explicit Holiday marks + blank holidays, so Present + Leave +
+      // Holiday + Unmarked = calendar days as before. % marked is over working days.
+      const H = ['Name','Role','Region','Status','Present','Leave','Holiday','Unmarked','% marked','Working days'];
       const PCT = H.indexOf('% marked');
       const rows = []; let inactiveN = 0;
       persons.forEach(x=>{
         const pd = _repPersonDays(x.p, dates); if (!pd) return;
         if (pd.inactive) inactiveN++;
-        const myDates = pd.myDates;
-        const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length, Hd=myDates.filter(d=>x.att[d]==='Holiday').length;
-        const U=myDates.length-P-L-Hd;
-        const pct = Math.round((P+L+Hd)*100/myDates.length);
-        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, P, L, Hd, U, pct+'%']);
+        const myDates = pd.myDates, workDates = myDates.filter(d=>!isHoliday(d));
+        const marked = d => x.att[d]==='Present' || x.att[d]==='Leave' || x.att[d]==='Holiday';
+        const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length;
+        const Hd=myDates.filter(d=>x.att[d]==='Holiday' || (isHoliday(d) && !marked(d))).length;
+        const U=workDates.filter(d=>!marked(d)).length;
+        const pct = workDates.length ? Math.round((workDates.length-U)*100/workDates.length) : 100;
+        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, P, L, Hd, U, pct+'%', workDates.length]);
       });
       rows.sort((a,b)=>parseInt(a[PCT])-parseInt(b[PCT]));
       const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[PCT]),0)/rows.length):0;
@@ -8137,8 +8158,9 @@ async function renderDashboard() {
               if (dateStr > todayD) { heatHtml += '<td></td>'; continue; }
               if (!iscActiveOn(isc, dateStr)) { heatHtml += '<td></td>'; continue; }
               const att = attByKey[isc.id+'|'+dateStr];
-              const c = att ? (statusColor[att.status]||'#d1d5db') : '#fee2e2';
-              heatHtml += `<td style="padding:2px"><div style="width:11px;height:11px;border-radius:3px;background:${c};margin:auto" title="${isc.name} · ${dateStr} · ${att?att.status:'Unmarked'}"></div></td>`;
+              const hol = !att && holidayName(dateStr);   // v4.63: a blank Sunday / company holiday is not a miss
+              const c = att ? (statusColor[att.status]||'#d1d5db') : hol ? '#ddd6fe' : '#fee2e2';
+              heatHtml += `<td style="padding:2px"><div style="width:11px;height:11px;border-radius:3px;background:${c};margin:auto" title="${isc.name} · ${dateStr} · ${att?att.status:hol?'Holiday · '+hol:'Unmarked'}"></div></td>`;
             }
             heatHtml += '</tr>';
           });
@@ -8146,6 +8168,7 @@ async function renderDashboard() {
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#10b981;margin-right:4px"></span>Present</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f59e0b;margin-right:4px"></span>Leave</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#6366f1;margin-right:4px"></span>Holiday</span>'+
+            '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ddd6fe;margin-right:4px"></span>Sunday / holiday</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#fee2e2;margin-right:4px"></span>Unmarked</span>'+
             (heatISCs.some(i=>String(i.status||'Active')==='Inactive') ? '<span><span style="color:#ef4444;font-weight:700;margin-right:4px">●</span>Left this month</span>' : '')+'</div>';
           if (attISCs.length > 40) heatHtml += `<div style="font-size:10px;color:#999;margin-top:6px">Showing first 40 of ${attISCs.length} ISCs — export full team attendance for the complete list.</div>`;
@@ -8183,8 +8206,11 @@ async function renderDashboard() {
 
       // ── 3. UNMARKED TODAY ALERT LIST ──
       try {
-        const unmarkedToday = attISCs.filter(isc => iscActiveOn(isc, todayD) && !attByKey[isc.id+'|'+todayD]);
-        if (unmarkedToday.length) {
+        const holToday = holidayName(todayD);   // v4.63: no one is chased on a Sunday / company holiday
+        const unmarkedToday = holToday ? [] : attISCs.filter(isc => iscActiveOn(isc, todayD) && !attByKey[isc.id+'|'+todayD]);
+        if (holToday) {
+          html += dashSection('🎉 Unmarked Today', `<div style="text-align:center;padding:8px;color:#4c1d95;font-weight:600;font-size:13px">${holToday} — holiday, attendance not expected today</div>`);
+        } else if (unmarkedToday.length) {
           const showList = unmarkedToday.slice(0,15);
           html += dashSection(`⚠️ Unmarked Today <span style="color:#ef4444;font-weight:700">(${unmarkedToday.length})</span>`,
             `<div style="display:flex;flex-wrap:wrap;gap:6px">${showList.map(i=>`<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600">${i.name}</span>`).join('')}${unmarkedToday.length>15?`<span style="color:#999;font-size:11px;padding:4px">+${unmarkedToday.length-15} more</span>`:''}</div>`);
@@ -8714,17 +8740,18 @@ async function renderTeamAttendance() {
     // Stats
     const present = dateAtt.filter(a=>a.status==='Present').length;
     const leave = dateAtt.filter(a=>a.status==='Leave').length;
-    const unmarked = allISCs.filter(i=>!attMap[i.id]).length;
+    const holToday = holidayName(selectedDate);   // v4.63: a blank on a Sunday / company holiday shows as Holiday, not Unmarked
+    const unmarked = holToday ? 0 : allISCs.filter(i=>!attMap[i.id]).length;
     document.getElementById('tatt-present').textContent = present;
     document.getElementById('tatt-leave').textContent = leave;
     document.getElementById('tatt-unmarked').textContent = unmarked;
-    document.getElementById('team-att-subtitle').textContent = `${new Date(selectedDate+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}`;
+    document.getElementById('team-att-subtitle').textContent = `${new Date(selectedDate+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}${holToday?` · 🎉 ${holToday} (holiday)`:''}`;
 
     // Filter list
     let displayList = allISCs.map(isc=>({
       isc,
       att: attMap[isc.id]||null,
-      status: attMap[isc.id]?.status||'Unmarked'
+      status: attMap[isc.id]?.status||(holToday?'Holiday':'Unmarked')
     }));
     if (statusFilter!=='all') displayList = displayList.filter(r=>r.status===statusFilter);
     _tattRows = displayList; _tattDate = selectedDate;   // stash for attendance correction
@@ -8802,7 +8829,7 @@ function exportTeamAttendance() {
       team.forEach(p => {
         if (!iscActiveOn(p, date)) return;   // v4.61: skip days after ANY role's last working day
         const att = attByKey[p.id + '|' + date];
-        rows.push([date, p.name, p._role, p.username||'', personStatusText(p), att?.status||'Unmarked', att?.checkInTime||'', att?.gps||'', p.asmName||'', p.region||'']);
+        rows.push([date, p.name, p._role, p.username||'', personStatusText(p), att?.status||(isHoliday(date)?'Holiday':'Unmarked'), att?.checkInTime||'', att?.gps||'', p.asmName||'', p.region||'']);   // v4.63: a blank holiday exports as Holiday
       });
     });
 
@@ -8937,8 +8964,11 @@ async function renderOrgDash() {
       let metrics, ownBadge = '';
       if (_ogdMode==='attendance') {
         const c = attFor(ids);
+        const holSingle = single ? holidayName(from) : '';   // v4.63: on a Sunday / company holiday a blank is a holiday, not a miss
         metrics = single
-          ? `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H} · <span style="color:#ef4444">❌ ${ppl-c.marked} unmarked</span>`
+          ? (holSingle
+              ? `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H+ppl-c.marked} holiday <span style="color:#999">(${holSingle})</span>`
+              : `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H} · <span style="color:#ef4444">❌ ${ppl-c.marked} unmarked</span>`)
           : `✅ ${c.P} present · 🏖️ ${c.L} leave · 🎉 ${c.H} holiday <span style="color:#999">(marks in range)</span>`;
         // The person's OWN attendance, separate from the team rollup — so e.g. an RSM on
         // leave is visible at the top level without drilling in.
@@ -8948,6 +8978,7 @@ async function renderOrgDash() {
           const map = {Present:['✅ Present','background:#d1fae5;color:#065f46'],Leave:['🏖️ Leave','background:#fef3c7;color:#92400e'],Holiday:['🎉 Holiday','background:#ede9fe;color:#4c1d95']};
           ownBadge = st && map[st]
             ? `<span class="status-badge" style="${map[st][1]}">${map[st][0]}</span>`
+            : holSingle ? `<span class="status-badge" style="background:#ede9fe;color:#4c1d95">🎉 ${holSingle}</span>`
             : `<span class="status-badge" style="background:#fee2e2;color:#991b1b">❌ Not marked</span>`;
         } else {
           const sp = mine.filter(a=>a.status==='Present').length, sl = mine.filter(a=>a.status==='Leave').length;
