@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.55</div>
+        <div class="auth-tagline">FIELD ONE · v4.58</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -994,6 +994,75 @@
     </div>
     <div id="ogd-breadcrumb" style="font-size:12px;margin-bottom:10px;line-height:1.9"></div>
     <div id="ogd-list"></div>
+  </div>
+
+  <!-- PROJECT LEADS — RERA-registered projects nearing completion. Rows are written daily into the
+       RERALeads table by the GitHub Action in rera-monitor/ (Tamil Nadu + Andhra Pradesh today).
+       The app only reads that table and lets BDO/ASM/RSM/Admin update status, owner and notes. -->
+  <div id="tab-leads" class="main-content" style="display:none">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;gap:8px">
+      <div class="page-title">🏢 Project Leads</div>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn-sm btn-blue" onclick="renderLeadsTab(true)">🔄 Refresh</button>
+        <button class="btn-sm" style="background:white;border:1.5px solid var(--border);color:var(--dark)" onclick="exportLeads()">⬇ Export</button>
+      </div>
+    </div>
+    <div class="page-subtitle" id="leads-subtitle">RERA-registered projects nearing completion · TN, AP, Karnataka, MP, Maharashtra · refreshed every morning</div>
+    <div class="stats-row s4">
+      <div class="stat-card red"><div class="stat-value" id="lstat-now">0</div><div class="stat-label">Painting stage · ≤ 6 mo</div></div>
+      <div class="stat-card gold"><div class="stat-value" id="lstat-soon">0</div><div class="stat-label">6 – 12 months</div></div>
+      <div class="stat-card green"><div class="stat-value" id="lstat-mine">0</div><div class="stat-label">Assigned to me</div></div>
+      <div class="stat-card"><div class="stat-value" id="lstat-total">0</div><div class="stat-label">Total leads</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterLeads('all',this)">All</button>
+      <button class="filter-btn" onclick="filterLeads('now',this)">🔥 ≤ 6 months</button>
+      <button class="filter-btn" onclick="filterLeads('soon',this)">⏳ 6–12 months</button>
+      <button class="filter-btn" onclick="filterLeads('later',this)">📅 12–24 months</button>
+      <button class="filter-btn" onclick="filterLeads('mine',this)">👤 Mine</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <select class="form-select" id="leads-state" style="flex:1;min-width:120px;font-size:13px" onchange="leadsStateChanged()"><option value="">All states</option></select>
+      <select class="form-select" id="leads-district" style="flex:1;min-width:120px;font-size:13px" onchange="renderLeadsList()"><option value="">All districts</option></select>
+      <select class="form-select" id="leads-status" style="flex:1;min-width:110px;font-size:13px" onchange="renderLeadsList()">
+        <option value="">Any status</option><option>New</option><option>Contacted</option><option>Quoted</option><option>Won</option><option>Lost</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <input class="form-input" id="leads-search" placeholder="🔍 Project, promoter, locality…" style="flex:2;min-width:160px;font-size:13px" oninput="renderLeadsList()">
+      <select class="form-select" id="leads-sort" style="flex:1;min-width:140px;font-size:13px" onchange="renderLeadsList()">
+        <option value="completion">Soonest completion</option><option value="score">Highest score</option><option value="units">Most units</option><option value="new">Recently added</option>
+      </select>
+    </div>
+    <div id="leads-list"></div>
+  </div>
+
+  <!-- Lead detail + update sheet (opened from a lead card) -->
+  <div class="modal-overlay" id="modal-lead">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="lead-m-title">Project</div>
+      <div class="modal-subtitle" id="lead-m-sub"></div>
+      <div id="lead-m-body" style="font-size:13px;line-height:1.6;color:var(--dark)"></div>
+      <div id="lead-m-links" style="display:flex;gap:8px;margin:14px 0 6px;flex-wrap:wrap"></div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="lead-m-status"><option>New</option><option>Contacted</option><option>Quoted</option><option>Won</option><option>Lost</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Assigned to</label>
+        <div style="display:flex;gap:8px"><input class="form-input" id="lead-m-assigned" placeholder="Name of the BDO / ST following up"><button class="btn-sm btn-blue" onclick="leadAssignMe()" style="white-space:nowrap">Me</button></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="lead-m-notes" rows="3" placeholder="Contact person, site visit, painting contractor, quote details…"></textarea>
+      </div>
+      <div id="lead-m-alert"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn-secondary" onclick="closeModal('modal-lead')" style="flex:1">Close</button>
+        <button class="btn-primary" onclick="saveLead()" style="flex:2">💾 Save</button>
+      </div>
+    </div>
   </div>
 
   <!-- PROFILE -->
@@ -3264,37 +3333,56 @@ function showScreen(id) {
   }
 }
 
-// ISC login handler: checks the locally-cached ISC list first (works offline/instantly), then falls back to a live Google Sheets lookup if not found locally.
+// ── LOGIN LOOKUP (shared by the ISC / ASM / RSM screens) ──
+// Signs someone in from the LIVE master sheet whenever the app can reach it, and falls back to the
+// local cache only when it genuinely cannot (offline). Cache-FIRST login is how a retired id kept
+// coming back: an ASM whose master record had been recreated during a bulk upload still had the OLD
+// row cached on their phone, so every sign-in rebuilt currentUser.id from it and every activity they
+// logged was stamped with an id that no longer existed anywhere (18 such rows before this fix).
+// doBDOLogin() below already worked this way; this is the same rule for the other three screens.
+// An EMPTY remote list counts as "could not check", never as "no such user" — one transient blank
+// read must not lock the whole field force out of an app that is meant to work offline.
+async function loginLookup(fetchRemote, cacheKey, matches) {
+  let remote = null;
+  if (isConfigured()) {
+    try { const rows = await fetchRemote(); if (rows && rows.length) remote = rows; }
+    catch(e) { console.warn('Login: master sheet unreachable, using local cache —', e.message); }
+  }
+  if (remote) return { rec: remote.find(matches) || null, live: true };
+  return { rec: (LDB.arr(cacheKey) || []).find(matches) || null, live: false };
+}
+
+// Stores the live record in the local cache AND drops any other cached row for the same username.
+// That stale twin — same person, retired id — is what a cache-first sign-in used to find first, so
+// leaving it behind would let the problem come straight back on the next offline login.
+function cacheLoginRecord(cacheKey, rec) {
+  const uname = String(rec.username||'').toLowerCase();
+  const arr = LDB.arr(cacheKey).filter(x =>
+    String(x.id)===String(rec.id) || String(x.username||'').toLowerCase()!==uname);
+  const i = arr.findIndex(x=>String(x.id)===String(rec.id));
+  if (i>-1) arr[i] = {...rec}; else arr.push({...rec});
+  LDB.set(cacheKey, arr);
+}
+
+// ISC login handler: checks the LIVE Users sheet when online (so a stale cached id can never
+// sign someone in), and uses the local cache only when the sheet is unreachable.
 async function doLogin() {
   const u=gv('login-username').trim().toLowerCase(), p=gv('login-password').trim().toLowerCase();
   if (!u||!p) return showAlert('alert-login','Please enter username and password.','error');
-  setLoading(true,'Signing in...');
+  setLoading(true,'Checking credentials...');
   try {
-    // Check local cache first (instant, works offline)
-    const localIscs = LDB.arr('iscs');
-    const li = localIscs.find(i=>(i.username||'').toLowerCase()===u&&(i.password||'').toLowerCase()===p);
-    if (li) {
-      if (String(li.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
-      currentUser={...li, role:'isc', dealerCodes:String(li.dealerCodes||'')}; launchApp(); return;
-    }
-    // Try Google Sheets — no popup needed, just API key read
-    if (isConfigured()) {
-      setLoading(true,'Checking credentials...');
-      const iscs = await DATA_getISCs();
-      const isc = iscs.find(i=>(i.username||'').toLowerCase()===u&&(i.password||'').toLowerCase()===p);
-      if (isc) {
-        if (String(isc.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Contact your ASM.','error'); return; }
-        currentUser = { ...isc, role:'isc',
-          dealerCodes:String(isc.dealerCodes||''), region:String(isc.region||''),
-          stName:String(isc.stName||''), bdoName:String(isc.bdoName||''),
-          asmId:String(isc.asmId||''), asmName:String(isc.asmName||''),
-          asmEmail:String(isc.asmEmail||''), asmPhone:String(isc.asmPhone||''),
-        };
-        const arr=LDB.arr('iscs'); const cidx=arr.findIndex(x=>x.id===isc.id);
-        if(cidx>-1) arr[cidx]={...currentUser}; else arr.push({...currentUser});
-        LDB.set('iscs',arr);
-        launchApp(); return;
-      }
+    const {rec:isc, live} = await loginLookup(DATA_getISCs, 'iscs',
+      i=>(i.username||'').toLowerCase()===u && (i.password||'').toLowerCase()===p);
+    if (isc) {
+      if (String(isc.status)==='Inactive') { showAlert('alert-login','Your account has been deactivated. Please contact your ASM.','error'); return; }
+      currentUser = { ...isc, role:'isc',
+        dealerCodes:String(isc.dealerCodes||''), region:String(isc.region||''),
+        stName:String(isc.stName||''), bdoName:String(isc.bdoName||''),
+        asmId:String(isc.asmId||''), asmName:String(isc.asmName||''),
+        asmEmail:String(isc.asmEmail||''), asmPhone:String(isc.asmPhone||''),
+      };
+      if (live) cacheLoginRecord('iscs', currentUser);
+      launchApp(); return;
     }
     showAlert('alert-login','Invalid username or password. Contact your ASM if you are new.','error');
   } catch(e) { showAlert('alert-login','Error: '+e.message,'error'); console.error(e); }
@@ -3316,7 +3404,7 @@ async function doHeadLogin(kind) {   // kind: 'nsh' | 'shnh'
     const zone = hit ? headZoneOf(hit) : null;
     const wanted = kind==='nsh' ? zone==='ALL' : (zone && zone!=='ALL');
     if (hit && wanted) {
-      const arr=LDB.arr('rsms'); const idx=arr.findIndex(x=>x.id===hit.id); if(idx>-1)arr[idx]={...hit}; else arr.push({...hit}); LDB.set('rsms',arr);
+      cacheLoginRecord('rsms', hit);   // purges any stale twin row for this username
       _headRsmIds = null;
       const empRole = zone==='ALL' ? 'NSH' : (zone==='south' ? 'SH' : 'NH');
       currentUser = {...hit, role:'rsm', empRole};
@@ -3330,50 +3418,34 @@ async function doHeadLogin(kind) {   // kind: 'nsh' | 'shnh'
 async function doNSHLogin()  { return doHeadLogin('nsh'); }
 async function doSHNHLogin() { return doHeadLogin('shnh'); }
 
-// ASM login — same local-cache-then-Sheets pattern as doLogin(), but against the ASMs list.
+// ASM login — live ASMs sheet first, cache only when offline (see loginLookup).
 async function doASMLogin() {
   const u=gv('asm-login-user').trim().toLowerCase(), p=gv('asm-login-pass').trim().toLowerCase();
   if (!u||!p) return showAlert('alert-asm-login','Please enter credentials.','error');
   setLoading(true,'Signing in...');
   try {
-    // Check local cache
-    const localAsms = LDB.arr('asms');
-    const la = localAsms.find(a=>(a.username||'').toLowerCase()===u&&(a.password||'').toLowerCase()===p);
-    if (la) { currentUser={...la,role:'asm'}; launchApp(); return; }
-    // Google Sheets — read only, no popup needed
-    if (isConfigured()) {
-      const asms = await DATA_getASMs();
-      const asm = asms.find(a=>(a.username||'').toLowerCase()===u&&(a.password||'').toLowerCase()===p);
-      if (asm) {
-        const arr=LDB.arr('asms'); const idx=arr.findIndex(x=>x.id===asm.id);
-        if(idx>-1) arr[idx]={...asm}; else arr.push({...asm});
-        LDB.set('asms',arr);
-        currentUser={...asm,role:'asm'}; launchApp(); return;
-      }
+    const {rec:asm, live} = await loginLookup(DATA_getASMs, 'asms',
+      a=>(a.username||'').toLowerCase()===u && (a.password||'').toLowerCase()===p);
+    if (asm) {
+      if (live) cacheLoginRecord('asms', asm);
+      currentUser={...asm,role:'asm'}; launchApp(); return;
     }
     showAlert('alert-asm-login','Invalid ASM credentials.','error');
   } catch(e) { showAlert('alert-asm-login','Error: '+e.message,'error'); console.error(e); }
   finally { setLoading(false); }
 }
 
-// RSM login — same local-cache-then-Sheets pattern, against the RSMs list.
+// RSM login — live RSMs sheet first, cache only when offline (see loginLookup).
 async function doRSMLogin() {
   const u=gv('rsm-login-user').trim().toLowerCase(), p=gv('rsm-login-pass').trim().toLowerCase();
   if (!u||!p) return showAlert('alert-rsm-login','Please enter credentials.','error');
   setLoading(true,'Signing in...');
   try {
-    const localRsms = LDB.arr('rsms');
-    const lr = localRsms.find(r=>(r.username||'').toLowerCase()===u&&(r.password||'').toLowerCase()===p);
-    if (lr) { currentUser={...lr,role:'rsm'}; launchApp(); return; }
-    if (isConfigured()) {
-      const rsms = await DATA_getRSMs();
-      const rsm = rsms.find(r=>(r.username||'').toLowerCase()===u&&(r.password||'').toLowerCase()===p);
-      if (rsm) {
-        const arr=LDB.arr('rsms'); const idx=arr.findIndex(x=>x.id===rsm.id);
-        if(idx>-1) arr[idx]={...rsm}; else arr.push({...rsm});
-        LDB.set('rsms',arr);
-        currentUser={...rsm,role:'rsm'}; launchApp(); return;
-      }
+    const {rec:rsm, live} = await loginLookup(()=>sheetsGet('RSMs'), 'rsms',
+      r=>(r.username||'').toLowerCase()===u && (r.password||'').toLowerCase()===p);
+    if (rsm) {
+      if (live) cacheLoginRecord('rsms', rsm);
+      currentUser={...rsm,role:'rsm'}; launchApp(); return;
     }
     showAlert('alert-rsm-login','Invalid RSM credentials.','error');
   } catch(e) { showAlert('alert-rsm-login','Error: '+e.message,'error'); }
@@ -3519,15 +3591,15 @@ function buildNav() {
   if (currentUser.role==='isc') {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('mysites',this)"><span class="nav-icon">🏗️</span><span>My Sites</span></button><button class="nav-item" onclick="switchTab('attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='asm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>Sites</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('myiscs',this)"><span class="nav-icon">👥</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('myteam',this)"><span class="nav-icon">👨‍💼</span><span>My Team</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('leads',this)"><span class="nav-icon">🏢</span><span>Leads</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='bdo') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('bdosites',this)"><span class="nav-icon">📋</span><span>My ISCs</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('leads',this)"><span class="nav-icon">🏢</span><span>Leads</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.role==='rsm') {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button>${currentUser.empRole==='NSH'?`<button class="nav-item" onclick="switchTab('orgdash',this)"><span class="nav-icon">🏛️</span><span>Org View</span></button>`:''}<button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('rsmsites',this)"><span class="nav-icon">📋</span><span>My Region</span></button><button class="nav-item" onclick="switchTab('myactivity',this)"><span class="nav-icon">🕒</span><span>My Activity</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('leads',this)"><span class="nav-icon">🏢</span><span>Leads</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button>${currentUser.empRole==='NSH'?`<button class="nav-item" onclick="switchTab('orgdash',this)"><span class="nav-icon">🏛️</span><span>Org View</span></button>`:''}<button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></button>`;
   } else if (currentUser.viewOnly) {
     nav.innerHTML = `<button class="nav-item active" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button>`;
   } else {
-    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('orgdash',this)"><span class="nav-icon">🏛️</span><span>Org View</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
+    nav.innerHTML = `<button class="nav-item active" onclick="switchTab('allsites',this)"><span class="nav-icon">📋</span><span>All Sites</span></button><button class="nav-item" onclick="switchTab('team-attendance',this)"><span class="nav-icon">📅</span><span>Attendance</span></button><button class="nav-item" onclick="switchTab('pcm',this)"><span class="nav-icon">🎨</span><span>Painter Meet</span></button><button class="nav-item" onclick="switchTab('leads',this)"><span class="nav-icon">🏢</span><span>Leads</span></button><button class="nav-item" onclick="switchTab('activity',this)"><span class="nav-icon">🕵️</span><span>Activity</span></button><button class="nav-item" onclick="switchTab('reports',this)"><span class="nav-icon">📑</span><span>Reports</span></button><button class="nav-item" onclick="switchTab('orgdash',this)"><span class="nav-icon">🏛️</span><span>Org View</span></button><button class="nav-item" onclick="switchTab('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></button><button class="nav-item" onclick="switchTab('admin',this)"><span class="nav-icon">🛡️</span><span>Admin</span></button>`;
   }
 }
 
@@ -3536,7 +3608,7 @@ function switchTab(tab,el) { document.querySelectorAll('.nav-item').forEach(n=>n
 
 // Hides all tab panels, shows only #tab-<tab>, and kicks off that tab's data-loading/render function so it always shows fresh data.
 function showTab(tab) {
-  ['tab-mysites','tab-allsites','tab-bdosites','tab-myactivity','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm','tab-orgdash'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
+  ['tab-mysites','tab-allsites','tab-bdosites','tab-myactivity','tab-rsmsites','tab-myiscs','tab-myteam','tab-attendance','tab-team-attendance','tab-activity','tab-reports','tab-profile','tab-admin','tab-dashboard','tab-pcm','tab-orgdash','tab-leads'].forEach(t=>{const el=document.getElementById(t);if(el)el.style.display='none';});
   document.getElementById('tab-'+tab).style.display='block';
   if (tab==='mysites') renderMyEntries();
   if (tab==='allsites') renderAllEntries();
@@ -3554,12 +3626,168 @@ function showTab(tab) {
   if (tab==='activity') renderActivityTab();
   if (tab==='orgdash') renderOrgDash();
   if (tab==='reports') renderReportsTab();
+  if (tab==='leads') renderLeadsTab();
   if (tab==='pcm') {
     // Approvals are for managers only (ASM / RSM / Admin)
     const ab = document.getElementById('pcm-approvals-tab-btn');
     if (ab) ab.style.display = ['asm','rsm','admin'].includes(currentUser.role) ? '' : 'none';
     renderPCMPlans();
   }
+}
+
+// ═══════════════════════════════════════════════
+//  PROJECT LEADS (RERA monitor) — BDO / ASM / RSM / Admin
+//  Rows come from the RERALeads table, which the GitHub Action in rera-monitor/ fills every
+//  morning from state RERA portals (Tamil Nadu + Andhra Pradesh today). The app only reads it
+//  and lets the field team update status / owner / notes. The "stage" (≤6 mo, 6–12 mo, 12–24 mo)
+//  is computed live from completionDate so it can never go stale in the table.
+// ═══════════════════════════════════════════════
+const LEADS_SHEET = 'RERALeads';
+const LEAD_STATE_NAMES = { TN:'Tamil Nadu', AP:'Andhra Pradesh', KA:'Karnataka', MP:'Madhya Pradesh', MH:'Maharashtra', TS:'Telangana', KL:'Kerala', GJ:'Gujarat', UP:'Uttar Pradesh', PB:'Punjab', HR:'Haryana', RJ:'Rajasthan', WB:'West Bengal', OD:'Odisha' };
+let _leads = [];          // every lead row as an object (kept in memory only — the table is a few MB, too big for localStorage)
+let _leadsAt = 0;         // when _leads was last fetched
+let _leadsStage = 'all';  // active filter chip: all | now | soon | later | mine
+let _leadOpen = null;     // lead currently shown in the modal
+
+// Months from today to the project's completion date (negative = completion date already passed).
+function leadMonths(l){ if(!l || !l.completionDate) return null; const d=new Date(l.completionDate); if(isNaN(d)) return null; return (d - Date.now())/(30.44*86400000); }
+// Painting is a finishing trade: ≤6 months to completion (or just completed) = painting stage.
+function leadStage(l){ const m=leadMonths(l); if(m===null) return 'later'; if(m<=6) return 'now'; if(m<=12) return 'soon'; return 'later'; }
+function leadStageBadge(l){
+  const s=leadStage(l), m=leadMonths(l);
+  const txt = m===null ? 'No date' : m<-0.5 ? `Completion ${Math.abs(Math.round(m))} mo ago` : m<1 ? 'Completing this month' : `${Math.round(m)} mo to completion`;
+  const cls = s==='now' ? 'badge-notconverted' : s==='soon' ? 'badge-pending' : 'badge-confirmed';
+  return `<span class="status-badge ${cls}">${txt}</span>`;
+}
+function leadIsMine(l){ const me=String(currentUser?.name||'').trim().toLowerCase(); return !!me && String(l.assignedTo||'').trim().toLowerCase()===me; }
+
+// Loads (or re-uses for 10 minutes) the whole RERALeads table, then renders.
+async function renderLeadsTab(force){
+  const list=document.getElementById('leads-list');
+  if(!list) return;
+  if(!force && _leads.length && (Date.now()-_leadsAt) < 10*60*1000){ renderLeadsList(); return; }
+  if(!_leads.length) list.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray)">Loading leads…</div>';
+  try{
+    const r=await fetch(`${WORKER_URL}/sheets/read?sheet=${encodeURIComponent(LEADS_SHEET)}`);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json(); const v=Array.isArray(d.values)?d.values:[];
+    if(v.length<2){ _leads=[]; _leadsAt=Date.now(); leadsFillFilters(); renderLeadsList(); return; }
+    const H=v[0];
+    _leads=v.slice(1).filter(row=>Array.isArray(row)&&row.some(c=>c!==''&&c!=null)).map(row=>{const o={};H.forEach((h,i)=>o[h]=String(row[i]??'').trim());return o;});
+    _leadsAt=Date.now();
+    leadsFillFilters(); renderLeadsList();
+  }catch(e){
+    if(!_leads.length) list.innerHTML=`<div class="alert alert-error">Could not load leads: ${escapeHtml(e.message)}<br><span style="font-size:11px">Leads are added by the daily RERA monitor (rera-monitor/README.md). Check your connection and tap Refresh.</span></div>`;
+  }
+}
+
+function leadsFillFilters(){
+  const st=document.getElementById('leads-state'); if(!st) return;
+  const keep=st.value||LDB.get('leads_state')||'';
+  const states=[...new Set(_leads.map(l=>l.state).filter(Boolean))].sort();
+  st.innerHTML='<option value="">All states</option>'+states.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(LEAD_STATE_NAMES[s]||s)}</option>`).join('');
+  st.value=states.includes(keep)?keep:'';
+  leadsFillDistricts();
+}
+function leadsFillDistricts(){
+  const st=gv('leads-state'); const ds=document.getElementById('leads-district'); if(!ds) return;
+  const keep=ds.value;
+  const districts=[...new Set(_leads.filter(l=>!st||l.state===st).map(l=>l.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  ds.innerHTML='<option value="">All districts</option>'+districts.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  ds.value=districts.includes(keep)?keep:'';
+}
+function leadsStateChanged(){ LDB.set('leads_state', gv('leads-state')); leadsFillDistricts(); renderLeadsList(); }
+function filterLeads(stage,el){ _leadsStage=stage; document.querySelectorAll('#tab-leads .filter-btn').forEach(b=>b.classList.remove('active')); if(el) el.classList.add('active'); renderLeadsList(); }
+
+function renderLeadsList(){
+  const list=document.getElementById('leads-list'); if(!list) return;
+  const st=gv('leads-state'), ds=gv('leads-district'), status=gv('leads-status'), q=gv('leads-search').trim().toLowerCase(), sort=gv('leads-sort')||'completion';
+  // Stats describe the state/district slice the user is looking at, not the whole country.
+  const scope=_leads.filter(l=>(!st||l.state===st)&&(!ds||l.district===ds));
+  const setN=(id,n)=>{const el=document.getElementById(id); if(el) el.textContent=n;};
+  setN('lstat-now', scope.filter(l=>leadStage(l)==='now').length);
+  setN('lstat-soon', scope.filter(l=>leadStage(l)==='soon').length);
+  setN('lstat-mine', scope.filter(leadIsMine).length);
+  setN('lstat-total', scope.length);
+  let rows=scope.filter(l=>{
+    if(_leadsStage==='mine'){ if(!leadIsMine(l)) return false; }
+    else if(_leadsStage!=='all' && leadStage(l)!==_leadsStage) return false;
+    if(status && (l.status||'New')!==status) return false;
+    if(q){ const hay=[l.projectName,l.promoter,l.locality,l.district,l.regNo,l.notes,l.assignedTo].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+  const num=v=>parseFloat(String(v??'').replace(/[^\d.]/g,''))||0;
+  rows.sort((a,b)=>{
+    if(sort==='score') return (num(b.leadScore)-num(a.leadScore)) || String(a.completionDate||'9999').localeCompare(String(b.completionDate||'9999'));
+    if(sort==='units') return num(b.units)-num(a.units);
+    if(sort==='new') return String(b.firstSeen||'').localeCompare(String(a.firstSeen||''));
+    return String(a.completionDate||'9999').localeCompare(String(b.completionDate||'9999'));
+  });
+  if(!rows.length){ list.innerHTML=emptyState('🏢', _leads.length?'No leads match these filters':'No leads yet', _leads.length?'':'The RERA monitor adds projects every morning once it is switched on (see rera-monitor/README.md).'); return; }
+  const shown=rows.slice(0,300);
+  list.innerHTML=shown.map(leadCard).join('')+(rows.length>shown.length?`<div style="text-align:center;font-size:12px;color:var(--gray);padding:10px">Showing ${shown.length} of ${rows.length} — narrow the filters to see the rest</div>`:'');
+}
+
+function leadCard(l){
+  const score=Math.max(0,Math.min(5,parseInt(l.leadScore)||0));
+  const stars=score?'★'.repeat(score)+'☆'.repeat(5-score):'';
+  const statusCls={New:'badge-pending',Contacted:'badge-pending',Quoted:'badge-pending',Won:'badge-confirmed',Lost:'badge-notconverted'}[l.status||'New']||'badge-pending';
+  const where=[l.locality,l.district].filter(Boolean).join(', ');
+  const facts=[l.units?`${l.units} units`:'', l.floors||'', l.projectType||''].filter(Boolean);
+  return `<div class="entry-card" onclick="openLead('${escapeHtml(l.id)}')">
+    <div class="entry-card-top"><div style="min-width:0;flex:1;padding-right:8px"><div class="entry-name">${escapeHtml(l.projectName||'(unnamed project)')}</div><div class="entry-sub">${escapeHtml(l.promoter||'Promoter not listed on portal')}</div></div>${leadStageBadge(l)}</div>
+    <div class="entry-sub">📍 ${escapeHtml(where||'Location not parsed')} · ${escapeHtml(LEAD_STATE_NAMES[l.state]||l.state||'')}</div>
+    <div class="entry-meta">${facts.map(f=>`<span class="meta-tag">${escapeHtml(f)}</span>`).join('')}<span class="meta-tag">Completion ${fmtDate(l.completionDate)}</span>${stars?`<span class="meta-tag" style="color:#b45309">${stars}</span>`:''}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="status-badge ${statusCls}">${escapeHtml(l.status||'New')}</span><span class="entry-sub">${l.assignedTo?'👤 '+escapeHtml(l.assignedTo):'Unassigned'}</span></div>
+    ${l.aiSummary?`<div class="entry-sub" style="margin-top:6px;color:#1f2937">✨ ${escapeHtml(l.aiSummary)}</div>`:''}
+  </div>`;
+}
+
+function openLead(id){
+  const l=_leads.find(x=>x.id===id); if(!l) return; _leadOpen=l;
+  document.getElementById('lead-m-title').textContent=l.projectName||'(unnamed project)';
+  document.getElementById('lead-m-sub').textContent=[LEAD_STATE_NAMES[l.state]||l.state, l.regNo, l.regDate?'registered '+fmtDate(l.regDate):''].filter(Boolean).join(' · ');
+  const row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)"><div style="flex:0 0 100px;color:var(--gray)">${k}</div><div style="flex:1;word-break:break-word">${v}</div></div>`:'';
+  document.getElementById('lead-m-body').innerHTML=
+    row('Stage',leadStageBadge(l))+row('Completion',fmtDate(l.completionDate))+row('Promoter',escapeHtml(l.promoter))
+    +row('Location',escapeHtml([l.locality,l.district].filter(Boolean).join(', ')))+row('Type',escapeHtml(l.projectType))
+    +row('Size',escapeHtml([l.units?l.units+' units':'',l.floors].filter(Boolean).join(' · ')))+row('Score',l.leadScore?escapeHtml(l.leadScore)+' / 5':'')
+    +(l.aiSummary?row('✨ AI note',escapeHtml(l.aiSummary)):'')
+    +(l.details?`<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--gray);font-size:12px">RERA project description</summary><div style="font-size:12px;color:#374151;margin-top:6px">${escapeHtml(l.details)}</div></details>`:'')
+    +(l.updatedBy?`<div class="entry-sub" style="margin-top:8px">Last updated by ${escapeHtml(l.updatedBy)} on ${fmtDate(l.updatedAt)}</div>`:'');
+  const link=(href,label)=>`<a class="btn-sm btn-blue" style="text-decoration:none;display:inline-block" href="${escapeHtml(href)}" target="_blank" rel="noopener">${label}</a>`;
+  const links=[];
+  if(l.mapUrl) links.push(link(l.mapUrl,'🗺️ Map'));
+  if(l.projectUrl) links.push(link(l.projectUrl,'📄 RERA project'));
+  if(l.promoterUrl) links.push(link(l.promoterUrl,'🏗️ Promoter'));
+  if(l.promoter||l.projectName) links.push(link('https://www.google.com/search?q='+encodeURIComponent([l.promoter,l.projectName,l.district].filter(Boolean).join(' ')),'🔍 Search'));
+  document.getElementById('lead-m-links').innerHTML=links.join('');
+  sv('lead-m-status',l.status||'New'); sv('lead-m-assigned',l.assignedTo||''); sv('lead-m-notes',l.notes||'');
+  document.getElementById('lead-m-alert').innerHTML='';
+  openModal('modal-lead');
+}
+function leadAssignMe(){ sv('lead-m-assigned', currentUser?.name||currentUser?.username||''); }
+
+async function saveLead(){
+  if(!_leadOpen) return;
+  const updates={ status:gv('lead-m-status')||'New', assignedTo:gv('lead-m-assigned').trim(), notes:gv('lead-m-notes').trim(),
+                  updatedBy:String(currentUser?.name||currentUser?.username||''), updatedAt:new Date().toISOString() };
+  setLoading(true,'Saving lead…');
+  try{
+    await sheetsUpdate(LEADS_SHEET,'id',_leadOpen.id,updates);
+    Object.assign(_leadOpen,updates);
+    closeModal('modal-lead'); renderLeadsList(); showToast('✅ Lead updated');
+  }catch(e){ showAlert('lead-m-alert','Could not save: '+escapeHtml(e.message),'error'); }
+  finally{ setLoading(false); }
+}
+
+// CSV of the current state/district slice (all stages), for sharing on WhatsApp / working offline.
+function exportLeads(){
+  const st=gv('leads-state'), ds=gv('leads-district');
+  const rows=_leads.filter(l=>(!st||l.state===st)&&(!ds||l.district===ds));
+  if(!rows.length){ showToast('Nothing to export'); return; }
+  const cols=['state','regNo','projectName','promoter','projectType','units','floors','locality','district','completionDate','leadScore','status','assignedTo','notes','mapUrl','projectUrl','promoterUrl','aiSummary'];
+  exportToExcel([cols, ...rows.map(l=>cols.map(c=>l[c]||''))], `RERA_Leads_${st||'ALL'}_${new Date().toISOString().slice(0,10)}.csv`);
 }
 
 // ═══════════════════════════════════════════════
@@ -3896,7 +4124,7 @@ async function _repLoadData(dates) {
 
   const map = {};   // pid -> {p, att:{date:status}, actDates:Set, one counter per report column}
   people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0,
-    tagged:0, dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, pcm:0}; });
+    dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, pcm:0}; });
   // Name lookups, used only when a record's ids match nobody. SKIP blank names: a nameless person
   // would otherwise become the catch-all for every record whose name fields are blank (the "6031
   // visits on a nameless row" bug). byName is keyed by LEVEL so that people who share a name across
@@ -3938,11 +4166,13 @@ async function _repLoadData(dates) {
         }
       }
     }
-    // ST/BDO tagged on the entry — the column itself says which level the name belongs to
+    // ST/BDO stamped on the entry (from the ISC's profile mapping) — the column itself says which level
+    // the name belongs to. This only marks the day as active for the Ghost report; the old "Tagged on site"
+    // report column was dropped in v4.58 because the stamp never proved the ST/BDO was at the site.
     if (dateSet.has(cd)) [['stName','ST'],['bdoName','BDO']].forEach(([k,level])=>{
       const nm = String(e[k]||'').trim().toLowerCase();
       const tid = nm ? byName[level+'|'+nm] : '';
-      if (tid && map[tid]) { map[tid].tagged++; map[tid].actDates.add(cd); }
+      if (tid && map[tid]) map[tid].actDates.add(cd);
     });
   });
   // Each visits sheet holds exactly one level, so a row's sheet tells us which name index to use.
@@ -4031,17 +4261,17 @@ async function runReport() {
     }
 
     else if (type==='activity') {
-      // One column per kind of work, so "Visits" is no longer an opaque lump: sites split New/Existing,
-      // the ST/BDO credit for being tagged on an ISC's site stands on its own, and each activity type
-      // is counted separately. Converted / Conv. value are OUTCOMES of entries already counted under
-      // New/Existing, so they stay out of Total — everything else in the row adds up to it exactly.
-      const COL = ['newSites','existingSites','updates','tagged','dealer','contractor','influencer','workAlong','office','other'];
+      // One column per kind of work, so "Visits" is no longer an opaque lump: sites split New/Existing
+      // and each activity type is counted separately. Converted / Conv. value are OUTCOMES of entries
+      // already counted under New/Existing, so they stay out of Total — everything else in the row adds
+      // up to it exactly. (v4.58: the "Tagged on site" ST/BDO column was removed — see _repLoadData.)
+      const COL = ['newSites','existingSites','updates','dealer','contractor','influencer','workAlong','office','other'];
       const rows = persons.map(x=>{
         const cells = COL.map(k=>x[k]);
         const total = cells.reduce((s,n)=>s+n,0) + x.pcm;
         return [x.p.name, x.p._role, x.p.region||'', ...cells, x.converted, x.convValue, x.pcm, total];
       }).sort((a,b)=>b[b.length-1]-a[a.length-1]);
-      const H = ['Name','Role','Region','New sites','Existing sites','Site updates','Tagged on site',
+      const H = ['Name','Role','Region','New sites','Existing sites','Site updates',
                  'Dealer','Contractor','Influencer','Work along','Office','Other',
                  'Converted','Conv. value','PCM meets','Total'];
       const at = name => H.indexOf(name);
@@ -4054,7 +4284,6 @@ async function runReport() {
       html = `<div class="stats-row">`
         + card('New sites', tot('New sites'), 'green')
         + card('Existing sites', tot('Existing sites'))
-        + card('Tagged on site', tot('Tagged on site'))
         + card('Dealer', tot('Dealer'))
         + card('Contractor', tot('Contractor'))
         + card('Influencer', tot('Influencer'))
