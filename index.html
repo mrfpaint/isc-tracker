@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.60</div>
+        <div class="auth-tagline">FIELD ONE · v4.61</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -3913,7 +3913,7 @@ function actSearchInput() {
   const matches = _actPeople.map((p,idx)=>({p,idx})).filter(x=>String(x.p.name||'').toLowerCase().includes(q))
     .sort((a,b)=>String(a.p.name||'').localeCompare(String(b.p.name||''))).slice(0,12);
   if (!matches.length) { box.innerHTML = `<div style="padding:12px;color:#999;font-size:13px">No matching employee found</div>`; box.style.display='block'; return; }
-  box.innerHTML = matches.map(x=>`<div onclick="actSelectPerson(${x.idx})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px"><strong>${x.p.name}</strong> <span style="color:#999">· ${x.p._role}${x.p.region?' · '+x.p.region:''}</span></div>`).join('');
+  box.innerHTML = matches.map(x=>`<div onclick="actSelectPerson(${x.idx})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px"><strong>${x.p.name}</strong> <span style="color:#999">· ${x.p._role}${x.p.region?' · '+x.p.region:''}</span> ${leaverBadge(x.p)}</div>`).join('');
   box.style.display='block';
 }
 
@@ -3938,8 +3938,15 @@ async function renderActivityReport() {
   if (!_actSelected) return;
   const p = _actSelected;
   const pid = String(p.id||'');
-  const dates = _actDatesInRange();
+  // v4.61: only the days this person was on the rolls (up to their relieved date, any role) — a
+  // leaver's post-relief days would otherwise show as "Not marked" and count as ghost days.
+  const dates = _actDatesInRange().filter(d=>iscActiveOn(p,d));
   const dateSet = new Set(dates);
+  if (!dates.length) {
+    document.getElementById('act-result').innerHTML = `<div style="text-align:center;color:#999;padding:30px;font-size:13px">${escapeHtml(p.name||'')} was not on the rolls in this range (${escapeHtml(personStatusText(p))}) — pick an earlier date.</div>`;
+    _actExport = null; const xb = document.getElementById('act-export-btn'); if (xb) xb.style.display = 'none';
+    return;
+  }
   setLoading(true,'Building activity report...');
   try {
     // ── attendance (checks both Attendance and Attendance_All sheets) ──
@@ -4008,7 +4015,7 @@ async function renderActivityReport() {
 
     let html = `
       <div style="background:linear-gradient(135deg,var(--dark),var(--dark2));border-radius:16px;padding:16px 20px;color:white;margin-bottom:14px">
-        <div style="font-size:18px;font-weight:700;font-family:'Rajdhani',sans-serif">${p.name} <span style="font-size:12px;opacity:.7">· ${p._role}${p.region?' · '+p.region:''}${p.phone?' · 📞 '+p.phone:''}</span></div>
+        <div style="font-size:18px;font-weight:700;font-family:'Rajdhani',sans-serif">${p.name} <span style="font-size:12px;opacity:.7">· ${p._role}${p.region?' · '+p.region:''}${p.phone?' · 📞 '+p.phone:''}</span> ${leaverBadge(p)}</div>
       </div>
       <div class="stats-row">
         <div class="stat-card green"><div class="stat-value">${presentDays}</div><div class="stat-label">Present days</div></div>
@@ -4052,7 +4059,7 @@ function exportActivityReport() {
   const d = _actExport;
   if (!d || !d.dates.length) return showToast('⚠️ Pick an employee first');
   const dayName = ds => { try { return new Date(ds+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short'}); } catch(e){ return ''; } };
-  const headers = ['Date','Day','Employee','Role','Region','Emp No','Attendance','Check-in','Attendance location',
+  const headers = ['Date','Day','Employee','Role','Region','Emp No','Emp Status','Attendance','Check-in','Attendance location',
                    'Activity time','Activity type','Activity details','Activity location','Present with NO activity'];
   const rows = [];
   // _actDatesInRange() hands back newest-first for the screen; export oldest-first, like the
@@ -4061,7 +4068,7 @@ function exportActivityReport() {
     const a = d.attByDate[date];
     const dayActs = d.acts.filter(x=>x.date===date)
       .sort((x,y)=>String(x.time||'').localeCompare(String(y.time||'')));
-    const base = [date, dayName(date), d.p.name, d.p._role, d.p.region||'', d.p.username||'',
+    const base = [date, dayName(date), d.p.name, d.p._role, d.p.region||'', d.p.username||'', personStatusText(d.p),
                   a ? (a.status||'Present') : 'Not marked', a?.checkInTime||'', a?.gps||''];
     if (!dayActs.length) rows.push([...base, '', '', '', '', a?.status==='Present' ? 'YES' : '']);
     else dayActs.forEach(x=>rows.push([...base, x.time||'', x.kind||'', x.text||'', x.place||'', '']));
@@ -4220,20 +4227,32 @@ function _repTable(cols, rows) {
   </table></div>`;
 }
 
-// Shared by the Ghost and Attendance reports (v4.59/v4.60): which days of the range this person was
-// actually on the rolls, plus the Status cell. Every role (not just ISC) is counted only up to their
-// relieved date. Returns null when the person should not appear at all — a Vacant slot is a
-// placeholder, not a person, and an Inactive person with no relievedDate (or relieved before the
-// range) has no countable days. Leavers whose last day falls inside the range are kept and flagged,
-// because the one-month purge policy (see PURGE_SHEETS) retains them so payroll can read their days.
+// ── LEAVER HANDLING shared by every report surface (v4.59–v4.61) ──
+// One rule everywhere: a Vacant slot is a placeholder, never a person; every role (not just ISC) is
+// counted only up to their relieved date via iscActiveOn(); a leaver whose last day falls inside the
+// range is KEPT and flagged, because the one-month purge policy (see PURGE_SHEETS) retains them so
+// payroll can read their days; an Inactive person with no relievedDate (or relieved before the range)
+// has no countable days and is left out entirely.
+// Plain-text employment status for CSV cells and badges: "Active" or "Inactive · left YYYY-MM-DD".
+function personStatusText(p) {
+  if (String(p.status||'Active')!=='Inactive') return 'Active';
+  return 'Inactive' + (p.relievedDate ? ' · left '+String(p.relievedDate).slice(0,10) : '');
+}
+// Card/list badge for a leaver; empty for everyone else, so it can be dropped into any name line.
+function leaverBadge(p) {
+  return String(p.status||'Active')==='Inactive' ? `<span class="status-badge badge-inactive">● ${escapeHtml(personStatusText(p))}</span>` : '';
+}
+// Compact red dot for tight cells (heatmap, leaderboard) where a badge would not fit; the hover title says when they left.
+function leaverDot(p) {
+  return p && String(p.status||'Active')==='Inactive' ? `<span style="color:#ef4444;font-weight:700" title="${escapeHtml(personStatusText(p))}">● </span>` : '';
+}
+// Reports-tab helper: the person's working days inside the range plus the HTML Status cell, or null to skip them.
 function _repPersonDays(p, dates) {
   if (String(p.status||'')==='Vacant') return null;
   const myDates = dates.filter(d=>iscActiveOn(p,d));
   if (!myDates.length) return null;
   const inactive = String(p.status||'Active')==='Inactive';
-  const status = inactive
-    ? `<span style="color:#ef4444;font-weight:600">Inactive</span>${p.relievedDate?' · left '+String(p.relievedDate).slice(0,10):''}`
-    : 'Active';
+  const status = inactive ? personStatusText(p).replace('Inactive','<span style="color:#ef4444;font-weight:600">Inactive</span>') : 'Active';
   return {myDates, status, inactive};
 }
 
@@ -4297,12 +4316,18 @@ async function runReport() {
       // already counted under New/Existing, so they stay out of Total — everything else in the row adds
       // up to it exactly. (v4.58: the "Tagged on site" ST/BDO column was removed — see _repLoadData.)
       const COL = ['newSites','existingSites','updates','dealer','contractor','influencer','workAlong','office','other'];
-      const rows = persons.map(x=>{
+      // v4.61: same leaver handling as the other two reports (_repPersonDays) — Vacant slots and people
+      // with no working days in the range are dropped, leavers inside the range are kept and flagged.
+      // Activity counts are NOT trimmed to the working days: logged work is real work.
+      const rows = [];
+      persons.forEach(x=>{
+        const pd = _repPersonDays(x.p, dates); if (!pd) return;
         const cells = COL.map(k=>x[k]);
         const total = cells.reduce((s,n)=>s+n,0) + x.pcm;
-        return [x.p.name, x.p._role, x.p.region||'', ...cells, x.converted, x.convValue, x.pcm, total];
-      }).sort((a,b)=>b[b.length-1]-a[a.length-1]);
-      const H = ['Name','Role','Region','New sites','Existing sites','Site updates',
+        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, ...cells, x.converted, x.convValue, x.pcm, total]);
+      });
+      rows.sort((a,b)=>b[b.length-1]-a[a.length-1]);
+      const H = ['Name','Role','Region','Status','New sites','Existing sites','Site updates',
                  'Dealer','Contractor','Influencer','Work along','Office','Other',
                  'Converted','Conv. value','PCM meets','Total'];
       const at = name => H.indexOf(name);
@@ -7869,7 +7894,7 @@ async function renderDashboard() {
           for (let day=1; day<=daysInMonth; day++) heatHtml += `<th style="padding:2px;color:#999;font-weight:500;min-width:14px">${day}</th>`;
           heatHtml += '</tr>';
           heatISCs.forEach((isc,idx) => {
-            heatHtml += `<tr style="background:${idx%2?'#fafafa':'white'}"><td style="position:sticky;left:0;background:${idx%2?'#fafafa':'white'};padding:3px 6px;font-weight:500;color:#333;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis">${isc.name}</td>`;
+            heatHtml += `<tr style="background:${idx%2?'#fafafa':'white'}"><td style="position:sticky;left:0;background:${idx%2?'#fafafa':'white'};padding:3px 6px;font-weight:500;color:#333;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis">${leaverDot(isc)}${isc.name}</td>`;
             for (let day=1; day<=daysInMonth; day++) {
               const dateStr = `${month}-${String(day).padStart(2,'0')}`;
               if (dateStr > todayD) { heatHtml += '<td></td>'; continue; }
@@ -7884,7 +7909,8 @@ async function renderDashboard() {
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#10b981;margin-right:4px"></span>Present</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f59e0b;margin-right:4px"></span>Leave</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#6366f1;margin-right:4px"></span>Holiday</span>'+
-            '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#fee2e2;margin-right:4px"></span>Unmarked</span></div>';
+            '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#fee2e2;margin-right:4px"></span>Unmarked</span>'+
+            (heatISCs.some(i=>String(i.status||'Active')==='Inactive') ? '<span><span style="color:#ef4444;font-weight:700;margin-right:4px">●</span>Left this month</span>' : '')+'</div>';
           if (attISCs.length > 40) heatHtml += `<div style="font-size:10px;color:#999;margin-top:6px">Showing first 40 of ${attISCs.length} ISCs — export full team attendance for the complete list.</div>`;
           html += dashSection('🗓️ Monthly Attendance Heatmap', heatHtml);
         }
@@ -7901,14 +7927,14 @@ async function renderDashboard() {
             const att = attByKey[isc.id+'|'+dateStr];
             if (att) { marked++; if (att.status==='Present') present++; }
           }
-          return { name: isc.name, rate: marked>0?Math.round(present/marked*100):0, marked };
+          return { name: isc.name, rate: marked>0?Math.round(present/marked*100):0, marked, p: isc };
         }).filter(r => r.marked > 0);
 
         if (rateByISC.length) {
           const sorted = [...rateByISC].sort((a,b)=>b.rate-a.rate);
           const top5 = sorted.slice(0,5);
           const bottom5 = sorted.slice(-5).reverse();
-          const lbRow = r => `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px"><span style="color:#333;font-weight:500">${r.name}</span><span style="font-weight:700;color:${r.rate>=80?'#10b981':r.rate>=50?'#f59e0b':'#ef4444'}">${r.rate}%</span></div>`;
+          const lbRow = r => `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px"><span style="color:#333;font-weight:500">${leaverDot(r.p)}${r.name}</span><span style="font-weight:700;color:${r.rate>=80?'#10b981':r.rate>=50?'#f59e0b':'#ef4444'}">${r.rate}%</span></div>`;
           html += dashSection('🏆 Attendance Leaderboard', `
             <div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:4px">TOP 5</div>
             ${top5.map(lbRow).join('')}
@@ -7932,8 +7958,10 @@ async function renderDashboard() {
 
       // ── 4. RSM / ASM / BDO SELF-ATTENDANCE COMPLIANCE (admin/rsm only) ──
       if (role==='admin' || role==='rsm') try {
-        let asmsAll = await DATA_getASMs();
-        let bdosAll = await DATA_getBDOs();
+        // v4.61: same rule as the ISC widgets above — on the rolls at some point this month, never a Vacant slot.
+        const onRollsThisMonth = p => String(p.status||'')!=='Vacant' && iscActiveOn(p, _monthStart);
+        let asmsAll = (await DATA_getASMs()).filter(onRollsThisMonth);
+        let bdosAll = (await DATA_getBDOs()).filter(onRollsThisMonth);
         let rsmsAll = [];
         if (role==='rsm') {
           asmsAll = await scopeASMsForRSM(asmsAll);
@@ -7941,7 +7969,7 @@ async function renderDashboard() {
           bdosAll = bdosAll.filter(b=>_myAsmIds.has(String(b.asmId||'')));
         } else {
           // Admin also tracks RSM / NSH / SH / NH self-attendance
-          try { rsmsAll = (await DATA_getRSMs()).filter(r=>!['inactive','vacant'].includes(String(r.status||'Active').toLowerCase())); } catch(e) {}
+          try { rsmsAll = (await DATA_getRSMs()).filter(onRollsThisMonth); } catch(e) {}
         }
         const headLabel = r => { const z=headZoneOf(r); return z ? (z==='ALL'?'NSH':(z==='south'?'SH':'NH')) : 'RSM'; };
         const managers = [...rsmsAll.map(r=>({...r,_type:headLabel(r)})), ...asmsAll.map(a=>({...a,_type:'ASM'})), ...bdosAll.map(b=>({...b,_type:'BDO'}))];
@@ -7954,9 +7982,9 @@ async function renderDashboard() {
               const att = attByKey[m.id+'|'+dateStr];
               if (att) { marked++; if (att.status==='Present') present++; }
             }
-            return { name:m.name, type:m._type, rate: marked>0?Math.round(present/marked*100):0, marked };
+            return { name:m.name, type:m._type, rate: marked>0?Math.round(present/marked*100):0, marked, p:m };
           }).sort((a,b)=>b.marked-a.marked).slice(0,12);
-          if (mgrRows.length) html += dashSection('📋 Manager Self-Attendance', `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f8f8f8"><th style="padding:7px 6px;text-align:left;color:#555;font-weight:600">Name</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Role</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Days Marked</th><th style="padding:7px 6px;text-align:right;color:#555;font-weight:600">Rate</th></tr>${mgrRows.map((m,idx)=>`<tr style="border-top:1px solid #f0f0f0;background:${idx%2?'#fafafa':'white'}"><td style="padding:6px;font-weight:500;color:#333">${m.name}</td><td style="padding:6px;text-align:center;color:#666">${m.type}</td><td style="padding:6px;text-align:center;color:#1565C0;font-weight:600">${m.marked}</td><td style="padding:6px;text-align:right;font-weight:700;color:${m.rate>=80?'#10b981':m.rate>=50?'#f59e0b':'#ef4444'}">${m.marked?m.rate+'%':'—'}</td></tr>`).join('')}</table></div>`);
+          if (mgrRows.length) html += dashSection('📋 Manager Self-Attendance', `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f8f8f8"><th style="padding:7px 6px;text-align:left;color:#555;font-weight:600">Name</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Role</th><th style="padding:7px 6px;text-align:center;color:#555;font-weight:600">Days Marked</th><th style="padding:7px 6px;text-align:right;color:#555;font-weight:600">Rate</th></tr>${mgrRows.map((m,idx)=>`<tr style="border-top:1px solid #f0f0f0;background:${idx%2?'#fafafa':'white'}"><td style="padding:6px;font-weight:500;color:#333">${m.name} ${leaverBadge(m.p)}</td><td style="padding:6px;text-align:center;color:#666">${m.type}</td><td style="padding:6px;text-align:center;color:#1565C0;font-weight:600">${m.marked}</td><td style="padding:6px;text-align:right;font-weight:700;color:${m.rate>=80?'#10b981':m.rate>=50?'#f59e0b':'#ef4444'}">${m.marked?m.rate+'%':'—'}</td></tr>`).join('')}</table></div>`);
         }
       } catch(e) { console.warn('Manager compliance error:',e.message); }
 
@@ -8389,7 +8417,10 @@ async function applyAttCorrection(idx, newStatus) {
 // Pass activeOnDate to drop ISCs not active that day; pass null to include all (range exports
 // re-check per day themselves). Every person is tagged with _role for display.
 async function teamAttendancePeople(activeOnDate) {
-  const activeOnly = p => !['inactive','vacant'].includes(String(p.status||'Active').toLowerCase());
+  // v4.61: managers follow the same rule as ISCs — a Vacant slot is never a person, and a leaver
+  // counts up to their relieved date (when a date is given). With no date (range export) every
+  // non-vacant person is returned and the caller applies iscActiveOn() day by day.
+  const activeOnly = p => String(p.status||'')!=='Vacant' && (!activeOnDate || iscActiveOn(p, activeOnDate));
   const tagRole = (arr,fallback) => arr.map(p=>({...p, _role:(p.role||fallback).toUpperCase()}));
   // allIscs stays UNSCOPED and unfiltered: it only feeds the ASM region tally below, which must not
   // change with who is looking or which date is being shown. `iscs` is the viewer's actual slice.
@@ -8478,7 +8509,7 @@ async function renderTeamAttendance() {
       <div class="entry-card" style="cursor:default">
         <div class="entry-card-top">
           <div>
-            <div class="entry-name">${isc.name}</div>
+            <div class="entry-name">${isc.name} ${leaverBadge(isc)}</div>
             <div class="entry-sub">👤 ${isc.username||'—'} · ${isc._role||'ISC'} · 🗺️ ${isc.region||'—'}</div>
             ${att?`<div class="entry-sub">🕐 ${att.checkInTime||'—'} ${att.gps?'· 📍 '+att.gps:''}</div>`:''}
           </div>
@@ -8504,7 +8535,7 @@ function exportAttendance() {
   });
 }
 
-// Exports the team's attendance across a date range (or a single day) as CSV, one row per team member (ISC/ST/BDO/ASM/RSM per viewer's scope) per day, skipping days after an inactive ISC's last working day.
+// Exports the team's attendance across a date range (or a single day) as CSV, one row per team member (ISC/ST/BDO/ASM/RSM per viewer's scope) per day, skipping days after any leaver's last working day.
 function exportTeamAttendance() {
   const singleDate = document.getElementById('team-att-date')?.value || todayStr();
   const fromDate = document.getElementById('team-att-export-from')?.value || singleDate;
@@ -8528,13 +8559,13 @@ function exportTeamAttendance() {
     const attByKey = {};
     allAtt.forEach(a => { attByKey[a.iscId + '|' + a.date] = a; });
 
-    const headers = ['Date','Name','Role','Emp No','Status','Check-in Time','Location','ASM','Region'];
+    const headers = ['Date','Name','Role','Emp No','Emp Status','Status','Check-in Time','Location','ASM','Region'];
     const rows = [];
     dates.forEach(date => {
       team.forEach(p => {
-        if (p._role==='ISC' && !iscActiveOn(p, date)) return;   // skip days after an ISC's last working day
+        if (!iscActiveOn(p, date)) return;   // v4.61: skip days after ANY role's last working day
         const att = attByKey[p.id + '|' + date];
-        rows.push([date, p.name, p._role, p.username||'', att?.status||'Unmarked', att?.checkInTime||'', att?.gps||'', p.asmName||'', p.region||'']);
+        rows.push([date, p.name, p._role, p.username||'', personStatusText(p), att?.status||'Unmarked', att?.checkInTime||'', att?.gps||'', p.asmName||'', p.region||'']);
       });
     });
 
@@ -8566,7 +8597,9 @@ async function loadOrgDashData(force=false) {
     safe(DATA_getISCs()), safe(DATA_getAttendance()), safe(DATA_getEntries()),
     safe(DATA_getSTVisits()), safe(DATA_getBDOVisits()), safe(sheetsGet('ASM_Visits')), safe(sheetsGet('RSM_Visits'))
   ]);
-  const live = r => !['inactive','vacant'].includes(String(r.status||'Active').toLowerCase());
+  // v4.61: leavers stay in the cached masters (with their relievedDate) so a past range can still
+  // show them; ogdOnRolls() trims the tree per range. Vacant slots are not people and never appear.
+  const live = r => String(r.status||'').toLowerCase()!=='vacant';
   _ogdData = {
     heads:  rsms.filter(r=>live(r) && headZoneOf(r)),    // NSH / SH / NH — the top of the tree
     rsms:   rsms.filter(r=>live(r) && !headZoneOf(r)),   // real RSMs
@@ -8580,6 +8613,13 @@ async function loadOrgDashData(force=false) {
              ...[...stV,...bdoV,...asmV,...rsmV].map(v=>({pid:String(v.empId||v.stId||v.bdoId||v.userId||''), date:String(v.visitDate||v.createdAt||'').slice(0,10)}))]
   };
   return _ogdData;
+}
+
+// The tree for one date range: everyone who was on the rolls on at least one day of it. relievedDate
+// is the last working day, so "employed on some day in [from,to]" is exactly iscActiveOn(p, from).
+function ogdOnRolls(D, from) {
+  const on = p => iscActiveOn(p, from);
+  return {...D, heads:D.heads.filter(on), rsms:D.rsms.filter(on), asms:D.asms.filter(on), stbdos:D.stbdos.filter(on), iscs:D.iscs.filter(on)};
 }
 
 // The next level down from `node`, mirroring the org chart: NSH → SH (South I–V) / NH (North I–II
@@ -8632,7 +8672,7 @@ async function renderOrgDash() {
   if (from > to) { showToast('⚠️ "From" date must be before "To" date'); return; }
   list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading organisation data...</div>`;
   try {
-    const D = await loadOrgDashData();
+    const D = ogdOnRolls(await loadOrgDashData(), from);
 
     const bc = document.getElementById('ogd-breadcrumb');
     const crumbs = [`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(0)">🌍 Organisation</a>`];
@@ -8686,7 +8726,7 @@ async function renderOrgDash() {
       return `<div class="entry-card" style="cursor:${drillable?'pointer':'default'}" ${drillable?`onclick="ogdDrill(${i})"`:''}>
         <div class="entry-card-top">
           <div style="flex:1">
-            <div class="entry-name">${escapeHtml(n.p.name||'(no name)')} <span style="font-size:10px;color:var(--gray)">${roleLabel(n)}</span></div>
+            <div class="entry-name">${escapeHtml(n.p.name||'(no name)')} <span style="font-size:10px;color:var(--gray)">${roleLabel(n)}</span> ${leaverBadge(n.p)}</div>
             <div class="entry-sub">👥 ${ppl} ${ppl===1?'person':'people'}${n.p.region?' · 🗺️ '+escapeHtml(n.p.region):''}</div>
             <div class="entry-sub" style="margin-top:4px">${metrics}</div>
           </div>
