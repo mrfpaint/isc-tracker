@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.63</div>
+        <div class="auth-tagline">FIELD ONE · v4.64</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -8304,6 +8304,11 @@ async function renderMyAttendance() {
     const colors = {Present:'#10b981',Leave:'#f59e0b',Holiday:'#6366f1'};
     const icons = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
     if (statusEl) { statusEl.textContent=`${icons[todayRec.status]||''} ${todayRec.status}`; statusEl.style.color=colors[todayRec.status]||'white'; }
+  } else if (holidayName(today)) {
+    // v4.64: Sundays and company holidays — nothing to mark, so the buttons stay hidden
+    if (markBtns) markBtns.style.display='none';
+    if (markedInfo) { markedInfo.style.display='block'; markedInfo.textContent='Holiday — attendance is not required today'; }
+    if (statusEl) { statusEl.textContent=`🎉 ${holidayName(today)} · Holiday`; statusEl.style.color='#a5b4fc'; }
   } else {
     if (markBtns) markBtns.style.display='flex';
     if (markedInfo) markedInfo.style.display='none';
@@ -8342,6 +8347,7 @@ async function renderMyAttendance() {
 async function markAttendance(status) {
   if (!['Present','Leave'].includes(status)) return;   // Holiday retired — Present or Leave only
   const today = todayStr();
+  if (isHoliday(today)) return showToast(`🎉 ${holidayName(today)} is a holiday — attendance is not marked on holidays`);   // v4.64
 
   // Prevent double-tap — disable buttons immediately
   document.querySelectorAll('#att-mark-buttons button').forEach(b=>b.disabled=true);
@@ -8506,6 +8512,11 @@ async function renderSelfAttendanceCard() {
     if (markBtns) markBtns.style.display = 'none';
     if (markedInfo) { markedInfo.style.display = 'block'; markedInfo.textContent = `Marked at ${todayRec.checkInTime||'—'} · ${todayRec.gps||''}`; }
     if (statusEl) { statusEl.textContent = `${icons[todayRec.status]||''} ${todayRec.status}`; statusEl.style.color = colors[todayRec.status]||'white'; }
+  } else if (holidayName(today)) {
+    // v4.64: Sundays and company holidays — nothing to mark, so the buttons stay hidden
+    if (markBtns) markBtns.style.display = 'none';
+    if (markedInfo) { markedInfo.style.display = 'block'; markedInfo.textContent = 'Holiday — attendance is not required today'; }
+    if (statusEl) { statusEl.textContent = `🎉 ${holidayName(today)} · Holiday`; statusEl.style.color = '#a5b4fc'; }
   } else {
     if (markBtns) markBtns.style.display = 'flex';
     if (markedInfo) markedInfo.style.display = 'none';
@@ -8548,6 +8559,7 @@ function exportSelfAttendance() {
 async function markSelfAttendance(status) {
   if (!['Present','Leave'].includes(status)) return;   // Holiday retired — Present or Leave only
   const today = todayStr();
+  if (isHoliday(today)) return showToast(`🎉 ${holidayName(today)} is a holiday — attendance is not marked on holidays`);   // v4.64
   document.querySelectorAll('#satt-mark-buttons button').forEach(b=>b.disabled=true);
 
   const localAtt = LDB.arr('attendance').filter(r=>r.iscId===currentUser.id);
@@ -8630,7 +8642,7 @@ function openAttCorrection(idx) {
   ov.innerHTML = `
     <div style="background:white;border-radius:16px;padding:20px;max-width:340px;width:100%;font-family:'DM Sans',sans-serif">
       <div style="font-weight:700;font-size:15px;margin-bottom:4px">Correct attendance</div>
-      <div style="font-size:12px;color:#666;margin-bottom:14px">${r.isc.name} · ${dateNice} · currently <strong>${r.status}</strong></div>
+      <div style="font-size:12px;color:#666;margin-bottom:14px">${r.isc.name} · ${dateNice} · currently <strong>${r.status}</strong>${holidayName(_tattDate)?` · 🎉 ${holidayName(_tattDate)} — holiday, correct only if they actually worked`:''}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button onclick="applyAttCorrection(${idx},'Present')" style="padding:11px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">✅ Present</button>
         <button onclick="applyAttCorrection(${idx},'Leave')" style="padding:11px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🏖️ Leave</button>
