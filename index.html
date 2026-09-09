@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.61</div>
+        <div class="auth-tagline">FIELD ONE · v4.62</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1709,7 +1709,7 @@
       <button class="pwd-eye" type="button" onclick="togglePwd('rsm-password',this)" tabindex="-1">👁</button>
     </div></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-rsm')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;_pendingRoleChange=null;closeModal('modal-rsm')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveRSM()">Save RSM</button>
     </div>
   </div>
@@ -1752,7 +1752,7 @@
       </div></div>
     <div class="form-group"><label class="form-label">Reports to (RSM)</label><select class="form-select" id="asm-rsm-select"><option value="">— Not assigned yet —</option></select></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-asm')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;_pendingRoleChange=null;closeModal('modal-asm')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveAsm()">Save ASM</button>
     </div>
   </div>
@@ -1774,7 +1774,7 @@
     <div class="form-group"><label class="form-label">Region</label><select class="form-select" id="st-region"></select></div>
     <div class="form-group"><label class="form-label">Reports to (ASM)</label><select class="form-select" id="st-asm-select"><option value="">— Not assigned yet —</option></select></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-st')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;_pendingRoleChange=null;closeModal('modal-st')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveST()">Save ST</button>
     </div>
   </div>
@@ -1797,7 +1797,7 @@
     <div class="form-group"><label class="form-label">Location (City)</label><input type="text" class="form-input" id="bdo-location" placeholder="e.g. Chennai HO"></div>
     <div class="form-group"><label class="form-label">Reports to (ASM)</label><select class="form-select" id="bdo-asm-select"><option value="">— Not assigned yet —</option></select></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;closeModal('modal-bdo')">Cancel</button>
+      <button class="btn-secondary" style="flex:1" onclick="_pendingFill=null;_pendingRoleChange=null;closeModal('modal-bdo')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="saveBDO()">Save BDO</button>
     </div>
   </div>
@@ -1839,6 +1839,30 @@
     <div style="display:flex;gap:10px">
       <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-replace')">Cancel</button>
       <button class="btn-primary" style="flex:2" onclick="confirmDeactivateOrFill()" id="replace-confirm-btn">Deactivate &amp; Reassign</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE ROLE (v4.62) — promotion / transfer between ST, SE, BDO, BDE, ASM and RSM. Same-table changes
+     (BDO↔BDE, ST↔SE) only rewrite the designation. Cross-table changes hand over to the target role's Add
+     form pre-filled; on save, finishRoleChange() closes the old record and moves the teams. -->
+<div class="modal-overlay" id="modal-change-role">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔁 Change Role</div>
+    <div class="modal-subtitle" id="cr-subtitle"></div>
+    <input type="hidden" id="cr-role"><input type="hidden" id="cr-id">
+    <div class="form-group"><label class="form-label">New role *</label><select class="form-select" id="cr-new-role" onchange="crNewRoleChanged()"></select></div>
+    <div id="cr-cross-group" style="display:none">
+      <div class="form-group"><label class="form-label">Effective from (first day in the new role) *</label><input type="date" class="form-input" id="cr-date"></div>
+      <div class="form-group"><label class="form-label" id="cr-successor-label">Who takes over their current team?</label><select class="form-select" id="cr-successor"></select></div>
+      <div class="form-group"><label class="form-label" id="cr-vacant-label">Stepping into a vacant seat?</label><select class="form-select" id="cr-vacant"></select></div>
+      <div class="entry-sub" id="cr-help" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.5"></div>
+    </div>
+    <div id="cr-same-note" class="entry-sub" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.5">Same team, same login, same record — only the designation changes.</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-change-role')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="confirmChangeRole()" id="cr-confirm-btn">Continue</button>
     </div>
   </div>
 </div>
@@ -2215,12 +2239,27 @@
 // PREVIOUS day (the "manager sees yesterday" bug fixed in v4.53).
 function localDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function todayStr() { return localDateStr(new Date()); }
-// Was this ISC still employed on the given date? Counts them up to their relieved date, ignores them after.
+// Was this person employed IN THIS ROLE on the given date? Used for every role, not just ISCs.
+// Two-sided window (v4.62): a record created by a role change carries activeFrom (first day in the new
+// role) and is not counted before it; an Inactive record is counted only up to its relievedDate.
 function iscActiveOn(isc, dateStr) {
+  const af = String(isc.activeFrom||'').slice(0,10);
+  if (af && dateStr < af) return false;   // not yet in this role — the previous role's record covers those days
   if (String(isc.status||'Active') !== 'Inactive') return true;   // still working — always count
   const rd = String(isc.relievedDate||'').slice(0,10);
   return rd ? dateStr <= rd : false;   // relieved — count only up to last working day
 }
+// Was this person on the rolls (in this role) on at least one day of [from,to]? Roster filters use this
+// rather than iscActiveOn(p, from), which would miss someone whose activeFrom falls inside the range.
+function onRollsBetween(p, from, to) {
+  const af = String(p.activeFrom||'').slice(0,10);
+  if (af && af > to) return false;
+  if (String(p.status||'Active') !== 'Inactive') return true;
+  const rd = String(p.relievedDate||'').slice(0,10);
+  return rd ? rd >= from : false;
+}
+// Calendar day before a yyyy-mm-dd string (local; noon anchor so DST can never shift the date).
+function dayBefore(ds) { const d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()-1); return localDateStr(d); }
 function todayDisplay() { return new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
 function nowTimeStr() { return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}); }
 // Catch-all: log any uncaught JS error to the console instead of silently breaking the page.
@@ -3424,8 +3463,9 @@ async function doASMLogin() {
   if (!u||!p) return showAlert('alert-asm-login','Please enter credentials.','error');
   setLoading(true,'Signing in...');
   try {
+    // v4.62: an Inactive row (relieved, or closed by a role change) must not be able to sign in here
     const {rec:asm, live} = await loginLookup(DATA_getASMs, 'asms',
-      a=>(a.username||'').toLowerCase()===u && (a.password||'').toLowerCase()===p);
+      a=>(a.username||'').toLowerCase()===u && (a.password||'').toLowerCase()===p && String(a.status||'Active').toLowerCase()!=='inactive');
     if (asm) {
       if (live) cacheLoginRecord('asms', asm);
       currentUser={...asm,role:'asm'}; launchApp(); return;
@@ -3441,8 +3481,9 @@ async function doRSMLogin() {
   if (!u||!p) return showAlert('alert-rsm-login','Please enter credentials.','error');
   setLoading(true,'Signing in...');
   try {
+    // v4.62: an Inactive row (relieved, or closed by a role change) must not be able to sign in here
     const {rec:rsm, live} = await loginLookup(()=>sheetsGet('RSMs'), 'rsms',
-      r=>(r.username||'').toLowerCase()===u && (r.password||'').toLowerCase()===p);
+      r=>(r.username||'').toLowerCase()===u && (r.password||'').toLowerCase()===p && String(r.status||'Active').toLowerCase()!=='inactive');
     if (rsm) {
       if (live) cacheLoginRecord('rsms', rsm);
       currentUser={...rsm,role:'rsm'}; launchApp(); return;
@@ -4234,26 +4275,45 @@ function _repTable(cols, rows) {
 // payroll can read their days; an Inactive person with no relievedDate (or relieved before the range)
 // has no countable days and is left out entirely.
 // Plain-text employment status for CSV cells and badges: "Active" or "Inactive · left YYYY-MM-DD".
+// v4.62: a record closed by a ROLE CHANGE (changedTo set) is not a leaver — the person is still on the
+// rolls under a new record in another table — so it gets its own wording/colour and never counts as "left".
+function isRoleChanged(p) { return String(p.status||'Active')==='Inactive' && !!String(p.changedTo||'').trim(); }
 function personStatusText(p) {
   if (String(p.status||'Active')!=='Inactive') return 'Active';
+  if (isRoleChanged(p)) return 'Moved to '+String(p.changedTo).toUpperCase() + (p.relievedDate ? ' · last day here '+String(p.relievedDate).slice(0,10) : '');
   return 'Inactive' + (p.relievedDate ? ' · left '+String(p.relievedDate).slice(0,10) : '');
 }
-// Card/list badge for a leaver; empty for everyone else, so it can be dropped into any name line.
+// Card/list badge for a leaver (red) or a role-changer (amber); empty for everyone else, so it can be dropped into any name line.
 function leaverBadge(p) {
-  return String(p.status||'Active')==='Inactive' ? `<span class="status-badge badge-inactive">● ${escapeHtml(personStatusText(p))}</span>` : '';
+  if (String(p.status||'Active')!=='Inactive') return '';
+  if (isRoleChanged(p)) return `<span class="status-badge" style="background:#fef3c7;color:#92400e">🔁 ${escapeHtml(personStatusText(p))}</span>`;
+  return `<span class="status-badge badge-inactive">● ${escapeHtml(personStatusText(p))}</span>`;
 }
-// Compact red dot for tight cells (heatmap, leaderboard) where a badge would not fit; the hover title says when they left.
+// Compact dot for tight cells (heatmap, leaderboard) where a badge would not fit; the hover title says when they left / moved.
 function leaverDot(p) {
-  return p && String(p.status||'Active')==='Inactive' ? `<span style="color:#ef4444;font-weight:700" title="${escapeHtml(personStatusText(p))}">● </span>` : '';
+  if (!p || String(p.status||'Active')!=='Inactive') return '';
+  return `<span style="color:${isRoleChanged(p)?'#d97706':'#ef4444'};font-weight:700" title="${escapeHtml(personStatusText(p))}">● </span>`;
+}
+// Admin-list badge: Active / Inactive · left … / Moved to …, plus "since <activeFrom>" on a record that was
+// opened by a role change, so both halves of one person's history read correctly side by side.
+function adminStatusBadge(p) {
+  const since = String(p.activeFrom||'').trim() ? ` <span style="font-size:10px;color:var(--gray)">since ${escapeHtml(String(p.activeFrom).slice(0,10))}</span>` : '';
+  if (String(p.status||'Active')!=='Inactive') return `<span class="status-badge badge-active">● Active</span>`+since;
+  return leaverBadge(p)+since;
 }
 // Reports-tab helper: the person's working days inside the range plus the HTML Status cell, or null to skip them.
 function _repPersonDays(p, dates) {
   if (String(p.status||'')==='Vacant') return null;
   const myDates = dates.filter(d=>iscActiveOn(p,d));
   if (!myDates.length) return null;
-  const inactive = String(p.status||'Active')==='Inactive';
-  const status = inactive ? personStatusText(p).replace('Inactive','<span style="color:#ef4444;font-weight:600">Inactive</span>') : 'Active';
-  return {myDates, status, inactive};
+  const moved = isRoleChanged(p);
+  const inactive = String(p.status||'Active')==='Inactive' && !moved;   // role-changers are not "left during range"
+  const af = String(p.activeFrom||'').slice(0,10);
+  const status = inactive ? personStatusText(p).replace('Inactive','<span style="color:#ef4444;font-weight:600">Inactive</span>')
+    : moved ? `<span style="color:#d97706;font-weight:600">🔁 ${personStatusText(p)}</span>`
+    : (af && dates[0] < af) ? `Active · <span style="color:#16a34a;font-weight:600">from ${af}</span>`   // started this role inside the range
+    : 'Active';
+  return {myDates, status, inactive, moved};
 }
 
 // Builds whichever report type is selected (ghost/attendance/activity) over the chosen date range, using the data _repLoadData() assembled, and renders it as a table with summary stat cards.
@@ -6779,7 +6839,7 @@ async function renderAsmList() {
       return `<div class="entry-card" style="cursor:default">
       <div class="entry-card-top">
         <div>
-          <div class="entry-name">${a.name} ${isActive?`<span class="status-badge badge-active">● Active</span>`:`<span class="status-badge badge-inactive">● Inactive${a.relievedDate?' · left '+a.relievedDate:''}</span>`}</div>
+          <div class="entry-name">${a.name} ${adminStatusBadge(a)}</div>
           <div class="entry-sub">📧 ${a.email} · 📞 ${a.phone}</div>
           <div class="entry-sub" style="margin-top:4px">👤 @${a.username}</div>
           <div class="entry-sub" style="margin-top:4px">🌐 RSM: <strong>${a.rsmName||'Not assigned'}</strong></div>
@@ -6788,7 +6848,8 @@ async function renderAsmList() {
       <div class="isc-actions" style="margin-top:8px">
         <button class="btn-sm btn-blue" onclick="editASM('${a.id}')">✏️ Edit</button>
         <button class="btn-sm btn-blue" onclick="openAssignRSMModal('${a.id}','${(a.name||'').replace(/'/g,"\\'")}','${a.rsmId||''}')">🌐 Assign RSM</button>
-        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('asm','${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
+        ${isActive?`<button class="btn-sm btn-blue" onclick="openChangeRoleModal('asm','${a.id}')">🔁 Change Role</button>
+        <button class="btn-sm btn-red" onclick="openDeactivateModal('asm','${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('asm','${a.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -6808,11 +6869,12 @@ async function renderRSMList() {
     el.innerHTML=rsms.map(r=>{
       const isActive=String(r.status||'Active')!=='Inactive';
       return `<div class="entry-card" style="cursor:default">
-      <div class="entry-name">${r.name} ${isActive?`<span class="status-badge badge-active">● Active</span>`:`<span class="status-badge badge-inactive">● Inactive${r.relievedDate?' · left '+r.relievedDate:''}</span>`}</div>
+      <div class="entry-name">${r.name} ${adminStatusBadge(r)}</div>
       <div class="entry-sub">📧 ${r.email||'—'} · 📞 ${r.phone||'—'}</div>
       <div class="entry-sub" style="margin-top:4px">👤 @${r.username} ${r.region?'· 🗺️ '+r.region:''}</div>
       <div class="isc-actions" style="margin-top:8px">
-        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('rsm','${r.id}','${(r.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
+        ${isActive?`<button class="btn-sm btn-blue" onclick="openChangeRoleModal('rsm','${r.id}')">🔁 Change Role</button>
+        <button class="btn-sm btn-red" onclick="openDeactivateModal('rsm','${r.id}','${(r.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('rsm','${r.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -6822,6 +6884,7 @@ async function renderRSMList() {
 
 // Populates the Add RSM modal (also resets the subtitle in case it was last opened via "fill vacancy", which repurposes it).
 function openAddRSMModal() {
+  _pendingRoleChange = null;   // a plain Add must never finish a half-started role change
   document.getElementById('modal-rsm-subtitle').textContent = 'Add a new Regional Sales Manager';
   openModal('modal-rsm');
 }
@@ -6838,7 +6901,8 @@ async function saveRSM() {
     await DATA_addRSM(newRsm);
     _regionsCache = null; // new region may have been introduced — refresh on next dropdown open
     closeModal('modal-rsm');renderRSMList();
-    if (_pendingFill && _pendingFill.role==='rsm') { await resolvePendingFill('rsm', newRsm); }
+    if (_pendingRoleChange && _pendingRoleChange.toRole==='rsm') { await finishRoleChange(newRsm); }
+    else if (_pendingFill && _pendingFill.role==='rsm') { await resolvePendingFill('rsm', newRsm); }
     else { showToast('✅ RSM added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
@@ -6945,13 +7009,14 @@ async function renderSTList(refetch=true) {
     el.innerHTML=sts.map(s=>{
       const isActive=String(s.status||'Active')!=='Inactive';
       return `<div class="entry-card" style="cursor:default">
-      <div class="entry-name">${s.name} <span style="font-size:10px;color:var(--gray)">${s.role||'ST'}</span> ${isActive?`<span class="status-badge badge-active">● Active</span>`:`<span class="status-badge badge-inactive">● Inactive${s.relievedDate?' · left '+s.relievedDate:''}</span>`}</div>
+      <div class="entry-name">${s.name} <span style="font-size:10px;color:var(--gray)">${s.role||'ST'}</span> ${adminStatusBadge(s)}</div>
       <div class="entry-sub">${s.email?'📧 '+s.email+' · ':''}${s.phone?'📞 '+s.phone:''}</div>
       <div class="entry-sub" style="margin-top:4px">${s.region?'🗺️ '+s.region+' · ':''}🌐 ASM: <strong>${s.asmName||'Not assigned'}</strong></div>
       <div class="isc-actions" style="margin-top:8px">
         <button class="btn-sm btn-blue" onclick="editST('${s.id}')">✏️ Edit</button>
         <button class="btn-sm btn-blue" onclick="openAssignASMModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${s.asmId||''}')">🌐 Assign ASM</button>
-        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
+        ${isActive?`<button class="btn-sm btn-blue" onclick="openChangeRoleModal('st','${s.id}')">🔁 Change Role</button>
+        <button class="btn-sm btn-red" onclick="openDeactivateModal('st','${s.id}','${(s.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('st','${s.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -6977,13 +7042,14 @@ async function renderBDOList(refetch=true) {
     el.innerHTML=bdos.map(b=>{
       const isActive=String(b.status||'Active')!=='Inactive';
       return `<div class="entry-card" style="cursor:default">
-      <div class="entry-name">${b.name} <span style="font-size:10px;color:var(--gray)">${(b.role||'bdo').toUpperCase()}</span> ${isActive?`<span class="status-badge badge-active">● Active</span>`:`<span class="status-badge badge-inactive">● Inactive${b.relievedDate?' · left '+b.relievedDate:''}</span>`}</div>
+      <div class="entry-name">${b.name} <span style="font-size:10px;color:var(--gray)">${(b.role||'bdo').toUpperCase()}</span> ${adminStatusBadge(b)}</div>
       <div class="entry-sub">${b.email?'📧 '+b.email+' · ':''}${b.phone?'📞 '+b.phone:''}</div>
       <div class="entry-sub" style="margin-top:4px">${b.region?'🗺️ '+b.region+' · ':''}${b.location?'📌 '+b.location+' · ':''}🌐 ASM: <strong>${b.asmName||'Not assigned'}</strong></div>
       <div class="isc-actions" style="margin-top:8px">
         <button class="btn-sm btn-blue" onclick="editBDO('${b.id}')">✏️ Edit</button>
         <button class="btn-sm btn-blue" onclick="openAssignASMModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}','${b.asmId||''}')">🌐 Assign ASM</button>
-        ${isActive?`<button class="btn-sm btn-red" onclick="openDeactivateModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
+        ${isActive?`<button class="btn-sm btn-blue" onclick="openChangeRoleModal('bdo','${b.id}')">🔁 Change Role</button>
+        <button class="btn-sm btn-red" onclick="openDeactivateModal('bdo','${b.id}','${(b.name||'').replace(/'/g,"\\'")}')">🔴 Deactivate</button>`
         :`<button class="btn-sm btn-green" onclick="toggleRoleStatus('bdo','${b.id}','Active')">🟢 Activate</button>`}
       </div>
     </div>`;
@@ -7006,6 +7072,7 @@ async function editASM(id) {
 
 // Populates the RSM dropdown, then opens the Add ASM modal.
 async function openAddAsmModal() {
+  _pendingRoleChange = null;   // a plain Add/Edit must never finish a half-started role change
   document.getElementById('modal-asm-subtitle').textContent = 'Add a new Area Sales Manager';
   sv('asm-edit-id','');
   ['asm-name','asm-email','asm-phone','asm-username','asm-password'].forEach(id=>sv(id,''));
@@ -7022,6 +7089,7 @@ async function openAddAsmModal() {
 
 // Populates the ASM + region dropdowns, then opens the Add ST modal.
 async function openAddSTModal() {
+  _pendingRoleChange = null;   // a plain Add/Edit must never finish a half-started role change
   document.getElementById('modal-st-subtitle').textContent = 'Add a new ST/SE';
   sv('st-edit-id','');
   ['st-name','st-email','st-phone','st-username','st-password'].forEach(id=>sv(id,''));
@@ -7039,6 +7107,7 @@ async function openAddSTModal() {
 
 // Populates the ASM + region dropdowns, then opens the Add BDO modal.
 async function openAddBDOModal() {
+  _pendingRoleChange = null;   // a plain Add/Edit must never finish a half-started role change
   document.getElementById('modal-bdo-subtitle').textContent = 'Add a new BDO/BDE';
   sv('bdo-edit-id','');
   ['bdo-name','bdo-email','bdo-phone','bdo-username','bdo-password','bdo-location'].forEach(id=>sv(id,''));
@@ -7083,7 +7152,8 @@ async function saveAsm() {
     const newAsm = {id:'asm'+Date.now(),name,email,phone,username,password,rsmId:rsmId||'',rsmName:rsm?.name||'',status:'Active'};
     await DATA_addASM(newAsm);
     closeModal('modal-asm');renderAsmList();
-    if (_pendingFill && _pendingFill.role==='asm') { await resolvePendingFill('asm', newAsm); }
+    if (_pendingRoleChange && _pendingRoleChange.toRole==='asm') { await finishRoleChange(newAsm); }
+    else if (_pendingFill && _pendingFill.role==='asm') { await resolvePendingFill('asm', newAsm); }
     else { showToast('✅ ASM added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
@@ -7097,7 +7167,9 @@ async function stBdoUsernameTaken(username, excludeId) {
   const [sts, bdos] = await Promise.all([DATA_getSTs(), DATA_getBDOs()]);
   const u = String(username||'').toLowerCase();
   const live = r => String(r.status||'Active')!=='Inactive' && String(r.status||'')!=='Vacant';
-  const hit = [...sts, ...bdos].find(r => live(r) && String(r.username||'').toLowerCase()===u && String(r.id)!==String(excludeId||''));
+  // v4.62: during a role change the outgoing record is still Active and still holds this emp no — it is closed only after the new one saves
+  const skip = new Set([String(excludeId||''), String((_pendingRoleChange&&_pendingRoleChange.fromId)||'')]);
+  const hit = [...sts, ...bdos].find(r => live(r) && String(r.username||'').toLowerCase()===u && !skip.has(String(r.id)));
   return hit ? `${hit.name} (${(hit.role||'?').toUpperCase()})` : null;
 }
 
@@ -7182,7 +7254,8 @@ async function saveST() {
       asmId:asmId||'',asmName:asm?.name||'',status:'Active'};
     await DATA_addST(newSt);
     closeModal('modal-st');renderSTList();
-    if (_pendingFill && _pendingFill.role==='st') { await resolvePendingFill('st', newSt); }
+    if (_pendingRoleChange && _pendingRoleChange.toRole==='st') { await finishRoleChange(newSt); }
+    else if (_pendingFill && _pendingFill.role==='st') { await resolvePendingFill('st', newSt); }
     else { showToast('✅ ST added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
@@ -7213,7 +7286,8 @@ async function saveBDO() {
       asmId:asmId||'',asmName:asm?.name||'',status:'Active'};
     await DATA_addBDO(newBdo);
     closeModal('modal-bdo');renderBDOList();
-    if (_pendingFill && _pendingFill.role==='bdo') { await resolvePendingFill('bdo', newBdo); }
+    if (_pendingRoleChange && _pendingRoleChange.toRole==='bdo') { await finishRoleChange(newBdo); }
+    else if (_pendingFill && _pendingFill.role==='bdo') { await resolvePendingFill('bdo', newBdo); }
     else { showToast('✅ BDO added!'); }
   } catch(e){showToast('⚠️ '+e.message);}
   finally{setLoading(false);}
@@ -7380,6 +7454,7 @@ async function renderPurgeList() {
     for (const cfg of PURGE_SHEETS) {
       const rows = await cfg.getter();
       rows.forEach(r=>{
+        if (isRoleChanged(r)) return;   // v4.62: closed by a role change, not a departure — the person is still with us under a new record
         if (String(r.status||'').toLowerCase()==='inactive' && String(r.relievedDate||'') && String(r.relievedDate).slice(0,10) <= cutoff)
           due.push({sheet:cfg.sheet, label: cfg.label==='ISC'?'ISC':String(r.role||cfg.label).toUpperCase(), r});
       });
@@ -7511,6 +7586,168 @@ async function resolvePendingFill(role, newRecord) {
     showToast(`✅ ${newRecord.name} added and now filling the position — moved: ${parts.join(', ')||'nothing to reassign'}`);
     renderVacantPositions();
   } catch(e) { showToast('⚠️ Added, but reassigning the vacant seat failed: '+e.message); }
+}
+
+// ══════════════════════════════════════════════
+//  CHANGE ROLE (v4.62) — promotions / transfers between ST, SE, BDO, BDE, ASM, RSM
+//  Why not just edit a role field? STs, BDOs, ASMs and RSMs are separate tables with different columns,
+//  login screens, visit sheets and team links (stId / bdoId / asmId / rsmId). So a cross-table move is
+//  modelled as: close the current record (Inactive, relievedDate = day before, changedTo = new designation)
+//  and open a new one in the target table (activeFrom = effective date, prevId = old record). The emp no
+//  stays the same, so login simply resolves to whichever record is Active; every report counts a record
+//  only inside its own window (iscActiveOn), so a range spanning the change shows both halves once each.
+//  Same-table changes (BDO↔BDE, ST↔SE) only rewrite the designation — nothing else moves.
+//  The NEW record is created first through the normal Add form; the old one is closed only after that
+//  save succeeds, so a cancelled form leaves everything exactly as it was.
+// ══════════════════════════════════════════════
+const CR_TARGETS = [   // designation the admin sees -> the table it lives in + the value that table's role column stores
+  {label:'ST',  role:'st',  value:'ST'},  {label:'SE',  role:'st',  value:'SE'},
+  {label:'BDO', role:'bdo', value:'bdo'}, {label:'BDE', role:'bdo', value:'bde'},
+  {label:'ASM', role:'asm', value:''},    {label:'RSM', role:'rsm', value:''},
+];
+let _pendingRoleChange = null;   // {fromRole, fromId, fromName, fromLabel, toRole, toLabel, effectiveDate, successorId, vacantId}
+let _crPerson = null;            // record currently open in the Change Role modal
+
+// Current designation of a record as the admin knows it (ST/SE/BDO/BDE/ASM/RSM).
+function designationOf(role, p) {
+  if (role==='st')  return String(p.role||'ST').toUpperCase();
+  if (role==='bdo') return String(p.role||'BDO').toUpperCase();
+  return ROLE_LABEL[role];
+}
+
+async function openChangeRoleModal(role, id) {
+  setLoading(true, 'Loading...');
+  try {
+    const people = await ROLE_GETTER[role]();
+    const p = people.find(x=>String(x.id)===String(id));
+    if (!p) { showToast('⚠️ Record not found'); return; }
+    _crPerson = {...p};
+    const cur = designationOf(role, p);
+    sv('cr-role', role); sv('cr-id', p.id);
+    document.getElementById('cr-subtitle').textContent = `${p.name||''} · currently ${cur}${p.username?' · emp no '+p.username:''}`;
+    document.getElementById('cr-new-role').innerHTML = `<option value="">— Select new role —</option>` +
+      CR_TARGETS.filter(t=>t.label!==cur).map(t=>`<option value="${t.label}">${t.label}${t.role===role?' (designation only)':''}</option>`).join('');
+    document.getElementById('cr-date').value = todayStr();
+    // Successor for the seat being vacated — the same choice Deactivate offers: a real person now, or a vacant placeholder
+    document.getElementById('cr-successor').innerHTML = `<option value="${VACANT_SENTINEL}">— Leave the ${cur} seat vacant for now —</option>` +
+      people.filter(x=>String(x.id)!==String(p.id) && String(x.status||'Active')==='Active').sort(byName)
+            .map(x=>`<option value="${x.id}">${escapeHtml(x.name||'')}</option>`).join('');
+    document.getElementById('cr-successor-label').textContent = `Who takes over their ${cur} team?`;
+    await crNewRoleChanged();
+    openModal('modal-change-role');
+  } catch(e) { showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
+// New role picked: same table → designation-only mode; another table → show date + successor, and list that
+// table's vacant seats so the person can step straight into one (its team moves to them on save).
+async function crNewRoleChanged() {
+  const role = gv('cr-role'), label = gv('cr-new-role');
+  const t = CR_TARGETS.find(x=>x.label===label);
+  const cross = !!t && t.role!==role;
+  document.getElementById('cr-cross-group').style.display = cross ? '' : 'none';
+  document.getElementById('cr-same-note').style.display = (t && !cross) ? '' : 'none';
+  document.getElementById('cr-confirm-btn').textContent = !t ? 'Continue' : cross ? `Continue → ${label} details` : `Update designation to ${label}`;
+  if (!cross) return;
+  const p = _crPerson || {}, cur = designationOf(role, p);
+  document.getElementById('cr-help').innerHTML =
+    `<b>${escapeHtml(p.name||'')}</b> stays <b>${cur}</b> up to the day before the date above and is <b>${label}</b> from that date. ` +
+    `Same emp no and password — the login simply switches to the new role. Attendance and activity logged so far stay with the ${cur} record; ` +
+    `reports show each role for its own dates. Use the first day they will sign in as ${label}.`;
+  const vac = document.getElementById('cr-vacant');
+  vac.innerHTML = `<option value="">— No, this is a new ${label} seat —</option>`;
+  document.getElementById('cr-vacant-label').textContent = `Stepping into a vacant ${label} seat?`;
+  try {
+    (await ROLE_GETTER[t.role]()).filter(r=>String(r.status||'')==='Vacant').sort(byName).forEach(r=>{
+      const o=document.createElement('option'); o.value=r.id; o.textContent=r.name; vac.appendChild(o);
+    });
+  } catch(e) { /* list keeps just the "new seat" option */ }
+}
+
+async function confirmChangeRole() {
+  const role = gv('cr-role'), id = gv('cr-id'), label = gv('cr-new-role');
+  const t = CR_TARGETS.find(x=>x.label===label);
+  if (!t) return showToast('⚠️ Please pick the new role');
+  const p = _crPerson;
+  if (!p || String(p.id)!==String(id)) return showToast('⚠️ Please close and reopen Change Role');
+  const cur = designationOf(role, p);
+
+  // Same table: only the designation changes (BDO↔BDE, ST↔SE)
+  if (t.role===role) {
+    setLoading(true, 'Updating designation...');
+    try {
+      await sheetsUpdate(ROLE_SHEET[role], 'id', p.id, {role: t.value});
+      auditLog('Designation changed', p.name||'', `${cur} → ${label}`);
+      showToast(`✅ ${p.name||''} is now ${label}`);
+      closeModal('modal-change-role'); ROLE_RENDER[role]();
+    } catch(e) { showToast('⚠️ '+e.message); }
+    finally { setLoading(false); }
+    return;
+  }
+
+  // Another table: remember the plan, then hand over to that role's Add form pre-filled from the current record
+  const effectiveDate = gv('cr-date');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) return showToast('⚠️ Please pick the effective date');
+  const pending = {fromRole:role, fromId:p.id, fromName:p.name||'', fromLabel:cur, toRole:t.role, toLabel:label,
+                   effectiveDate, successorId:gv('cr-successor'), vacantId:gv('cr-vacant')};
+  closeModal('modal-change-role');
+  const banner = `🔁 Role change: ${p.name||''} · ${cur} → ${label} from ${effectiveDate} — check the details and save`;
+  if (t.role==='st') {
+    await openAddSTModal();
+    sv('st-name',p.name||''); sv('st-email',p.email||''); sv('st-phone',p.phone||''); sv('st-username',p.username||''); sv('st-password',p.password||'');
+    sv('st-role',t.value); sv('st-region',p.region||''); sv('st-asm-select',p.asmId||'');
+    document.getElementById('modal-st-subtitle').textContent = banner;
+  } else if (t.role==='bdo') {
+    await openAddBDOModal();
+    sv('bdo-name',p.name||''); sv('bdo-email',p.email||''); sv('bdo-phone',p.phone||''); sv('bdo-username',p.username||''); sv('bdo-password',p.password||'');
+    sv('bdo-role',t.value); sv('bdo-region',p.region||''); sv('bdo-location',p.location||''); sv('bdo-asm-select',p.asmId||'');
+    document.getElementById('modal-bdo-subtitle').textContent = banner;
+  } else if (t.role==='asm') {
+    await openAddAsmModal();
+    sv('asm-name',p.name||''); sv('asm-email',p.email||''); sv('asm-phone',p.phone||''); sv('asm-username',p.username||''); sv('asm-password',p.password||'');
+    // An ST/BDO stepping up to ASM most likely reports to their old ASM's RSM — pre-select it; the admin can change it
+    if (p.asmId) { try { const a=(await DATA_getASMs()).find(x=>String(x.id)===String(p.asmId)); if (a && a.rsmId) sv('asm-rsm-select', a.rsmId); } catch(e){} }
+    document.getElementById('modal-asm-subtitle').textContent = banner;
+  } else {
+    openAddRSMModal();
+    sv('rsm-name',p.name||''); sv('rsm-email',p.email||''); sv('rsm-phone',p.phone||''); sv('rsm-username',p.username||''); sv('rsm-password',p.password||''); sv('rsm-region',p.region||'');
+    document.getElementById('modal-rsm-subtitle').textContent = banner;
+  }
+  _pendingRoleChange = pending;   // set AFTER the Add form opened — openAdd*Modal() clears any stale plan
+}
+
+// Called by saveST/saveBDO/saveAsm/saveRSM right after the new record has been appended.
+async function finishRoleChange(newRec) {
+  const pc = _pendingRoleChange; _pendingRoleChange = null;
+  if (!pc) return;
+  const lastDay = dayBefore(pc.effectiveDate);
+  const moved = [];
+  const add = counts => Object.entries(counts||{}).filter(([k,v])=>v>0).forEach(([k,v])=>moved.push(`${v} ${k}`));
+  setLoading(true, 'Finishing role change...');
+  try {
+    // 1) Stamp the new record: first day in this role + link to the old record (new columns self-create on the worker)
+    await sheetsUpdate(ROLE_SHEET[pc.toRole], 'id', newRec.id, {activeFrom: pc.effectiveDate, prevId: pc.fromId});
+    // 2) Close the old record as a ROLE CHANGE, not a departure (purge list skips it, reports label it)
+    await sheetsUpdate(ROLE_SHEET[pc.fromRole], 'id', pc.fromId, {status:'Inactive', relievedDate:lastDay, changedTo:pc.toLabel});
+    // 3) Old seat: hand the team to the successor, or park it on a fresh vacant placeholder (exactly like Deactivate)
+    let target = null;
+    if (!pc.successorId || pc.successorId===VACANT_SENTINEL) {
+      target = {id:`vacant_${pc.fromRole}_${Date.now()}`, name:`Vacant (was ${pc.fromName})`, status:'Vacant', email:'', phone:'', username:'', password:''};
+      await ROLE_ADDER[pc.fromRole](target);
+    } else {
+      target = (await ROLE_GETTER[pc.fromRole]()).find(x=>String(x.id)===String(pc.successorId)) || null;
+    }
+    if (target) add(await reassignReports(pc.fromRole, pc.fromId, target));
+    // 4) New seat: take over a vacant placeholder's team and clear the placeholder
+    if (pc.vacantId) { add(await reassignReports(pc.toRole, pc.vacantId, newRec)); await blankRoleRecord(pc.toRole, pc.vacantId); }
+    auditLog('Role changed', pc.fromName, `${pc.fromLabel} → ${pc.toLabel} from ${pc.effectiveDate}${moved.length?' · moved '+moved.join(', '):''}`);
+    showToast(`✅ ${pc.fromName} is now ${pc.toLabel} from ${pc.effectiveDate}${moved.length?' · moved: '+moved.join(', '):''}`);
+  } catch(e) {
+    showToast(`⚠️ ${pc.toLabel} record saved, but finishing the change failed: ${e.message}. Check ${pc.fromName}'s old ${pc.fromLabel} record.`);
+  } finally {
+    setLoading(false);
+    try { ROLE_RENDER[pc.fromRole](); ROLE_RENDER[pc.toRole](); renderVacantPositions(); } catch(_) {}
+  }
 }
 
 async function confirmDeactivateOrFill() {
@@ -7874,7 +8111,7 @@ async function renderDashboard() {
     // ══════════════════════════════════════════════
     if (role !== 'isc') try {
       const _monthStart = new Date().toISOString().slice(0,7)+'-01';
-      let attISCs = (await DATA_getISCs()).filter(i=>iscActiveOn(i,_monthStart));
+      let attISCs = (await DATA_getISCs()).filter(i=>onRollsBetween(i,_monthStart,todayStr()));   // v4.62: includes people who started this role mid-month
       const _attScope = await scopedISCIdSet();
       if (_attScope) attISCs = attISCs.filter(i=>_attScope.has(String(i.id)));
 
@@ -7959,7 +8196,7 @@ async function renderDashboard() {
       // ── 4. RSM / ASM / BDO SELF-ATTENDANCE COMPLIANCE (admin/rsm only) ──
       if (role==='admin' || role==='rsm') try {
         // v4.61: same rule as the ISC widgets above — on the rolls at some point this month, never a Vacant slot.
-        const onRollsThisMonth = p => String(p.status||'')!=='Vacant' && iscActiveOn(p, _monthStart);
+        const onRollsThisMonth = p => String(p.status||'')!=='Vacant' && onRollsBetween(p, _monthStart, todayStr());
         let asmsAll = (await DATA_getASMs()).filter(onRollsThisMonth);
         let bdosAll = (await DATA_getBDOs()).filter(onRollsThisMonth);
         let rsmsAll = [];
@@ -8615,10 +8852,10 @@ async function loadOrgDashData(force=false) {
   return _ogdData;
 }
 
-// The tree for one date range: everyone who was on the rolls on at least one day of it. relievedDate
-// is the last working day, so "employed on some day in [from,to]" is exactly iscActiveOn(p, from).
-function ogdOnRolls(D, from) {
-  const on = p => iscActiveOn(p, from);
+// The tree for one date range: everyone who was on the rolls on at least one day of it (v4.62: via
+// onRollsBetween, so a record that starts mid-range after a role change is included as well).
+function ogdOnRolls(D, from, to) {
+  const on = p => onRollsBetween(p, from, to || from);
   return {...D, heads:D.heads.filter(on), rsms:D.rsms.filter(on), asms:D.asms.filter(on), stbdos:D.stbdos.filter(on), iscs:D.iscs.filter(on)};
 }
 
@@ -8672,7 +8909,7 @@ async function renderOrgDash() {
   if (from > to) { showToast('⚠️ "From" date must be before "To" date'); return; }
   list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading organisation data...</div>`;
   try {
-    const D = ogdOnRolls(await loadOrgDashData(), from);
+    const D = ogdOnRolls(await loadOrgDashData(), from, to);
 
     const bc = document.getElementById('ogd-breadcrumb');
     const crumbs = [`<a style="cursor:pointer;color:#1565C0;font-weight:600" onclick="ogdJump(0)">🌍 Organisation</a>`];
