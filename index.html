@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.58</div>
+        <div class="auth-tagline">FIELD ONE · v4.59</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -4248,16 +4248,32 @@ async function runReport() {
     }
 
     else if (type==='attendance') {
-      const rows = persons.map(x=>{
-        const myDates = x.p._role==='ISC' ? dates.filter(d=>iscActiveOn(x.p,d)) : dates;
-        const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length, H=myDates.filter(d=>x.att[d]==='Holiday').length;
-        const U=myDates.length-P-L-H;
-        const pct = myDates.length? Math.round((P+L+H)*100/myDates.length):0;
-        return [x.p.name, x.p._role, x.p.region||'', P, L, H, U, pct+'%'];
-      }).sort((a,b)=>parseInt(a[7])-parseInt(b[7]));
-      const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[7]),0)/rows.length):0;
-      html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Employees</div></div><div class="stat-card green"><div class="stat-value">${avg}%</div><div class="stat-label">Avg marked</div></div><div class="stat-card red"><div class="stat-value">${rows.filter(r=>parseInt(r[7])<50).length}</div><div class="stat-label">Below 50%</div></div></div>`
-        + _repTable(['Name','Role','Region','Present','Leave','Holiday','Unmarked','% marked'], rows);
+      // v4.59: every role (not just ISC) is counted only up to their relieved date, people who were not
+      // employed on ANY day of the range are left out entirely, and a Status column flags leavers who
+      // still appear because their last working day falls inside the range (kept for payroll — see the
+      // one-month purge policy above PURGE_SHEETS). An Inactive person with no relievedDate has no
+      // countable days, so they drop out rather than showing a row of unmarked days.
+      const H = ['Name','Role','Region','Status','Present','Leave','Holiday','Unmarked','% marked'];
+      const PCT = H.indexOf('% marked');
+      const rows = [];
+      persons.forEach(x=>{
+        if (String(x.p.status||'')==='Vacant') return;   // an unfilled slot, not a person
+        const myDates = dates.filter(d=>iscActiveOn(x.p,d));
+        if (!myDates.length) return;   // not on the rolls during this range
+        const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length, Hd=myDates.filter(d=>x.att[d]==='Holiday').length;
+        const U=myDates.length-P-L-Hd;
+        const pct = Math.round((P+L+Hd)*100/myDates.length);
+        const inactive = String(x.p.status||'Active')==='Inactive';
+        const status = inactive
+          ? `<span style="color:#ef4444;font-weight:600">Inactive</span>${x.p.relievedDate?' · left '+String(x.p.relievedDate).slice(0,10):''}`
+          : 'Active';
+        rows.push([x.p.name, x.p._role, x.p.region||'', status, P, L, Hd, U, pct+'%']);
+      });
+      rows.sort((a,b)=>parseInt(a[PCT])-parseInt(b[PCT]));
+      const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[PCT]),0)/rows.length):0;
+      const inactiveN = rows.filter(r=>String(r[3]).indexOf('Inactive')>=0).length;
+      html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Employees</div></div><div class="stat-card green"><div class="stat-value">${avg}%</div><div class="stat-label">Avg marked</div></div><div class="stat-card red"><div class="stat-value">${rows.filter(r=>parseInt(r[PCT])<50).length}</div><div class="stat-label">Below 50%</div></div>${inactiveN?`<div class="stat-card"><div class="stat-value">${inactiveN}</div><div class="stat-label">Left during range</div></div>`:''}</div>`
+        + _repTable(H, rows);
     }
 
     else if (type==='activity') {
