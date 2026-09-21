@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.64</div>
+        <div class="auth-tagline">FIELD ONE · v4.65</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -940,6 +940,7 @@
         <option value="ghost">⚠️ Present but NO activity</option>
         <option value="attendance">📅 Attendance summary</option>
         <option value="activity">🏗️ Field activity summary</option>
+        <option value="daywise">📆 Attendance day-wise register</option>
       </select>
       <button onclick="runReport()" style="padding:10px 18px;background:var(--red);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Run Report</button>
       <button id="rep-export-btn" onclick="exportReportCSV()" style="display:none;padding:10px 14px;background:white;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--dark);font-family:'DM Sans',sans-serif">⬇ Export</button>
@@ -4185,8 +4186,8 @@ async function _repLoadData(dates) {
   try { rsmVisits = await DATA_getRSMVisits(); } catch(e){}
   try { const r = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions'); const j = await r.json(); pcms = Array.isArray(j)?j:[]; } catch(e){}
 
-  const map = {};   // pid -> {p, att:{date:status}, actDates:Set, one counter per report column}
-  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0,
+  const map = {};   // pid -> {p, att:{date:status}, attTime:{date:check-in time}, actDates:Set, one counter per report column}
+  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, attTime:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0,
     dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, pcm:0}; });
   // Name lookups, used only when a record's ids match nobody. SKIP blank names: a nameless person
   // would otherwise become the catch-all for every record whose name fields are blank (the "6031
@@ -4206,7 +4207,10 @@ async function _repLoadData(dates) {
 
   [...att1, ...att2].forEach(a=>{
     const pid = String(a.iscId||a.userId||a.empId||''); const d = String(a.date||'').slice(0,10);
-    if (map[pid] && dateSet.has(d) && !map[pid].att[d]) map[pid].att[d] = a.status||'Present';
+    if (map[pid] && dateSet.has(d) && !map[pid].att[d]) {
+      map[pid].att[d] = a.status||'Present';
+      if (a.checkInTime) map[pid].attTime[d] = String(a.checkInTime);   // v4.65: shown on hover in the day-wise register
+    }
   });
   entries.forEach(e=>{
     const cd=String(e.createdAt||'').slice(0,10), ud=String(e.updatedAt||'').slice(0,10);
@@ -4389,6 +4393,79 @@ async function runReport() {
       const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[PCT]),0)/rows.length):0;
       html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Employees</div></div><div class="stat-card green"><div class="stat-value">${avg}%</div><div class="stat-label">Avg marked</div></div><div class="stat-card red"><div class="stat-value">${rows.filter(r=>parseInt(r[PCT])<50).length}</div><div class="stat-label">Below 50%</div></div>${inactiveN?`<div class="stat-card"><div class="stat-value">${inactiveN}</div><div class="stat-label">Left during range</div></div>`:''}</div>`
         + _repTable(H, rows);
+    }
+
+    else if (type==='daywise') {
+      // v4.65: the attendance REGISTER — one row per person, one column per calendar day, so a whole
+      // month reads at a glance and any one person's record reads across their row. The tail-column
+      // counts use exactly the Attendance-summary rules above (leavers via _repPersonDays, Sundays and
+      // company holidays via isHoliday), so the two reports always reconcile person by person.
+      // Cell codes: P Present · L Leave · H Holiday (a Holiday mark, or a blank Sunday/company holiday) ·
+      // U Unmarked (a blank on a working day) · - not on the rolls that day. A status text the sheet
+      // may carry that is none of Present/Leave/Holiday counts as a blank, exactly as the summary does.
+      // On screen the day cells are coloured and the name column stays pinned while the days scroll;
+      // the CSV export carries the same codes under ISO date headers so Excel can pivot or COUNTIF them.
+      const WD = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const STYLE = {P:'background:#dcfce7;color:#166534', L:'background:#fef3c7;color:#92400e', H:'background:#e0e7ff;color:#3730a3',
+                     U:'background:#fee2e2;color:#991b1b', off:'background:#f3f4f6;color:#9ca3af'};
+      const LABEL = {P:'Present', L:'Leave', H:'Holiday', U:'Unmarked', off:'Not on rolls'};
+      const view = []; let inactiveN = 0;
+      persons.forEach(x=>{
+        const pd = _repPersonDays(x.p, dates); if (!pd) return;
+        if (pd.inactive) inactiveN++;
+        const mine = new Set(pd.myDates);
+        let P=0, L=0, Hd=0, U=0, W=0;
+        const cells = dates.map(d=>{
+          if (!mine.has(d)) return {k:'off'};
+          const raw = String(x.att[d]||''), hol = isHoliday(d);
+          const s = (raw==='Present'||raw==='Leave'||raw==='Holiday') ? raw : '';
+          if (!hol) W++;
+          if (s==='Present') { P++; return {k:'P'}; }
+          if (s==='Leave')   { L++; return {k:'L'}; }
+          if (s==='Holiday' || hol) { Hd++; return {k:'H', raw:s?'':raw}; }
+          U++; return {k:'U', raw};
+        });
+        const pct = W ? Math.round((W-U)*100/W) : 100;
+        view.push({x, pd, cells, P, L, Hd, U, pct, W});
+      });
+      view.sort((a,b)=>String(a.x.p.name||'').localeCompare(String(b.x.p.name||'')));
+      // CSV: the same codes under ISO date headers (exportReportCSV strips the HTML from the Status cell).
+      const H = ['Name','Role','Region','Status', ...dates, 'Present','Leave','Holiday','Unmarked','% marked','Working days'];
+      const rows = view.map(v=>[v.x.p.name, v.x.p._role, v.x.p.region||'', v.pd.status, ...v.cells.map(c=>c.k==='off'?'-':c.k), v.P, v.L, v.Hd, v.U, v.pct+'%', v.W]);
+      _repCols = H; _repRows = rows;
+      document.getElementById('rep-export-btn').style.display = rows.length ? '' : 'none';
+      const avg = view.length ? Math.round(view.reduce((s,v)=>s+v.pct,0)/view.length) : 0;
+      html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Employees</div></div><div class="stat-card green"><div class="stat-value">${avg}%</div><div class="stat-label">Avg marked</div></div><div class="stat-card red"><div class="stat-value">${view.filter(v=>v.pct<50).length}</div><div class="stat-label">Below 50%</div></div>${inactiveN?`<div class="stat-card"><div class="stat-value">${inactiveN}</div><div class="stat-label">Left during range</div></div>`:''}</div>`;
+      if (!rows.length) html += '<div style="text-align:center;color:#999;padding:30px;font-size:13px">No records found for this range 🎉</div>';
+      else {
+        const legend = `<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--gray);margin:-8px 0 10px">`
+          + ['P','L','H','U','off'].map(k=>`<span><span style="display:inline-block;min-width:18px;text-align:center;border-radius:4px;font-weight:700;padding:1px 3px;margin-right:4px;${STYLE[k]}">${k==='off'?'-':k}</span>${LABEL[k]}</span>`).join('')
+          + `<span style="margin-left:auto">Hover a day for the date and check-in time</span></div>`;
+        // Two header rows: month spans over the day numbers, so a range that crosses a month boundary still reads.
+        const months = []; dates.forEach(d=>{ const m=d.slice(0,7); if (months.length && months[months.length-1].m===m) months[months.length-1].n++; else months.push({m, n:1}); });
+        const TH = 'padding:6px 8px;background:#f9fafb;border-bottom:1.5px solid var(--border);white-space:nowrap;font-size:11px;text-align:left';
+        const stick = 'position:sticky;left:0;z-index:2;border-right:1px solid var(--border)';
+        const head1 = `<tr><th rowspan="2" style="${TH};${stick}">Name</th><th rowspan="2" style="${TH}">Role</th>`
+          + months.map(m=>`<th colspan="${m.n}" style="${TH};text-align:center;border-left:1px solid var(--border)">${MON[parseInt(m.m.slice(5,7),10)-1]} ${m.m.slice(0,4)}</th>`).join('')
+          + ['P','L','H','U','%','Days'].map(t=>`<th rowspan="2" style="${TH};text-align:center${t==='P'?';border-left:1px solid var(--border)':''}">${t}</th>`).join('') + '</tr>';
+        const head2 = '<tr>' + dates.map(d=>{ const hol = holidayName(d); const wd = WD[new Date(d+'T12:00:00').getDay()];
+          return `<th title="${escapeHtml(d+(hol?' · '+hol:''))}" style="padding:4px 2px;min-width:26px;text-align:center;font-size:10px;line-height:1.25;border-bottom:1.5px solid var(--border);background:${hol?'#eef2ff':'#f9fafb'};color:${hol?'#4f46e5':'inherit'}">${d.slice(8)}<br><span style="font-weight:400">${wd}</span></th>`; }).join('') + '</tr>';
+        const TD = 'padding:6px 8px;border-bottom:1px solid #f3f4f6;white-space:nowrap';
+        const num = (n, color) => `<td style="${TD};text-align:center;font-weight:600${color?';color:'+color:''}">${n}</td>`;
+        const body = view.map(v=>{
+          const p = v.x.p;
+          const name = `<td style="${TD};${stick};background:white;font-weight:600">${escapeHtml(p.name||'')}${v.pd.status==='Active'?'':`<div style="font-size:10px;font-weight:400">${v.pd.status}</div>`}</td>`;
+          const role = `<td style="${TD}">${escapeHtml(p._role||'')}${p.region?`<div style="font-size:10px;color:var(--gray)">${escapeHtml(p.region)}</div>`:''}</td>`;
+          const days = v.cells.map((c,i)=>{
+            const d = dates[i], hol = holidayName(d), t = v.x.attTime[d];
+            const tip = d + (hol?' · '+hol:'') + ' · ' + LABEL[c.k] + (c.raw?' (sheet says: '+c.raw+')':'') + (t && c.k!=='off' ? ' · in '+t : '');
+            return `<td title="${escapeHtml(tip)}" style="text-align:center;padding:0;height:26px;min-width:26px;border-bottom:1px solid #fff;border-left:1px solid #fff;font-size:11px;font-weight:700;${STYLE[c.k]}">${c.k==='off'?'-':c.k}</td>`;
+          }).join('');
+          return `<tr>${name}${role}${days}${num(v.P,'#16a34a')}${num(v.L,'#d97706')}${num(v.Hd,'#4f46e5')}${num(v.U, v.U?'#ef4444':'')}${num(v.pct+'%', v.pct<50?'#ef4444':'')}${num(v.W)}</tr>`;
+        }).join('');
+        html += legend + `<div style="overflow-x:auto;background:white;border:1.5px solid var(--border);border-radius:12px"><table style="border-collapse:separate;border-spacing:0;font-size:12px">${head1}${head2}${body}</table></div>`;
+      }
     }
 
     else if (type==='activity') {
