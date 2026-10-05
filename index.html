@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.65</div>
+        <div class="auth-tagline">FIELD ONE · v4.66</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -940,6 +940,7 @@
         <option value="ghost">⚠️ Present but NO activity</option>
         <option value="attendance">📅 Attendance summary</option>
         <option value="activity">🏗️ Field activity summary</option>
+        <option value="dealers">🏪 Dealer coverage</option>
         <option value="daywise">📆 Attendance day-wise register</option>
       </select>
       <button onclick="runReport()" style="padding:10px 18px;background:var(--red);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Run Report</button>
@@ -3856,6 +3857,40 @@ let _actExport = null;    // last rendered report {p, dates, attByDate, acts} �
 function _actTime(v){ if(!v) return ''; const s=String(v); if(/^\d{4}-\d{2}-\d{2}T/.test(s)){ try{ return new Date(s).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} } return s; }
 function _actRecDate(r){ return String(r.date||r.visitDate||r.createdAt||'').slice(0,10); }
 
+// ── DEALER IDENTITY (v4.66) ──
+// A dealer visit row carries up to three handles for the shop: the 6-digit dealer code (exact, but
+// optional on the form), the master-record id (set when the dealer was picked as Existing or created
+// as New; blank when the details were typed free-hand), and the typed shop + contact names. Any of
+// them may be blank, and the same shop can be logged with its code one day and only a name the next,
+// so "unique dealers" is computed by UNION: rows that share ANY handle are the same dealer. The name
+// handle is scoped to the logger's region so two unrelated "Kumar"s in different regions stay apart.
+// Used by the Reports tab (_repLoadData) and the Employee Activity tab so the numbers agree everywhere.
+function dealerHandles(v) {
+  const h = [];
+  const code = String(v.partyCode||'').replace(/[^0-9]/g,'');
+  if (code) h.push('c:'+code);
+  const id = String(v.partyId||'').trim();
+  if (id) h.push('i:'+id);
+  const norm = s => String(s||'').trim().toLowerCase().replace(/ +/g,' ');
+  const shop = norm(v.partyFirm), contact = norm(v.partyName);
+  if (shop || contact) h.push('n:'+norm(v.region)+'|'+shop+'|'+contact);
+  return h.length ? h : ['r:'+String(v.id||Math.random())];   // nothing filled in — this row is a dealer of its own
+}
+// Union-find over handles. add(v) unions the row's handles and returns a provisional handle; root(h)
+// resolves it to the final dealer key — call root() only after every row has been added.
+function makeDealerIndex() {
+  const parent = {};
+  const find = h => { while (parent[h]!==undefined && parent[h]!==h) h = parent[h]; return h; };
+  return {
+    add(v) {
+      const hs = dealerHandles(v); const r0 = find(hs[0]); if (parent[r0]===undefined) parent[r0] = r0;
+      hs.slice(1).forEach(h=>{ const r = find(h); if (parent[r]===undefined) parent[r] = r; if (r!==r0) parent[r] = r0; });
+      return hs[0];
+    },
+    root(h) { return find(h); },
+  };
+}
+
 // Which visits sheet each role in this report logs into, and (ST/BDO only) which Entries column
 // tags them on an ISC's site. ASMs/RSMs are deliberately left out of the tagging: `asmName` sits on
 // EVERY entry of every ISC under them, so counting those would credit them with their team's work.
@@ -4011,7 +4046,7 @@ async function renderActivityReport() {
     const attByDate = {}; attAll.forEach(a=>{ const d=String(a.date||'').slice(0,10); if(!attByDate[d]) attByDate[d]=a; });
 
     // ── field activities, depending on role ──
-    let acts = [];
+    let acts = [], dealerVisitRows = [];   // v4.66: dealer rows kept aside for the unique / repeat line
     if (p._role==='ISC') {
       const entries = await DATA_getEntries();
       entries.filter(e=>String(e.iscId||'')===pid).forEach(e=>{
@@ -4032,6 +4067,7 @@ async function renderActivityReport() {
           const d = _actRecDate(v);
           if (!dateSet.has(d)) return;
           const t = String(v.activityType||'');
+          if (t==='Dealer') dealerVisitRows.push(v);   // v4.66
           if (t==='Office')
             acts.push({date:d, time:_actTime(v.time||v.checkInTime||v.createdAt), icon:'🏢', kind:'Office', text:`Office${v.remarks?': '+v.remarks:''}`, place:v.gps||''});
           else if (t==='Work Along')
@@ -4064,6 +4100,14 @@ async function renderActivityReport() {
       });
     } catch(e) { console.warn('PCM fetch for activity failed:', e.message); }
 
+    // ── dealer summary (v4.66): the dealer visits above, de-duplicated with the same identity rule as the
+    // Reports tab (dealerHandles), so this person's unique dealers and repeat visits read the same everywhere.
+    const dIdx = makeDealerIndex(), dH = dealerVisitRows.map(v=>dIdx.add(v));
+    const dCount = {}, dName = {};
+    dH.forEach((h,i)=>{ const k = dIdx.root(h); dCount[k] = (dCount[k]||0)+1; if (!dName[k]) dName[k] = String(dealerVisitRows[i].partyFirm||dealerVisitRows[i].partyName||'').trim() || '(unnamed dealer)'; });
+    const dVisits = dH.length, dUnique = Object.keys(dCount).length;
+    const dRepeat = Object.keys(dCount).filter(k=>dCount[k]>1).sort((a,b)=>dCount[b]-dCount[a]).map(k=>`${dName[k]} ×${dCount[k]}`);
+
     // ── summary numbers ──
     const totalActs = acts.length;
     const presentDays = dates.filter(d=>attByDate[d]?.status==='Present').length;
@@ -4077,7 +4121,7 @@ async function renderActivityReport() {
         <div class="stat-card green"><div class="stat-value">${presentDays}</div><div class="stat-label">Present days</div></div>
         <div class="stat-card"><div class="stat-value">${totalActs}</div><div class="stat-label">Field activities</div></div>
         <div class="stat-card red"><div class="stat-value">${ghostDays}</div><div class="stat-label">Present, 0 activity</div></div>
-      </div>`;
+      </div>${dVisits ? `<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:-8px 0 14px;font-size:13px;color:#7c2d12">🏪 <strong>${dVisits}</strong> dealer visit${dVisits===1?'':'s'} · <strong>${dUnique}</strong> unique dealer${dUnique===1?'':'s'} · <strong>${dVisits-dUnique}</strong> repeat visit${dVisits-dUnique===1?'':'s'}${dRepeat.length?`<div style="font-size:11px;margin-top:4px;color:#9a3412">Repeat: ${dRepeat.join(', ')}</div>`:''}</div>` : ''}`;
 
     html += dates.map(d=>{
       const a = attByDate[d];
@@ -4141,6 +4185,7 @@ function exportActivityReport() {
 // ═══════════════════════════════════════════════
 let _repRows = [];   // last computed rows, for CSV export
 let _repCols = [];
+let _repDealers = [];   // v4.66: every dealer visited in the last-loaded range (see _repLoadData), for the Dealer coverage report
 
 // Defaults the Reports date pickers to "last 7 days" the first time the tab is opened.
 function renderReportsTab() {
@@ -4187,7 +4232,7 @@ async function _repLoadData(dates) {
   try { const r = await fetch('https://mrf-isc-tracker.jofran81.workers.dev/api/pcm/executions'); const j = await r.json(); pcms = Array.isArray(j)?j:[]; } catch(e){}
 
   const map = {};   // pid -> {p, att:{date:status}, attTime:{date:check-in time}, actDates:Set, one counter per report column}
-  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, attTime:{}, actDates:new Set(), newSites:0, existingSites:0, updates:0,
+  people.forEach(p=>{ map[String(p.id)] = {p, att:{}, attTime:{}, actDates:new Set(), dealerKeySet:new Set(), uniqueDealers:0, repeatVisits:0, newSites:0, existingSites:0, updates:0,
     dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, pcm:0}; });
   // Name lookups, used only when a record's ids match nobody. SKIP blank names: a nameless person
   // would otherwise become the catch-all for every record whose name fields are blank (the "6031
@@ -4242,6 +4287,9 @@ async function _repLoadData(dates) {
       if (tid && map[tid]) map[tid].actDates.add(cd);
     });
   });
+  // v4.66: dealer visits are also kept aside here so unique / repeat dealer counts and the Dealer coverage
+  // report can be built once every row is in (dealerHandles / makeDealerIndex hold the identity rule).
+  const dealerIdx = makeDealerIndex(), dealerRows = [];
   // Each visits sheet holds exactly one level, so a row's sheet tells us which name index to use.
   [[stVisits,'ST'], [bdoVisits,'BDO'], [asmVisits,'ASM'], [rsmVisits,'RSM']].forEach(([rows,level])=>rows.forEach(v=>{
     const d=_actRecDate(v); if (!dateSet.has(d)) return;
@@ -4263,10 +4311,29 @@ async function _repLoadData(dates) {
         else map[pid].newSites++;
       } else {
         map[pid][ACT_TYPE_COL[t] || 'other']++;   // 'other' catches any activity type added later
+        if (t==='Dealer') dealerRows.push({pid, h:dealerIdx.add(v), d, v});   // v4.66
       }
       map[pid].actDates.add(d);
     }
   }));
+  // v4.66: resolve every dealer visit to its dealer (union of code / master id / name handles) now that
+  // every row is in. Per person: unique = distinct dealers, repeat = visits beyond the first to the same
+  // dealer, both inside this range. _repDealers is the dealer-centric index the Dealer coverage report lists.
+  const dealers = {};
+  dealerRows.forEach(r=>{
+    const key = dealerIdx.root(r.h), v = r.v, who = map[r.pid].p.name||'';
+    map[r.pid].dealerKeySet.add(key);
+    const dl = dealers[key] = dealers[key] || {key, shop:'', contact:'', code:'', region:'', visits:0, people:{}, first:'', last:''};
+    dl.visits++; dl.people[who] = (dl.people[who]||0)+1;
+    if (!dl.shop && v.partyFirm) dl.shop = String(v.partyFirm).trim();
+    if (!dl.contact && v.partyName) dl.contact = String(v.partyName).trim();
+    if (!dl.code && v.partyCode) dl.code = String(v.partyCode).replace(/[^0-9]/g,'');
+    if (!dl.region) dl.region = String(v.region||map[r.pid].p.region||'').trim();
+    if (!dl.first || r.d < dl.first) dl.first = r.d;
+    if (!dl.last || r.d > dl.last) dl.last = r.d;
+  });
+  Object.values(map).forEach(x=>{ x.uniqueDealers = x.dealerKeySet.size; x.repeatVisits = x.dealer - x.uniqueDealers; });
+  _repDealers = Object.values(dealers);
   pcms.forEach(e=>{
     const d=String(e.datetime||e.createdAt||'').slice(0,10); if (!dateSet.has(d)) return;
     const nm = String(e.executedBy||'').trim().toLowerCase();
@@ -4468,12 +4535,37 @@ async function runReport() {
       }
     }
 
+    else if (type==='dealers') {
+      // v4.66: the same dealer visits seen from the dealer's side — one row per dealer visited in the
+      // range by the people in this report's scope, so a manager can see which shops get repeat attention
+      // and which were touched once. Identity is the union of code / master id / name (dealerHandles), so
+      // a shop logged with its code one day and by name the next still reads as one row. Only visits by
+      // people _repPersonDays keeps are counted — the same roster rule as the other reports.
+      const keep = new Set(); persons.forEach(x=>{ if (_repPersonDays(x.p, dates)) keep.add(x.p.name||''); });
+      const list = [];
+      _repDealers.forEach(dl=>{
+        const by = Object.entries(dl.people).filter(([nm])=>keep.has(nm)).sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0]));
+        const visits = by.reduce((s,[,n])=>s+n,0); if (!visits) return;
+        list.push({...dl, visits, by});
+      });
+      const label = dl => dl.shop || dl.contact || '(unnamed dealer)';
+      list.sort((a,b)=>b.visits-a.visits || label(a).localeCompare(label(b)));
+      const H = ['Dealer','Contact','Code','Region','First visit','Last visit','Visits','Repeat visits','Visited by'];
+      const rows = list.map(dl=>[label(dl), dl.shop ? dl.contact : '', dl.code, dl.region, dl.first, dl.last, dl.visits,
+        dl.visits>1 ? `<strong style="color:#16a34a">${dl.visits-1}</strong>` : 0,
+        dl.by.map(([nm,n])=>n>1 ? `${nm} ×${n}` : nm).join(', ')]);
+      const multi = list.filter(d=>d.visits>1).length, totalVisits = list.reduce((s,d)=>s+d.visits,0);
+      html = `<div class="stats-row"><div class="stat-card"><div class="stat-value">${list.length}</div><div class="stat-label">Dealers visited</div></div><div class="stat-card green"><div class="stat-value">${multi}</div><div class="stat-label">Visited 2+ times</div></div><div class="stat-card gold"><div class="stat-value">${list.length-multi}</div><div class="stat-label">Visited once</div></div><div class="stat-card"><div class="stat-value">${totalVisits}</div><div class="stat-label">Dealer visits</div></div></div>`
+        + _repTable(H, rows);
+    }
+
     else if (type==='activity') {
       // One column per kind of work, so "Visits" is no longer an opaque lump: sites split New/Existing
       // and each activity type is counted separately. Converted / Conv. value are OUTCOMES of entries
       // already counted under New/Existing, so they stay out of Total — everything else in the row adds
       // up to it exactly. (v4.58: the "Tagged on site" ST/BDO column was removed — see _repLoadData.)
       const COL = ['newSites','existingSites','updates','dealer','contractor','influencer','workAlong','office','other'];
+      const teamDealers = new Set();   // v4.66: distinct dealers across everyone kept in the table — a union, never a sum
       // v4.61: same leaver handling as the other two reports (_repPersonDays) — Vacant slots and people
       // with no working days in the range are dropped, leavers inside the range are kept and flagged.
       // Activity counts are NOT trimmed to the working days: logged work is real work.
@@ -4482,11 +4574,14 @@ async function runReport() {
         const pd = _repPersonDays(x.p, dates); if (!pd) return;
         const cells = COL.map(k=>x[k]);
         const total = cells.reduce((s,n)=>s+n,0) + x.pcm;
-        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, ...cells, x.converted, x.convValue, x.pcm, total]);
+        // v4.66: Unique dealers / Repeat visits re-describe the Dealer visits already inside Total
+        // (unique + repeat = visits), so like Converted they stay out of it.
+        x.dealerKeySet.forEach(k=>teamDealers.add(k));
+        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, ...cells.slice(0,4), x.uniqueDealers, x.repeatVisits, ...cells.slice(4), x.converted, x.convValue, x.pcm, total]);
       });
       rows.sort((a,b)=>b[b.length-1]-a[a.length-1]);
       const H = ['Name','Role','Region','Status','New sites','Existing sites','Site updates',
-                 'Dealer','Contractor','Influencer','Work along','Office','Other',
+                 'Dealer visits','Unique dealers','Repeat visits','Contractor','Influencer','Work along','Office','Other',
                  'Converted','Conv. value','PCM meets','Total'];
       const at = name => H.indexOf(name);
       const tot=(name)=>rows.reduce((s,r)=>s+r[at(name)],0);
@@ -4498,7 +4593,9 @@ async function runReport() {
       html = `<div class="stats-row">`
         + card('New sites', tot('New sites'), 'green')
         + card('Existing sites', tot('Existing sites'))
-        + card('Dealer', tot('Dealer'))
+        + card('Dealer visits', tot('Dealer visits'))
+        + card('Unique dealers', teamDealers.size)
+        + card('Visited 2+ times', _repDealers.filter(d=>teamDealers.has(d.key) && d.visits>1).length)
         + card('Contractor', tot('Contractor'))
         + card('Influencer', tot('Influencer'))
         + card('Work along', tot('Work along'))
