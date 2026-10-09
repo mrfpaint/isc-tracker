@@ -1550,9 +1550,10 @@
           <div class="form-group"><label class="form-label" id="entry-docnum-label">Billing / Invoice Number</label><input type="text" class="form-input" id="entry-sapref" placeholder="Select a document type first"></div>
           <!-- v4.67: invoice images — the value below is what AI reads off these, not a typed figure -->
           <div class="form-group">
-            <label class="form-label">Invoice Images * <span style="color:var(--gray);font-size:11px">(one photo per invoice)</span></label>
-            <input type="file" id="entry-invoice" accept="image/*" capture="environment" multiple style="display:none" onchange="invoicePicked(this)">
-            <button type="button" id="entry-invoice-btn" onclick="document.getElementById('entry-invoice').click()" style="width:100%;padding:11px;background:#fff;border:1.5px dashed #86efac;border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">🧾 Take / attach invoice photo</button>
+            <label class="form-label">Invoices * <span style="color:var(--gray);font-size:11px">(photo or PDF, one per invoice)</span></label>
+            <!-- no capture attribute: it forces the camera on phones and hides the option to pick a PDF -->
+            <input type="file" id="entry-invoice" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="invoicePicked(this)">
+            <button type="button" id="entry-invoice-btn" onclick="document.getElementById('entry-invoice').click()" style="width:100%;padding:11px;background:#fff;border:1.5px dashed #86efac;border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">🧾 Take photo / attach invoice PDF</button>
             <div id="entry-invoice-list" style="margin-top:8px"></div>
           </div>
           <div class="form-group"><label class="form-label" id="entry-docvalue-label">Billing / Invoice Value (₹)</label><input type="number" class="form-input" id="entry-docvalue" inputmode="numeric" readonly style="background:#f9fafb" placeholder="Calculated from the invoice images"></div>
@@ -5767,6 +5768,25 @@ function resetInvoices(refId) {
   const inp=document.getElementById('entry-invoice'); if (inp) inp.value='';
   renderInvoiceList();
 }
+// Invoices may be PDFs (what dealers usually send on WhatsApp / email). They go up as they are — no
+// resizing — and the photos worker hands them to Claude as a document.
+const isPdfFile = f => /pdf/i.test(String(f.type||'')) || /\.pdf$/i.test(String(f.name||''));
+const isPdfKey = k => /\.pdf$/i.test(String(k||''));
+function readPdfInvoice(file) {
+  if (file.size > 4*1024*1024) return Promise.reject(new Error(`This PDF is ${Math.round(file.size/1024/1024*10)/10} MB — the limit is 4 MB. Attach a photo of the invoice instead.`));
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).replace(/^data:[^;,]*;base64,/, 'data:application/pdf;base64,'));   // some laptops report no type for a PDF
+    r.onerror = () => rej(r.error || new Error('the PDF could not be read'));
+    r.readAsDataURL(file);
+  });
+}
+// Thumbnail for an invoice in the form / detail view: the photo itself, or a PDF tile that opens the file.
+function invoiceThumb(key, big) {
+  const url = PHOTOS_WORKER_URL+'/img/'+encodeURIComponent(key);
+  if (isPdfKey(key)) return `<a href="${url}" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;${big?'padding:14px 18px;font-size:14px':'width:44px;height:44px;font-size:20px'};background:#fef2f2;border:1px solid #fecaca;border-radius:8px;text-decoration:none;color:#b91c1c">📄${big?' Open invoice PDF':''}</a>`;
+  return `<a href="${url}" target="_blank"><img src="${url}" ${big?'loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--border)"':'style="width:44px;height:44px;object-fit:cover;border-radius:6px"'}></a>`;
+}
 function invoiceTotal() { return _invoices.reduce((s,i)=>s+(Number(i.extract&&i.extract.total_amount)||0),0); }
 // v4.67: an ISC may only claim a conversion on invoices raised by a dealer assigned to them (the dealer
 // codes on their ISC record). The dealer code is read off the invoice by the photos worker. Codes are
@@ -5788,7 +5808,7 @@ function renderInvoiceList() {
   el.innerHTML = _invoices.map(i=>{
     const x = i.extract||{}, amt = Number(x.total_amount)||0;
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:6px;background:#fff;border:1px solid #bbf7d0;border-radius:8px">
-      <a href="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" target="_blank"><img src="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px"></a>
+      ${invoiceThumb(i.key)}
       <div style="flex:1;font-size:12px">${amt?`<strong>₹${amt.toLocaleString('en-IN')}</strong>`:'<strong style="color:#b45309">⚠️ Amount not readable — retake a clearer photo</strong>'}
         <div style="color:var(--gray)">${escapeHtml([x.invoice_number?'No. '+x.invoice_number:'', x.dealer_code?'Dealer '+x.dealer_code:'', x.invoice_date||'', x.seller||''].filter(Boolean).join(' · ') || x.summary || '')}</div>
         ${invoiceDealerProblem(x)?`<div style="color:#b91c1c">⛔ ${escapeHtml(invoiceDealerProblem(x))}</div>`:''}</div>
@@ -5798,7 +5818,7 @@ function renderInvoiceList() {
   const total = invoiceTotal();
   sv('entry-docvalue', total ? String(total) : '');
   const btn = document.getElementById('entry-invoice-btn');
-  if (btn) btn.textContent = _invoices.length ? '🧾 Add another invoice photo' : '🧾 Take / attach invoice photo';
+  if (btn) btn.textContent = _invoices.length ? '🧾 Add another invoice (photo or PDF)' : '🧾 Take photo / attach invoice PDF';
 }
 async function invoicePicked(input) {
   // The picker is cleared only AFTER every file has been read: on many Android phones clearing it first
@@ -5809,7 +5829,8 @@ async function invoicePicked(input) {
   _invoiceBusy += files.length; renderInvoiceList();
   for (const f of files) await (async()=>{
     try {
-      const image = await compressImage(f, 1800, 0.85);   // larger than site photos so the figures stay legible
+      const image = isPdfFile(f) ? await readPdfInvoice(f)
+                  : await compressImage(f, 1800, 0.85);   // larger than site photos so the figures stay legible
       const r = await fetch(PHOTOS_WORKER_URL+'/invoice', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({refId:_invoiceRefId, empId:currentUser.id, empName:currentUser.name, image})
@@ -5940,7 +5961,7 @@ async function loadDetailInvoices(refId) {
     el.innerHTML = `<div class="detail-label" style="margin:10px 0 6px">🧾 Invoices — ₹${total.toLocaleString('en-IN')} from ${list.length} image${list.length>1?'s':''}</div>` + list.map(i=>{
       const x = i.extract||{}, amt = Number(x.total_amount)||0;
       return `<div style="margin-bottom:12px">
-        <a href="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" target="_blank"><img src="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--border)"></a>
+        ${invoiceThumb(i.key, true)}
         <div style="font-size:12px;margin-top:4px">${amt?'₹'+amt.toLocaleString('en-IN'):'⚠️ amount not readable'}${x.invoice_number?' · No. '+escapeHtml(String(x.invoice_number)):''}${x.dealer_code?' · Dealer '+escapeHtml(String(x.dealer_code)):''}${x.invoice_date?' · '+escapeHtml(String(x.invoice_date)):''}${x.seller?' · '+escapeHtml(String(x.seller)):''}</div>
       </div>`;
     }).join('');
@@ -6283,7 +6304,7 @@ function validateWizardStep() {
     // v4.67: a conversion is only counted on the strength of its invoices
     if (gv('entry-status')==='Confirmed') {
       if (_invoiceBusy) { showToast('⏳ Please wait — the invoice is still being read'); return false; }
-      if (!_invoices.length) { showToast('⚠️ Site Converted — please take a photo of the invoice'); return false; }
+      if (!_invoices.length) { showToast('⚠️ Site Converted — please attach the invoice (photo or PDF)'); return false; }
       if (_invoices.some(i=>!(Number(i.extract&&i.extract.total_amount)>0))) { showToast('⚠️ The amount on one invoice could not be read — remove it and retake a clearer photo'); return false; }
       // Also catches invoices attached before an ISC's dealer list changed, when an entry is edited
       const badInv = _invoices.map(i=>invoiceDealerProblem(i.extract)).find(Boolean);

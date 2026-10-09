@@ -15,7 +15,7 @@
 //                 → stores photo + verdict → {ok, key, verdict}
 //  GET  /photos?refId=E123   → [{key, ts, empName, verdict, ...}] newest first
 //  GET  /img/<key>           → serves the image
-//  POST /invoice  {refId, empId, empName, image}   (v4.67)
+//  POST /invoice  {refId, empId, empName, image}   (v4.67; image = a photo or a PDF data URL)
 //                 → stores the invoice image + the amount Claude reads off it → {ok, key, ts, extract}
 //                   extract = {is_invoice, invoice_number, invoice_date, seller, dealer_code, total_amount, summary}
 //  GET  /invoices?refId=E123 → [{key, ts, empName, extract}] oldest first, removed ones left out
@@ -105,14 +105,15 @@ Only include flags that actually apply (empty array if none). "plausible" = a ge
 async function uploadInvoice(request, env) {
   const {refId, empId, empName, image} = await request.json();
   if (!refId || !image) return json({error:'refId and image required'}, 400);
-  const m = /^data:(image\/\w+);base64,(.+)$/s.exec(image);
-  if (!m) return json({error:'image must be a base64 data URL'}, 400);
+  // An invoice can be a photo or the PDF the dealer sent (WhatsApp / email) — Claude reads both.
+  const m = /^data:(image\/\w+|application\/pdf);base64,(.+)$/s.exec(image);
+  if (!m) return json({error:'invoice must be an image or a PDF (base64 data URL)'}, 400);
   const [, mime, b64] = m;
-  if (b64.length > 6*1024*1024) return json({error:'image too large (max ~4MB)'}, 400);
+  if (b64.length > 6*1024*1024) return json({error:'file too large (max ~4MB)'}, 400);
 
   const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
   const ts = Date.now();
-  const key = `inv/${refId}/${ts}.jpg`;
+  const key = `inv/${refId}/${ts}.${mime==='application/pdf' ? 'pdf' : 'jpg'}`;
   await env.PHOTOS.put(key, bytes, {httpMetadata:{contentType: mime}});
 
   let extract;
@@ -125,7 +126,7 @@ async function uploadInvoice(request, env) {
 }
 
 async function aiInvoice(env, mime, b64) {
-  const prompt = `This photo should be a sales invoice or bill for paint products (Indian GST invoice, amounts in rupees).
+  const prompt = `This photo or PDF should be a sales invoice or bill for paint products (Indian GST invoice, amounts in rupees).
 Read it and reply with ONLY this JSON, nothing else:
 {"is_invoice":true/false,
  "invoice_number":"as printed, or null",
@@ -147,7 +148,9 @@ GSTIN, HSN code or invoice number as the dealer code; if no clearly labelled dea
       model: env.INVOICE_MODEL || env.MODEL || 'claude-haiku-4-5',
       max_tokens: 300,
       messages: [{role:'user', content: [
-        {type:'image', source:{type:'base64', media_type:mime, data:b64}},
+        mime==='application/pdf'
+          ? {type:'document', source:{type:'base64', media_type:mime, data:b64}}
+          : {type:'image', source:{type:'base64', media_type:mime, data:b64}},
         {type:'text', text: prompt}
       ]}]
     })
