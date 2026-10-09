@@ -290,7 +290,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.66</div>
+        <div class="auth-tagline">FIELD ONE · v4.67</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1421,7 +1421,7 @@
           <div id="gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Site Photo <span style="color:var(--gray);font-size:11px">(optional · AI-verified)</span></label>
+          <label class="form-label">Site Photo * <span style="color:var(--gray);font-size:11px">(AI-verified)</span></label>
           <input type="file" id="entry-photo" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this,'entry-photo-status','entry-photo-btn')">
           <button type="button" id="entry-photo-btn" onclick="document.getElementById('entry-photo').click()" style="width:100%;padding:11px;background:#f9fafb;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">📸 Take / attach site photo</button>
           <div id="entry-photo-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
@@ -1548,7 +1548,14 @@
             </select>
           </div>
           <div class="form-group"><label class="form-label" id="entry-docnum-label">Billing / Invoice Number</label><input type="text" class="form-input" id="entry-sapref" placeholder="Select a document type first"></div>
-          <div class="form-group"><label class="form-label" id="entry-docvalue-label">Billing / Invoice Value (₹)</label><input type="number" class="form-input" id="entry-docvalue" inputmode="numeric" placeholder="Select a document type first"></div>
+          <!-- v4.67: invoice images — the value below is what AI reads off these, not a typed figure -->
+          <div class="form-group">
+            <label class="form-label">Invoice Images * <span style="color:var(--gray);font-size:11px">(one photo per invoice)</span></label>
+            <input type="file" id="entry-invoice" accept="image/*" capture="environment" multiple style="display:none" onchange="invoicePicked(this)">
+            <button type="button" id="entry-invoice-btn" onclick="document.getElementById('entry-invoice').click()" style="width:100%;padding:11px;background:#fff;border:1.5px dashed #86efac;border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">🧾 Take / attach invoice photo</button>
+            <div id="entry-invoice-list" style="margin-top:8px"></div>
+          </div>
+          <div class="form-group"><label class="form-label" id="entry-docvalue-label">Billing / Invoice Value (₹)</label><input type="number" class="form-input" id="entry-docvalue" inputmode="numeric" readonly style="background:#f9fafb" placeholder="Calculated from the invoice images"></div>
         </div>
       </div>
 
@@ -2039,6 +2046,12 @@
         <button type="button" onclick="captureGPSInto('as-gps','as-gps-status','as-gps-btn')" id="as-gps-btn" style="padding:10px 14px;background:var(--dark);color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0">📍</button>
       </div>
       <div id="as-gps-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Site Photo * <span style="color:var(--gray);font-size:11px">(AI-verified)</span></label>
+      <input type="file" id="as-photo" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this,'as-photo-status','as-photo-btn')">
+      <button type="button" id="as-photo-btn" onclick="document.getElementById('as-photo').click()" style="width:100%;padding:11px;background:#f9fafb;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">📸 Take / attach site photo</button>
+      <div id="as-photo-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
     </div>
     <div class="form-group"><label class="form-label">Building Type</label><select class="form-select" id="as-buildtype">
       <option value="">— Select —</option>
@@ -3225,7 +3238,7 @@ const ENTRIES_HEADERS = ['id','iscId','iscName','asmId','asmName','stName','bdoN
   'buildType','siteStage','area','paintDate','competitor','leadDate','sampleDate','conversionDate',
   'paintSystem','products','sampleMaterials','orderDetails',
   'siteValue','dealerCode','dealerName','contractor','contractorPhone','painter','painterPhone','status','remarks','sapRef',
-  'createdAt','updatedAt','siteStatus','refDocType','refDocValue'];
+  'createdAt','updatedAt','siteStatus','refDocType','refDocValue','invoiceValue','invoiceCount'];   // v4.67: invoice-backed conversion value
 
 // Overwrites row 1 of a sheet with the given header list — used to fix a sheet whose columns have drifted from what the app expects.
 async function repairSheetHeaders(sheetName, headers) {
@@ -4233,7 +4246,7 @@ async function _repLoadData(dates) {
 
   const map = {};   // pid -> {p, att:{date:status}, attTime:{date:check-in time}, actDates:Set, one counter per report column}
   people.forEach(p=>{ map[String(p.id)] = {p, att:{}, attTime:{}, actDates:new Set(), dealerKeySet:new Set(), uniqueDealers:0, repeatVisits:0, newSites:0, existingSites:0, updates:0,
-    dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, pcm:0}; });
+    dealer:0, contractor:0, influencer:0, workAlong:0, office:0, other:0, converted:0, convValue:0, convNoInvoice:0, pcm:0}; });
   // Name lookups, used only when a record's ids match nobody. SKIP blank names: a nameless person
   // would otherwise become the catch-all for every record whose name fields are blank (the "6031
   // visits on a nameless row" bug). byName is keyed by LEVEL so that people who share a name across
@@ -4274,7 +4287,12 @@ async function _repLoadData(dates) {
         const convD = String(e.conversionDate||'').slice(0,10) || ud || cd;
         if (dateSet.has(convD)) {
           map[pid].converted++;
-          map[pid].convValue += Number(e.refDocValue)||Number(e.siteValue)||0;   // actual billed value, est. site value as fallback
+          // v4.67: invoice-backed value only — the sum of the amounts read off the entry's invoice images.
+          // No fallback to the estimated site value or a typed figure; a conversion without invoice
+          // images adds nothing here and is counted in convNoInvoice instead, so the gap stays visible.
+          const inv = Number(e.invoiceValue)||0;
+          map[pid].convValue += inv;
+          if (!inv) map[pid].convNoInvoice++;
         }
       }
     }
@@ -4570,8 +4588,10 @@ async function runReport() {
       // with no working days in the range are dropped, leavers inside the range are kept and flagged.
       // Activity counts are NOT trimmed to the working days: logged work is real work.
       const rows = [];
+      let noInvoice = 0;   // v4.67: conversions in range with no invoice images behind them (worth ₹0 in Conv. value)
       persons.forEach(x=>{
         const pd = _repPersonDays(x.p, dates); if (!pd) return;
+        noInvoice += x.convNoInvoice||0;
         const cells = COL.map(k=>x[k]);
         const total = cells.reduce((s,n)=>s+n,0) + x.pcm;
         // v4.66: Unique dealers / Repeat visits re-describe the Dealer visits already inside Total
@@ -4602,8 +4622,9 @@ async function runReport() {
         + card('Office', tot('Office'))
         + card('PCM meets', tot('PCM meets'))
         + card('Converted', tot('Converted'), 'green')
-        + `<div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value</div></div>`
+        + `<div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value (from invoices)</div></div>`
         + `</div>`
+        + (noInvoice ? `<div class="alert alert-info" style="margin-bottom:12px">🧾 Conv. value is the total read from invoice images. ${noInvoice} conversion${noInvoice>1?'s':''} in this range ${noInvoice>1?'have':'has'} no invoice image and ${noInvoice>1?'are':'is'} counted at ₹0 — open the entry and attach the invoice to include it.</div>` : '')
         + _repTable(H, dispRows);
     }
 
@@ -4864,6 +4885,7 @@ async function openActivityForm(type) {
     document.getElementById('as-gps-status').textContent='';
     document.getElementById('as-title').textContent = 'Log Site Visit';
     sv('as-visitdate', todayStr());
+    resetSitePhoto();   // v4.67: photo is mandatory
     openModal('modal-activity-site');
     return;
   }
@@ -4941,6 +4963,7 @@ function editActivity(id) {
     sv('as-gps', a.gps||'');
     const g=document.getElementById('as-gps'); if(g){ if(a.gpsRaw) g.dataset.raw=a.gpsRaw; else delete g.dataset.raw; }
     document.getElementById('as-gps-status').textContent='';
+    resetSitePhoto(); checkPhotoOnFile(a.id, 'as-photo-status');   // v4.67
     openModal('modal-activity-site');
     return;
   }
@@ -5105,12 +5128,16 @@ async function saveActivitySite() {
   if (!siteName) return showToast('⚠️ Site / project name is required');
   if (!address) return showToast('⚠️ Site address is required');
   if (!visitDate) return showToast('⚠️ Visit date is required');
+  if (needSitePhoto()) return showToast('⚠️ Please take a site photo — it is required for every site visit');   // v4.67
+  const photoClaim = {siteName, buildType:gv('as-buildtype'), siteStage:gv('as-sitestage'), address};
 
   // Edit mode — patch the original row instead of appending.
   const editId = gv('as-activity-id');
   if (editId) {
     setLoading(true,'Updating activity...');
     try {
+      if (!(await uploadPhotoBeforeSave(editId, photoClaim))) return;
+      setLoading(true,'Updating activity...');
       await DATA_updateActivity(activitySheetFor(currentUser), editId, {
         visitDate,
         gps: gv('as-gps'), gpsRaw: document.getElementById('as-gps')?.dataset.raw || '',
@@ -5133,8 +5160,11 @@ async function saveActivitySite() {
 
   setLoading(true,'Saving activity...');
   try {
+    const base = baseActivityRow('Site');   // its id is what the photo is filed under
+    if (!(await uploadPhotoBeforeSave(base.id, photoClaim))) return;
+    setLoading(true,'Saving activity...');
     await DATA_addActivity(activitySheetFor(currentUser), {
-      ...baseActivityRow('Site'),
+      ...base,
       visitDate,
       gps: gv('as-gps'), gpsRaw: document.getElementById('as-gps')?.dataset.raw || '',
       remarks: gv('as-remarks').trim(),
@@ -5247,6 +5277,7 @@ async function renderMyActivity() {
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <span class="status-badge" style="background:#e0e7ff;color:#3730a3">${escapeHtml(a.activityType||'')}</span>
             <button type="button" onclick="editActivity('${escapeHtml(String(a.id))}')" style="padding:4px 10px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px">✏️ Edit</button>
+            ${isSite?`<button type="button" onclick="showActivityPhotos('${escapeHtml(String(a.id))}')" style="padding:4px 10px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px">📸 Photo</button>`:''}
           </div>
         </div>
         <div class="entry-sub" style="margin-top:8px">📅 ${escapeHtml(a.visitDate||'')}${a.isNewParty==='Yes'?' · 🆕 New':''}${a.gps?' · 📍 '+escapeHtml(a.gps):''}</div>
@@ -5681,12 +5712,141 @@ function syncDocNumberField() {
 function closeWizard() { document.getElementById('wizard-entry').classList.remove('show'); resetSitePhoto(); }
 
 // ── SITE PHOTO — capture, client-side compression, AI verification via the mrf-photos worker ──
+// v4.67: a site photo is MANDATORY on every site visit (ISC wizard and the ST/BDO Site form), New or
+// Existing site alike. Editing a visit that already has a photo on file does not ask for another one.
+// The photo is uploaded BEFORE the visit is saved, so a failed upload stops the save instead of
+// leaving a visit with no photo behind it.
 let _pendingPhoto = null;   // compressed JPEG dataURL awaiting upload with the next saved entry
+let _photoOnFile = false;   // the visit being edited already has a site photo (set by checkPhotoOnFile)
 function resetSitePhoto() {
-  _pendingPhoto = null;
-  const inp=document.getElementById('entry-photo'); if (inp) inp.value='';
-  const btn=document.getElementById('entry-photo-btn'); if (btn) btn.textContent='📸 Take / attach site photo';
-  const st=document.getElementById('entry-photo-status'); if (st) st.textContent='';
+  _pendingPhoto = null; _photoOnFile = false;
+  [['entry-photo','entry-photo-btn','entry-photo-status'],['as-photo','as-photo-btn','as-photo-status']].forEach(([i,b,s])=>{
+    const inp=document.getElementById(i); if (inp) inp.value='';
+    const btn=document.getElementById(b); if (btn) btn.textContent='📸 Take / attach site photo';
+    const st=document.getElementById(s); if (st) st.textContent='';
+  });
+}
+// Edit mode: looks up whether this visit already has a photo. If the photos worker cannot be reached the
+// edit is not blocked (the visit was saved with a photo under v4.67 rules, or predates them).
+async function checkPhotoOnFile(refId, statusId) {
+  _photoOnFile = false;
+  try {
+    const r = await fetch(PHOTOS_WORKER_URL+'/photos?refId='+encodeURIComponent(refId));
+    const list = r.ok ? await r.json() : null;
+    _photoOnFile = Array.isArray(list) ? list.length>0 : true;
+  } catch(e) { _photoOnFile = true; }
+  const st = document.getElementById(statusId);
+  if (st && !_pendingPhoto) st.textContent = _photoOnFile ? '✅ Site photo already on file — add another only if needed' : '⚠️ No site photo on file for this visit — please take one';
+}
+function needSitePhoto() { return !_pendingPhoto && !_photoOnFile; }
+// Uploads the pending photo ahead of the save. Returns false (with a toast) if it could not be stored.
+async function uploadPhotoBeforeSave(refId, claim) {
+  if (!_pendingPhoto) return true;
+  try {
+    setLoading(true,'Uploading site photo...');
+    const res = await uploadSitePhoto(refId, claim);
+    const v = res && res.verdict;
+    if (v) showToast(v.verdict==='plausible' ? `📸 ✅ Photo verified — ${v.summary||'genuine site'}` : `📸 ⚠️ Photo flagged — ${v.summary||v.verdict}`);
+    _photoOnFile = true;
+    return true;
+  } catch(e) {
+    setLoading(false);
+    showToast('⚠️ Site photo could not be uploaded ('+e.message+') — check the internet and save again');
+    return false;
+  }
+}
+
+// ── INVOICE IMAGES (v4.67) ── When a site is marked Converted, each invoice is photographed here. The
+// photos worker reads the grand total off every image, and the Invoice Value field (read-only) is their
+// sum — that is the conversion value the Field activity summary reports, never the estimated site value.
+let _invoiceRefId = '';     // the entry id the invoices hang off (pre-assigned for a new entry)
+let _invoices = [];         // [{ts, key, extract}] for this entry
+let _invoiceBusy = 0;       // uploads still being read
+function resetInvoices(refId) {
+  _invoiceRefId = refId; _invoices = []; _invoiceBusy = 0;
+  const inp=document.getElementById('entry-invoice'); if (inp) inp.value='';
+  renderInvoiceList();
+}
+function invoiceTotal() { return _invoices.reduce((s,i)=>s+(Number(i.extract&&i.extract.total_amount)||0),0); }
+// v4.67: an ISC may only claim a conversion on invoices raised by a dealer assigned to them (the dealer
+// codes on their ISC record). The dealer code is read off the invoice by the photos worker. Codes are
+// compared ignoring spaces, punctuation, case and leading zeros ("012345" = "12345").
+const normDealerCode = c => String(c||'').toUpperCase().replace(/[^0-9A-Z]/g,'').replace(/^0+(?=\d)/,'');
+function myDealerCodes() { return String(currentUser.dealerCodes||'').split(',').map(normDealerCode).filter(Boolean); }
+// '' when the invoice is acceptable, otherwise the reason it is not. Only ISCs are restricted.
+function invoiceDealerProblem(extract) {
+  if (!currentUser || currentUser.role!=='isc') return '';
+  const mine = myDealerCodes();
+  if (!mine.length) return 'No dealer codes are assigned to you — ask your ASM to add them before uploading invoices';
+  const code = normDealerCode(extract && extract.dealer_code);
+  if (!code) return 'The dealer code could not be read on this invoice — retake a clearer photo showing the dealer code';
+  if (!mine.includes(code)) return `This invoice is from dealer code ${extract.dealer_code}, which is not assigned to you (yours: ${String(currentUser.dealerCodes).split(',').map(c=>c.trim()).filter(Boolean).join(', ')})`;
+  return '';
+}
+function renderInvoiceList() {
+  const el = document.getElementById('entry-invoice-list'); if (!el) return;
+  el.innerHTML = _invoices.map(i=>{
+    const x = i.extract||{}, amt = Number(x.total_amount)||0;
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:6px;background:#fff;border:1px solid #bbf7d0;border-radius:8px">
+      <a href="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" target="_blank"><img src="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px"></a>
+      <div style="flex:1;font-size:12px">${amt?`<strong>₹${amt.toLocaleString('en-IN')}</strong>`:'<strong style="color:#b45309">⚠️ Amount not readable — retake a clearer photo</strong>'}
+        <div style="color:var(--gray)">${escapeHtml([x.invoice_number?'No. '+x.invoice_number:'', x.dealer_code?'Dealer '+x.dealer_code:'', x.invoice_date||'', x.seller||''].filter(Boolean).join(' · ') || x.summary || '')}</div>
+        ${invoiceDealerProblem(x)?`<div style="color:#b91c1c">⛔ ${escapeHtml(invoiceDealerProblem(x))}</div>`:''}</div>
+      <button type="button" class="btn-remove-row" onclick="removeInvoice(${Number(i.ts)})" style="flex-shrink:0">×</button>
+    </div>`;
+  }).join('') + (_invoiceBusy ? `<div style="font-size:12px;color:var(--gray)">⏳ Reading ${_invoiceBusy} invoice${_invoiceBusy>1?'s':''}...</div>` : '');
+  const total = invoiceTotal();
+  sv('entry-docvalue', total ? String(total) : '');
+  const btn = document.getElementById('entry-invoice-btn');
+  if (btn) btn.textContent = _invoices.length ? '🧾 Add another invoice photo' : '🧾 Take / attach invoice photo';
+}
+async function invoicePicked(input) {
+  const files = [...(input.files||[])]; input.value='';
+  if (!files.length || !_invoiceRefId) return;
+  _invoiceBusy += files.length; renderInvoiceList();
+  await Promise.all(files.map(async f=>{
+    try {
+      const image = await compressImage(f, 1800, 0.85);   // larger than site photos so the figures stay legible
+      const r = await fetch(PHOTOS_WORKER_URL+'/invoice', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({refId:_invoiceRefId, empId:currentUser.id, empName:currentUser.name, image})
+      });
+      if (!r.ok) throw new Error('upload failed ('+r.status+')');
+      const d = await r.json(); if (d.error) throw new Error(d.error);
+      if (!d.key) throw new Error('the photos worker has not been updated for invoices yet');
+      // Another dealer's invoice is taken straight back out, so it never counts towards the value
+      const bad = invoiceDealerProblem(d.extract);
+      if (bad) {
+        fetch(PHOTOS_WORKER_URL+'/invoice/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refId:_invoiceRefId, ts:d.ts})}).catch(()=>{});
+        alert('🧾 Invoice not accepted\n\n'+bad);
+        return;
+      }
+      _invoices.push({ts:d.ts, key:d.key, extract:d.extract||{}});
+      // Fill the document number / type from what was read, unless the person already typed one
+      const x = d.extract||{};
+      if (x.invoice_number && !gv('entry-sapref').trim()) { sv('entry-sapref', String(x.invoice_number)); if (!gv('entry-doctype')) { sv('entry-doctype','Invoice Number'); syncDocNumberField(); } }
+    } catch(e) { showToast('⚠️ Invoice could not be uploaded: '+e.message); }
+    finally { _invoiceBusy--; renderInvoiceList(); }
+  }));
+}
+async function removeInvoice(ts) {
+  if (!confirm('Remove this invoice image? Its amount will no longer count.')) return;
+  try {
+    const r = await fetch(PHOTOS_WORKER_URL+'/invoice/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refId:_invoiceRefId, ts})});
+    if (!r.ok) throw new Error('('+r.status+')');
+    _invoices = _invoices.filter(i=>Number(i.ts)!==Number(ts)); renderInvoiceList();
+  } catch(e) { showToast('⚠️ Could not remove invoice '+e.message); }
+}
+async function fetchInvoices(refId) {
+  const r = await fetch(PHOTOS_WORKER_URL+'/invoices?refId='+encodeURIComponent(refId));
+  if (!r.ok) throw new Error('('+r.status+')');
+  const list = await r.json();
+  return Array.isArray(list) ? list : [];
+}
+async function loadEntryInvoices(refId) {
+  // An entry from before v4.67 has no invoice images — its typed value is left showing until one is added.
+  try { const list = await fetchInvoices(refId); if (_invoiceRefId===refId && list.length) { _invoices = list; renderInvoiceList(); } }
+  catch(e) { /* leave the list empty; the person can re-attach */ }
 }
 async function photoPicked(input, statusId, btnId) {
   const f = input.files && input.files[0];
@@ -5747,6 +5907,32 @@ async function loadDetailPhotos(refId) {
     }).join('');
   } catch(e) { /* photos are best-effort — never break the detail view */ }
 }
+// v4.67: the invoice images behind a converted entry, each with the amount read off it.
+async function loadDetailInvoices(refId) {
+  const el = document.getElementById('detail-invoices'); if (!el) return;
+  try {
+    const list = await fetchInvoices(refId);
+    if (!list.length) return;
+    const total = list.reduce((s,i)=>s+(Number(i.extract&&i.extract.total_amount)||0),0);
+    el.innerHTML = `<div class="detail-label" style="margin:10px 0 6px">🧾 Invoices — ₹${total.toLocaleString('en-IN')} from ${list.length} image${list.length>1?'s':''}</div>` + list.map(i=>{
+      const x = i.extract||{}, amt = Number(x.total_amount)||0;
+      return `<div style="margin-bottom:12px">
+        <a href="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" target="_blank"><img src="${PHOTOS_WORKER_URL}/img/${encodeURIComponent(i.key)}" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--border)"></a>
+        <div style="font-size:12px;margin-top:4px">${amt?'₹'+amt.toLocaleString('en-IN'):'⚠️ amount not readable'}${x.invoice_number?' · No. '+escapeHtml(String(x.invoice_number)):''}${x.dealer_code?' · Dealer '+escapeHtml(String(x.dealer_code)):''}${x.invoice_date?' · '+escapeHtml(String(x.invoice_date)):''}${x.seller?' · '+escapeHtml(String(x.seller)):''}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { /* best-effort, like the photos */ }
+}
+// v4.67: the site photo(s) of an ST/BDO Site activity, in the same Detail sheet the ISC entries use.
+function showActivityPhotos(id) {
+  document.getElementById('modal-detail-body').innerHTML = '<div id="detail-photos"><div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading photos...</div></div>';
+  document.getElementById('modal-detail-actions').innerHTML = `<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
+  openModal('modal-detail');
+  loadDetailPhotos(id).then(()=>{
+    const el = document.getElementById('detail-photos');
+    if (el && el.textContent.includes('Loading photos')) el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">No site photo on file for this visit</div>';
+  });
+}
 
 // Resets every wizard field/step back to blank and opens it fresh — this is the "+" FAB button's handler for logging a brand-new site visit.
 function showNewEntryModal() {
@@ -5764,6 +5950,8 @@ function showNewEntryModal() {
   sv('entry-custtype','');sv('entry-reftype','');sv('entry-status','Pending');
   sv('entry-sitestatus','');
   sv('entry-edit-id','');
+  resetSitePhoto();
+  resetInvoices('E'+Date.now());   // v4.67: the new entry's id, fixed now so invoices can be attached before it is saved
   document.getElementById('wizard-title').textContent='Log Site Visit';
   document.getElementById('wizard-next-btn').textContent='Next →';
   // Reset product rows
@@ -5781,6 +5969,8 @@ function showEditModal(id) {
   if (!e) return;
   _wizardStep = 0;
   sv('entry-edit-id',id);
+  resetSitePhoto(); checkPhotoOnFile(id, 'entry-photo-status');   // v4.67
+  resetInvoices(id); loadEntryInvoices(id);
   sv('entry-customer',e.customer);sv('entry-custphone',e.custPhone||'');
   sv('entry-sitestatus',e.siteStatus||'');
   sv('entry-custtype',e.custType);sv('entry-reftype',e.refType);
@@ -6040,6 +6230,7 @@ function validateWizardStep() {
       document.getElementById('gps-status').innerHTML = '⚠️ No GPS captured — location will not be recorded.';
       // Don't return false — allow proceeding without GPS
     }
+    if (needSitePhoto()) { showToast('⚠️ Please take a site photo — it is required for every site visit'); return false; }   // v4.67
     if (!gv('entry-buildtype')) { showToast('⚠️ Please select building type'); return false; }
     if (!gv('entry-sitestage')) { showToast('⚠️ Please select site stage'); return false; }
     if (!gv('entry-leaddate')) { showToast('⚠️ Lead date is required'); return false; }
@@ -6066,6 +6257,15 @@ function validateWizardStep() {
     if (docType && !docNum) { showToast(`⚠️ Please enter the ${docType.toLowerCase()}`); return false; }
     if (docNum && !docType) { showToast('⚠️ Please select whether that is a billing or invoice number'); return false; }
     if (gv('entry-docvalue') && !docNum) { showToast('⚠️ Please enter the document number that value belongs to'); return false; }
+    // v4.67: a conversion is only counted on the strength of its invoices
+    if (gv('entry-status')==='Confirmed') {
+      if (_invoiceBusy) { showToast('⏳ Please wait — the invoice is still being read'); return false; }
+      if (!_invoices.length) { showToast('⚠️ Site Converted — please take a photo of the invoice'); return false; }
+      if (_invoices.some(i=>!(Number(i.extract&&i.extract.total_amount)>0))) { showToast('⚠️ The amount on one invoice could not be read — remove it and retake a clearer photo'); return false; }
+      // Also catches invoices attached before an ISC's dealer list changed, when an entry is edited
+      const badInv = _invoices.map(i=>invoiceDealerProblem(i.extract)).find(Boolean);
+      if (badInv) { showToast('⚠️ '+badInv+' — remove that invoice'); return false; }
+    }
   }
   return true;
 }
@@ -6112,6 +6312,7 @@ function buildReview() {
       <div class="review-row"><div class="review-label">Status</div><div class="review-value">${siteStatusBadge(gv('entry-status'))}</div></div>
       ${gv('entry-sapref').trim()?`<div class="review-row"><div class="review-label">${gv('entry-doctype')||'Reference'}</div><div class="review-value">${escapeHtml(gv('entry-sapref').trim())}</div></div>`:''}
       ${gv('entry-docvalue')?`<div class="review-row"><div class="review-label">${(gv('entry-doctype')||'').replace(/ Number$/,'')||'Document'} Value</div><div class="review-value">₹${Number(gv('entry-docvalue')).toLocaleString('en-IN')}</div></div>`:''}
+      ${gv('entry-status')==='Confirmed'&&_invoices.length?`<div class="review-row"><div class="review-label">Invoice images</div><div class="review-value">🧾 ${_invoices.length} · value read from the invoices</div></div>`:''}
       ${gv('entry-remarks')?`<div class="review-row"><div class="review-label">Remarks</div><div class="review-value">${gv('entry-remarks')}</div></div>`:''}
     </div>`;
 }
@@ -6126,7 +6327,7 @@ async function saveEntry() {
     if(n) products.push({name:n,qty:q});
   });
   const editId=gv('entry-edit-id');
-  const entryId = editId || ('E'+Date.now());   // known up-front so the site photo can reference it
+  const entryId = editId || _invoiceRefId || ('E'+Date.now());   // known up-front so the site photo and invoices can reference it
   setLoading(true,'Saving...');
   try {
     const entryData = {
@@ -6150,8 +6351,16 @@ async function saveEntry() {
       status:gv('entry-status'), remarks:gv('entry-remarks').trim(),
       sapRef:gv('entry-sapref').trim(), refDocType:gv('entry-doctype'), refDocValue:gv('entry-docvalue')
     };
+    // v4.67: the invoice-backed conversion value (sum of the amounts read off the invoice images) — the
+    // only figure the Field activity summary counts as Conv. value. Blank when the site is not converted.
+    const invoiced = entryData.status==='Confirmed' && _invoices.length;
+    const invoiceFields = {invoiceValue: invoiced ? String(invoiceTotal()) : '', invoiceCount: invoiced ? String(_invoices.length) : ''};
+    const photoClaim = {siteName:entryData.siteName, buildType:entryData.buildType, siteStage:entryData.siteStage, address:entryData.address};
     if (editId) {
-      await DATA_updateEntry(editId,{...entryData, updatedAt:new Date().toISOString()});
+      if (!(await uploadPhotoBeforeSave(entryId, photoClaim))) return;
+      setLoading(true,'Saving...');
+      if (invoiced) await repairEntriesHeaders();   // make sure the invoice columns exist
+      await DATA_updateEntry(editId,{...entryData, ...invoiceFields, updatedAt:new Date().toISOString()});
       showToast('✅ Entry updated!');
     } else {
       // AI sanity check on NEW entries only (edits skipped to conserve the daily AI budget).
@@ -6166,17 +6375,16 @@ async function saveEntry() {
         if (!confirm(msg)) return;   // back to the form to fix
         setLoading(true,'Saving...');
       }
-      await DATA_addEntry({id:entryId, iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, createdAt:new Date().toISOString()});
+      if (!(await uploadPhotoBeforeSave(entryId, photoClaim))) return;
+      setLoading(true,'Saving...');
+      await DATA_addEntry({id:entryId, iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, ...invoiceFields, createdAt:new Date().toISOString()});
+      // The append maps values onto the table's existing columns, so on the first save after v4.67 the
+      // invoice columns may not exist yet — make sure they do, then write them explicitly.
+      if (invoiced) {
+        try { await repairEntriesHeaders(); await DATA_updateEntry(entryId, invoiceFields); }
+        catch(e) { showToast('⚠️ Invoice value not saved yet — open the entry and save it again ('+e.message+')'); }
+      }
       showToast('✅ Site entry saved!');
-    }
-    // Site photo (optional) — upload + AI-verify against the claimed details, non-fatal on failure
-    if (_pendingPhoto) {
-      try {
-        setLoading(true,'Verifying site photo with AI...');
-        const res = await uploadSitePhoto(entryId, {siteName:entryData.siteName, buildType:entryData.buildType, siteStage:entryData.siteStage, address:entryData.address});
-        const v = res && res.verdict;
-        if (v) showToast(v.verdict==='plausible' ? `📸 ✅ Photo verified — ${v.summary||'genuine site'}` : `📸 ⚠️ Photo flagged — ${v.summary||v.verdict}`);
-      } catch(e) { showToast('⚠️ Photo could not be uploaded: '+e.message); }
     }
     closeWizard();
     // Brief delay before refreshing — Google Sheets can have a short read-after-write
@@ -6225,8 +6433,9 @@ function showDetail(id) {
     ${e.sapRef?`<div class="detail-row"><div class="detail-label">${e.refDocType||'SAP Ref #'}</div><div class="detail-value">${e.sapRef}</div></div>`:''}
     ${e.refDocValue?`<div class="detail-row"><div class="detail-label">${(e.refDocType||'').replace(/ Number$/,'')||'Document'} Value</div><div class="detail-value">₹${Number(e.refDocValue).toLocaleString('en-IN')}</div></div>`:''}`;
   document.getElementById('modal-detail-actions').innerHTML=currentUser.role==='isc'?`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`:`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
-  document.getElementById('modal-detail-body').insertAdjacentHTML('beforeend', '<div id="detail-photos"></div>');
+  document.getElementById('modal-detail-body').insertAdjacentHTML('beforeend', '<div id="detail-invoices"></div><div id="detail-photos"></div>');
   loadDetailPhotos(e.id);   // lazy — fills in only if photos exist
+  loadDetailInvoices(e.id);
   openModal('modal-detail');
 }
 // ══════════════════════════════════════════════
