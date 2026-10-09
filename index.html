@@ -5803,6 +5803,27 @@ function invoiceDealerProblem(extract) {
   if (!mine.includes(code)) return `This invoice is from dealer code ${extract.dealer_code}, which is not assigned to you (yours: ${String(currentUser.dealerCodes).split(',').map(c=>c.trim()).filter(Boolean).join(', ')})`;
   return '';
 }
+// v4.67: an invoice must be dated within the 30 days before it was uploaded, so old invoices cannot be
+// recycled to inflate a conversion. Measured from the UPLOAD time (the worker's ts), not today, so an
+// entry edited weeks later is not rejected for invoices that were fresh when attached. A date in the
+// future (beyond a day's slack for time zones) is refused too.
+const INVOICE_MAX_AGE_DAYS = 30;
+function invoiceDateProblem(extract, uploadedTs) {
+  const raw = String((extract && extract.invoice_date) || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (!m) return 'The invoice date could not be read — retake a clearer photo showing the date';
+  const inv = new Date(+m[1], +m[2]-1, +m[3]);
+  const up = new Date(Number(uploadedTs) || Date.now()); up.setHours(0,0,0,0);
+  const days = Math.round((up - inv) / 86400000);
+  const shown = inv.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+  if (days > INVOICE_MAX_AGE_DAYS) return `This invoice is dated ${shown}, ${days} days ago — only invoices from the last ${INVOICE_MAX_AGE_DAYS} days are accepted`;
+  if (days < -1) return `This invoice is dated ${shown}, which is in the future — check the invoice`;
+  return '';
+}
+// Every reason an attached invoice cannot count ('' when it is fine).
+function invoiceProblem(extract, uploadedTs) {
+  return invoiceDealerProblem(extract) || invoiceDateProblem(extract, uploadedTs);
+}
 function renderInvoiceList() {
   const el = document.getElementById('entry-invoice-list'); if (!el) return;
   el.innerHTML = _invoices.map(i=>{
@@ -5811,7 +5832,7 @@ function renderInvoiceList() {
       ${invoiceThumb(i.key)}
       <div style="flex:1;font-size:12px">${amt?`<strong>₹${amt.toLocaleString('en-IN')}</strong>`:'<strong style="color:#b45309">⚠️ Amount not readable — retake a clearer photo</strong>'}
         <div style="color:var(--gray)">${escapeHtml([x.invoice_number?'No. '+x.invoice_number:'', x.dealer_code?'Dealer '+x.dealer_code:'', x.invoice_date||'', x.seller||''].filter(Boolean).join(' · ') || x.summary || '')}</div>
-        ${invoiceDealerProblem(x)?`<div style="color:#b91c1c">⛔ ${escapeHtml(invoiceDealerProblem(x))}</div>`:''}</div>
+        ${invoiceProblem(x,i.ts)?`<div style="color:#b91c1c">⛔ ${escapeHtml(invoiceProblem(x,i.ts))}</div>`:''}</div>
       <button type="button" class="btn-remove-row" onclick="removeInvoice(${Number(i.ts)})" style="flex-shrink:0">×</button>
     </div>`;
   }).join('') + (_invoiceBusy ? `<div style="font-size:12px;color:var(--gray)">⏳ Reading ${_invoiceBusy} invoice${_invoiceBusy>1?'s':''}...</div>` : '');
@@ -5838,8 +5859,8 @@ async function invoicePicked(input) {
       if (!r.ok) throw new Error('upload failed ('+r.status+')');
       const d = await r.json(); if (d.error) throw new Error(d.error);
       if (!d.key) throw new Error('the photos worker has not been updated for invoices yet');
-      // Another dealer's invoice is taken straight back out, so it never counts towards the value
-      const bad = invoiceDealerProblem(d.extract);
+      // Another dealer's invoice, or one older than 30 days, is taken straight back out so it never counts
+      const bad = invoiceProblem(d.extract, d.ts);
       if (bad) {
         fetch(PHOTOS_WORKER_URL+'/invoice/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refId:_invoiceRefId, ts:d.ts})}).catch(()=>{});
         alert('🧾 Invoice not accepted\n\n'+bad);
@@ -6306,8 +6327,8 @@ function validateWizardStep() {
       if (_invoiceBusy) { showToast('⏳ Please wait — the invoice is still being read'); return false; }
       if (!_invoices.length) { showToast('⚠️ Site Converted — please attach the invoice (photo or PDF)'); return false; }
       if (_invoices.some(i=>!(Number(i.extract&&i.extract.total_amount)>0))) { showToast('⚠️ The amount on one invoice could not be read — remove it and retake a clearer photo'); return false; }
-      // Also catches invoices attached before an ISC's dealer list changed, when an entry is edited
-      const badInv = _invoices.map(i=>invoiceDealerProblem(i.extract)).find(Boolean);
+      // Also catches invoices attached before an ISC's dealer list changed (or before v4.67's date rule), when an entry is edited
+      const badInv = _invoices.map(i=>invoiceProblem(i.extract, i.ts)).find(Boolean);
       if (badInv) { showToast('⚠️ '+badInv+' — remove that invoice'); return false; }
     }
   }
