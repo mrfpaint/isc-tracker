@@ -166,6 +166,10 @@
   .product-row{display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;}
   .btn-add-row{width:100%;padding:8px;background:var(--gray-light);border:1.5px dashed var(--border);border-radius:8px;color:var(--gray);cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:.15s;}
   .btn-add-row:hover{border-color:var(--red);color:var(--red);background:var(--red-light);}
+  /* v4.67: file inputs kept in the page but off-screen (not display:none) and opened through a <label>,
+     which some in-app browsers / WebViews require before they will open the camera or gallery */
+  .file-offscreen{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}
+  .photo-pick-btn{display:block;text-align:center;padding:11px;background:#f9fafb;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark);-webkit-tap-highlight-color:rgba(200,16,46,.15);}
   .btn-remove-row{width:32px;height:32px;background:var(--gray-light);border:none;border-radius:8px;cursor:pointer;color:var(--gray);font-size:16px;display:flex;align-items:center;justify-content:center;}
   .btn-remove-row:hover{background:#fee2e2;color:var(--red);}
   /* REVIEW SECTION — the read-only summary block (label/value rows) shown
@@ -1422,8 +1426,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Site Photo * <span style="color:var(--gray);font-size:11px">(AI-verified)</span></label>
-          <input type="file" id="entry-photo" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this,'entry-photo-status','entry-photo-btn')">
-          <button type="button" id="entry-photo-btn" onclick="document.getElementById('entry-photo').click()" style="width:100%;padding:11px;background:#f9fafb;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">📸 Take / attach site photo</button>
+          <!-- v4.67: Camera + Gallery as native <label>s (see watchPickerOpened) — on some phones the camera never opens -->
+          <input type="file" id="entry-photo" accept="image/*" capture="environment" class="file-offscreen" onchange="photoPicked(this,'entry-photo-status','entry-photo-btn')">
+          <input type="file" id="entry-photo-gallery" accept="image/*" class="file-offscreen" onchange="photoPicked(this,'entry-photo-status','entry-photo-btn')">
+          <div style="display:flex;gap:8px">
+            <label for="entry-photo" id="entry-photo-btn" onclick="watchPickerOpened('entry-photo-status')" class="photo-pick-btn" style="flex:2">📸 Take site photo</label>
+            <label for="entry-photo-gallery" onclick="watchPickerOpened('entry-photo-status')" class="photo-pick-btn" style="flex:1">🖼️ Gallery</label>
+          </div>
           <div id="entry-photo-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
         </div>
         <div class="form-row">
@@ -1552,8 +1561,8 @@
           <div class="form-group">
             <label class="form-label">Invoices * <span style="color:var(--gray);font-size:11px">(photo or PDF, one per invoice)</span></label>
             <!-- no capture attribute: it forces the camera on phones and hides the option to pick a PDF -->
-            <input type="file" id="entry-invoice" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="invoicePicked(this)">
-            <button type="button" id="entry-invoice-btn" onclick="document.getElementById('entry-invoice').click()" style="width:100%;padding:11px;background:#fff;border:1.5px dashed #86efac;border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">🧾 Take photo / attach invoice PDF</button>
+            <input type="file" id="entry-invoice" accept="image/*,application/pdf,.pdf" multiple class="file-offscreen" onchange="invoicePicked(this)">
+            <label for="entry-invoice" id="entry-invoice-btn" onclick="watchPickerOpened('entry-invoice-list')" class="photo-pick-btn" style="display:block;background:#fff;border-color:#86efac">🧾 Take photo / attach invoice PDF</label>
             <div id="entry-invoice-list" style="margin-top:8px"></div>
           </div>
           <div class="form-group"><label class="form-label" id="entry-docvalue-label">Billing / Invoice Value (₹)</label><input type="number" class="form-input" id="entry-docvalue" inputmode="numeric" readonly style="background:#f9fafb" placeholder="Calculated from the invoice images"></div>
@@ -2050,8 +2059,12 @@
     </div>
     <div class="form-group">
       <label class="form-label">Site Photo * <span style="color:var(--gray);font-size:11px">(AI-verified)</span></label>
-      <input type="file" id="as-photo" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this,'as-photo-status','as-photo-btn')">
-      <button type="button" id="as-photo-btn" onclick="document.getElementById('as-photo').click()" style="width:100%;padding:11px;background:#f9fafb;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--dark)">📸 Take / attach site photo</button>
+      <input type="file" id="as-photo" accept="image/*" capture="environment" class="file-offscreen" onchange="photoPicked(this,'as-photo-status','as-photo-btn')">
+      <input type="file" id="as-photo-gallery" accept="image/*" class="file-offscreen" onchange="photoPicked(this,'as-photo-status','as-photo-btn')">
+      <div style="display:flex;gap:8px">
+        <label for="as-photo" id="as-photo-btn" onclick="watchPickerOpened('as-photo-status')" class="photo-pick-btn" style="flex:2">📸 Take site photo</label>
+        <label for="as-photo-gallery" onclick="watchPickerOpened('as-photo-status')" class="photo-pick-btn" style="flex:1">🖼️ Gallery</label>
+      </div>
       <div id="as-photo-status" style="font-size:11px;color:var(--gray);margin-top:4px"></div>
     </div>
     <div class="form-group"><label class="form-label">Building Type</label><select class="form-select" id="as-buildtype">
@@ -5722,10 +5735,30 @@ let _photoOnFile = false;   // the visit being edited already has a site photo (
 function resetSitePhoto() {
   _pendingPhoto = null; _photoOnFile = false;
   [['entry-photo','entry-photo-btn','entry-photo-status'],['as-photo','as-photo-btn','as-photo-status']].forEach(([i,b,s])=>{
-    const inp=document.getElementById(i); if (inp) inp.value='';
-    const btn=document.getElementById(b); if (btn) btn.textContent='📸 Take / attach site photo';
+    [i, i+'-gallery'].forEach(id=>{ const inp=document.getElementById(id); if (inp) inp.value=''; });
+    const btn=document.getElementById(b); if (btn) btn.textContent='📸 Take site photo';
     const st=document.getElementById(s); if (st) st.textContent='';
   });
+}
+// v4.67: on some phones tapping the camera button does nothing at all (Chrome denied camera permission,
+// or the app opened inside another app's browser). When the camera / gallery really opens, the page is
+// hidden or loses focus; if neither happens within 2 seconds, say what to do instead of leaving the
+// person tapping a dead button.
+function watchPickerOpened(statusId) {
+  let opened = false;
+  const mark = () => { opened = true; };
+  document.addEventListener('visibilitychange', mark, {once:true});
+  window.addEventListener('blur', mark, {once:true});
+  setTimeout(()=>{
+    document.removeEventListener('visibilitychange', mark); window.removeEventListener('blur', mark);
+    if (opened) return;
+    const st = document.getElementById(statusId); if (!st) return;
+    const hint = document.createElement('div');
+    hint.style.cssText = 'margin-top:6px;padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#9a3412;line-height:1.4';
+    hint.innerHTML = '📷 Camera did not open? <b>1.</b> Tap <b>🖼️ Gallery</b> and pick a photo you just took with the phone camera. <b>2.</b> Or allow the camera: Phone Settings → Apps → Chrome → Permissions → Camera → Allow. <b>3.</b> If you opened this link from WhatsApp, open it in Chrome instead (⋮ → Open in Chrome).';
+    st.querySelectorAll('.picker-hint').forEach(h=>h.remove()); hint.className='picker-hint';
+    st.appendChild(hint);
+  }, 2000);
 }
 // Edit mode: looks up whether this visit already has a photo. If the photos worker cannot be reached the
 // edit is not blocked (the visit was saved with a photo under v4.67 rules, or predates them).
@@ -5900,6 +5933,13 @@ async function photoPicked(input, statusId, btnId) {
   if (!f) { _pendingPhoto=null; if (st) st.textContent=''; return; }
   if (st) st.textContent = '⏳ Compressing photo...';
   try {
+    // v4.67: the Gallery button must not let an old photo stand in for today's visit. A photo straight
+    // from the camera is always fresh; one picked from the gallery must have been taken in the last 24 h.
+    const ageH = f.lastModified ? (Date.now()-f.lastModified)/3600000 : 0;
+    if (ageH > 24) {
+      input.value='';
+      throw new Error(`that photo was taken ${ageH<48?'yesterday':Math.floor(ageH/24)+' days ago'} — please take a fresh photo at the site`);
+    }
     _pendingPhoto = await compressImage(f, 1280, 0.72);
     if (st) st.textContent = `✅ Photo attached (~${Math.round(_pendingPhoto.length*3/4/1024)} KB) — AI-verified on save`;
     const btn = document.getElementById(btnId); if (btn) btn.textContent = '📸 Photo attached — tap to change';
