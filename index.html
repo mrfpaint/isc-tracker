@@ -8585,13 +8585,6 @@ async function renderDashboard() {
       }
     } catch(e) { console.warn('Avg days error:',e.message); }
 
-    // ── PAINT SYSTEM MIX (product-line demand) ────────────────────────
-    try {
-      const psMap={};filteredEntries.forEach(e=>{if(e.paintSystem)psMap[e.paintSystem]=(psMap[e.paintSystem]||0)+1;});
-      const psEntries=Object.entries(psMap).sort((a,b)=>b[1]-a[1]).slice(0,8),psMax=psEntries[0]?.[1]||1;
-      if(psEntries.length) html+=dashSection('🎨 Paint System Mix',psEntries.map(([name,cnt],i)=>miniBar(name,cnt,psMax,compColors[i%compColors.length])).join(''));
-    } catch(e) { console.warn('Paint system error:',e.message); }
-
     // ══════════════════════════════════════════════
     //  ATTENDANCE DASHBOARD (admin/asm/bdo/rsm only — ISC sees own stats above)
     // ══════════════════════════════════════════════
