@@ -9542,8 +9542,8 @@ function exportEntries(scope) {
       'Project Name', 'Site Address', 'GPS Location', 'GPS Coordinates',
       'Building Type', 'Site Stage', 'Area (sq.ft)', 'Expected Paint Date',
       'Competitor Brand', 'Lead Date', 'Sample Date', 'Conversion Date',
-      'Paint System', 'Products', 'Sample Materials', 'Order Details', 'Est. Site Value (₹)',
-      'Dealer Code', 'Dealer Name', 'Contractor', 'Painter',
+      'Products', 'Sample Materials', 'Order Details', 'Est. Site Value (₹)',
+      'Dealer Code', 'Dealer Name', 'Contractor', 'Contractor Phone', 'Painter', 'Painter Phone',
       'Status', 'Remarks', 'Document Type', 'Billing / Invoice No', 'Billing / Invoice Value', 'PT Code', 'Last Updated'
     ];
     const dataRows = data.map(e => {
@@ -9560,7 +9560,7 @@ function exportEntries(scope) {
         e.siteName||'', e.address||'', e.gps||'', e.gpsRaw||'',
         e.buildType||'', e.siteStage||'', e.area||'', e.paintDate||'',
         e.competitor||'', e.leadDate||'', e.sampleDate||'', e.conversionDate||'',
-        e.paintSystem||'', products, sampleMats, orderDets, e.siteValue||'',
+        products, sampleMats, orderDets, e.siteValue||'',
         e.dealerCode||'', e.dealerName||'', e.contractor||'', e.contractorPhone||'', e.painter||'', e.painterPhone||'',
         siteStatusLabel(e.status), e.remarks||'', e.refDocType||'', e.sapRef||'', e.refDocValue||'', e.ptCode||'',
         e.updatedAt ? fmtDate(e.updatedAt) : ''
