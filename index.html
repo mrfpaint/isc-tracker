@@ -1545,6 +1545,7 @@
             <option value="NotConverted">❌ Site Not Converted</option>
           </select>
         </div>
+        <div class="form-group" id="entry-ptcode-group" style="display:none"><label class="form-label">PT Code</label><input type="text" class="form-input" id="entry-ptcode" placeholder="Enter PT Code"></div>
         <div class="form-group"><label class="form-label">Remarks / Notes</label><textarea class="form-input" id="entry-remarks" rows="3" placeholder="Any additional notes about this site visit..."></textarea></div>
         <!-- Site Converted details (document type/number, invoices, value) are no longer asked for. The block stays
              in the page, always hidden, so editing an older entry keeps the values it was saved with. -->
@@ -3254,7 +3255,7 @@ const ENTRIES_HEADERS = ['id','iscId','iscName','asmId','asmName','stName','bdoN
   'buildType','siteStage','area','paintDate','competitor','leadDate','sampleDate','conversionDate',
   'paintSystem','products','sampleMaterials','orderDetails',
   'siteValue','dealerCode','dealerName','contractor','contractorPhone','painter','painterPhone','status','remarks','sapRef',
-  'createdAt','updatedAt','siteStatus','refDocType','refDocValue','invoiceValue','invoiceCount'];   // v4.67: invoice-backed conversion value
+  'createdAt','updatedAt','siteStatus','refDocType','refDocValue','invoiceValue','invoiceCount','ptCode'];   // v4.67: invoice-backed conversion value
 
 // Overwrites row 1 of a sheet with the given header list — used to fix a sheet whose columns have drifted from what the app expects.
 async function repairSheetHeaders(sheetName, headers) {
@@ -6032,7 +6033,7 @@ function showNewEntryModal() {
   _wizardStep = 0;
   _wizardProductCount = 1;
   // Clear all fields
-  ['entry-customer','entry-custphone','entry-sitename','entry-address','entry-gps','entry-buildtype','entry-sitestage','entry-area','entry-paintdate','entry-competitor','entry-leaddate','entry-sampledate','entry-conversiondate','entry-paintsystem','entry-sitevalue','entry-dealername','entry-dealercode','entry-contractor','entry-contractorphone','entry-painter','entry-painterphone','entry-remarks','entry-sapref','entry-doctype','entry-docvalue'].forEach(id=>sv(id,''));
+  ['entry-customer','entry-custphone','entry-sitename','entry-address','entry-gps','entry-buildtype','entry-sitestage','entry-area','entry-paintdate','entry-competitor','entry-leaddate','entry-sampledate','entry-conversiondate','entry-paintsystem','entry-sitevalue','entry-dealername','entry-dealercode','entry-contractor','entry-contractorphone','entry-painter','entry-painterphone','entry-remarks','entry-sapref','entry-doctype','entry-docvalue','entry-ptcode'].forEach(id=>sv(id,''));
   // Reset sample rows to just 1
   const sr=document.getElementById('sample-rows');
   if(sr){sr.innerHTML=`<div class="sample-row" id="sr-0" style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="text" class="form-input" id="smat-0" placeholder="Material name" style="flex:1"><button class="btn-remove-row" onclick="removeSampleRow(0)" style="flex-shrink:0">×</button></div>`;}
@@ -6082,7 +6083,7 @@ function showEditModal(id) {
   sv('entry-sitevalue',e.siteValue||'');sv('entry-dealercode',e.dealerCode||'');
   sv('entry-dealername',e.dealerName||'');sv('entry-contractor',e.contractor||'');sv('entry-contractorphone',e.contractorPhone||'');
   sv('entry-painter',e.painter||'');sv('entry-painterphone',e.painterPhone||'');sv('entry-status',e.status);
-  sv('entry-remarks',e.remarks||'');sv('entry-sapref',e.sapRef||'');sv('entry-doctype',e.refDocType||'');sv('entry-docvalue',e.refDocValue||'');syncDocNumberField();
+  sv('entry-remarks',e.remarks||'');sv('entry-sapref',e.sapRef||'');sv('entry-doctype',e.refDocType||'');sv('entry-docvalue',e.refDocValue||'');sv('entry-ptcode',e.ptCode||'');syncDocNumberField();
   // Restore products
   const products = JSON.parse(e.products||'[]');
   document.getElementById('product-rows').innerHTML='';
@@ -6286,6 +6287,12 @@ function renderWizardStep() {
   nextBtn.textContent=_wizardStep===WIZARD_STEPS-1?'✅ Submit':'Next →';
   // Build review on last step
   if(_wizardStep===WIZARD_STEPS-1) buildReview();
+  // PT Code is only asked for when the site is converted
+  if(_wizardStep===4){
+    const syncPtCode=()=>{ document.getElementById('entry-ptcode-group').style.display=gv('entry-status')==='Confirmed'?'block':'none'; };
+    syncPtCode();
+    document.getElementById('entry-status').onchange=syncPtCode;
+  }
 }
 
 // "Next →" / "✅ Submit" button: validates the current step first, then either advances to the next step or (on the last step) submits via saveEntry().
@@ -6381,6 +6388,7 @@ function buildReview() {
     </div>
     <div class="review-section"><div class="review-section-title">📦 Status</div>
       <div class="review-row"><div class="review-label">Status</div><div class="review-value">${siteStatusBadge(gv('entry-status'))}</div></div>
+      ${gv('entry-status')==='Confirmed'&&gv('entry-ptcode').trim()?`<div class="review-row"><div class="review-label">PT Code</div><div class="review-value">${escapeHtml(gv('entry-ptcode').trim())}</div></div>`:''}
       ${gv('entry-sapref').trim()?`<div class="review-row"><div class="review-label">${gv('entry-doctype')||'Reference'}</div><div class="review-value">${escapeHtml(gv('entry-sapref').trim())}</div></div>`:''}
       ${gv('entry-docvalue')?`<div class="review-row"><div class="review-label">${(gv('entry-doctype')||'').replace(/ Number$/,'')||'Document'} Value</div><div class="review-value">₹${Number(gv('entry-docvalue')).toLocaleString('en-IN')}</div></div>`:''}
       ${gv('entry-status')==='Confirmed'&&_invoices.length?`<div class="review-row"><div class="review-label">Invoice images</div><div class="review-value">🧾 ${_invoices.length} · value read from the invoices</div></div>`:''}
@@ -6425,12 +6433,14 @@ async function saveEntry() {
     // v4.67: the invoice-backed conversion value (sum of the amounts read off the invoice images) — the
     // only figure the Field activity summary counts as Conv. value. Blank when the site is not converted.
     const invoiced = entryData.status==='Confirmed' && _invoices.length;
-    const invoiceFields = {invoiceValue: invoiced ? String(invoiceTotal()) : '', invoiceCount: invoiced ? String(_invoices.length) : ''};
+    const invoiceFields = {invoiceValue: invoiced ? String(invoiceTotal()) : '', invoiceCount: invoiced ? String(_invoices.length) : '',
+      ptCode: entryData.status==='Confirmed' ? gv('entry-ptcode').trim() : ''};   // PT Code, only for a converted site
+    const needCols = invoiced || invoiceFields.ptCode;
     const photoClaim = {siteName:entryData.siteName, buildType:entryData.buildType, siteStage:entryData.siteStage, address:entryData.address};
     if (editId) {
       if (!(await uploadPhotoBeforeSave(entryId, photoClaim))) return;
       setLoading(true,'Saving...');
-      if (invoiced) await repairEntriesHeaders();   // make sure the invoice columns exist
+      if (needCols) await repairEntriesHeaders();   // make sure the invoice / PT Code columns exist
       await DATA_updateEntry(editId,{...entryData, ...invoiceFields, updatedAt:new Date().toISOString()});
       showToast('✅ Entry updated!');
     } else {
@@ -6450,10 +6460,10 @@ async function saveEntry() {
       setLoading(true,'Saving...');
       await DATA_addEntry({id:entryId, iscId:currentUser.id, iscName:currentUser.name, asmId:currentUser.asmId, asmName:currentUser.asmName, stName:currentUser.stName||'', bdoName:currentUser.bdoName||'', region:currentUser.region||'', ...entryData, ...invoiceFields, createdAt:new Date().toISOString()});
       // The append maps values onto the table's existing columns, so on the first save after v4.67 the
-      // invoice columns may not exist yet — make sure they do, then write them explicitly.
-      if (invoiced) {
+      // invoice / PT Code columns may not exist yet — make sure they do, then write them explicitly.
+      if (needCols) {
         try { await repairEntriesHeaders(); await DATA_updateEntry(entryId, invoiceFields); }
-        catch(e) { showToast('⚠️ Invoice value not saved yet — open the entry and save it again ('+e.message+')'); }
+        catch(e) { showToast('⚠️ PT Code / invoice value not saved yet — open the entry and save it again ('+e.message+')'); }
       }
       showToast('✅ Site entry saved!');
     }
@@ -6501,6 +6511,7 @@ function showDetail(id) {
     <div class="detail-row"><div class="detail-label">ASM · Region</div><div class="detail-value">${e.asmName||'—'} · ${e.region||'—'}</div></div>
     <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
     ${e.remarks?`<div class="detail-row"><div class="detail-label">Remarks</div><div class="detail-value">${e.remarks}</div></div>`:''}
+    ${e.ptCode?`<div class="detail-row"><div class="detail-label">PT Code</div><div class="detail-value">${escapeHtml(String(e.ptCode))}</div></div>`:''}
     ${e.sapRef?`<div class="detail-row"><div class="detail-label">${e.refDocType||'SAP Ref #'}</div><div class="detail-value">${e.sapRef}</div></div>`:''}
     ${e.refDocValue?`<div class="detail-row"><div class="detail-label">${(e.refDocType||'').replace(/ Number$/,'')||'Document'} Value</div><div class="detail-value">₹${Number(e.refDocValue).toLocaleString('en-IN')}</div></div>`:''}`;
   document.getElementById('modal-detail-actions').innerHTML=currentUser.role==='isc'?`<button class="btn-secondary" style="flex:1" onclick="closeModal('modal-detail')">Close</button><button class="btn-primary" style="flex:2" onclick="showEditModal('${id}')">✏️ Edit</button>`:`<button class="btn-primary" style="flex:1" onclick="closeModal('modal-detail')">Close</button>`;
@@ -9533,7 +9544,7 @@ function exportEntries(scope) {
       'Competitor Brand', 'Lead Date', 'Sample Date', 'Conversion Date',
       'Paint System', 'Products', 'Sample Materials', 'Order Details', 'Est. Site Value (₹)',
       'Dealer Code', 'Dealer Name', 'Contractor', 'Painter',
-      'Status', 'Remarks', 'Document Type', 'Billing / Invoice No', 'Billing / Invoice Value', 'Last Updated'
+      'Status', 'Remarks', 'Document Type', 'Billing / Invoice No', 'Billing / Invoice Value', 'PT Code', 'Last Updated'
     ];
     const dataRows = data.map(e => {
       let products = '';
@@ -9551,7 +9562,7 @@ function exportEntries(scope) {
         e.competitor||'', e.leadDate||'', e.sampleDate||'', e.conversionDate||'',
         e.paintSystem||'', products, sampleMats, orderDets, e.siteValue||'',
         e.dealerCode||'', e.dealerName||'', e.contractor||'', e.contractorPhone||'', e.painter||'', e.painterPhone||'',
-        siteStatusLabel(e.status), e.remarks||'', e.refDocType||'', e.sapRef||'', e.refDocValue||'',
+        siteStatusLabel(e.status), e.remarks||'', e.refDocType||'', e.sapRef||'', e.refDocValue||'', e.ptCode||'',
         e.updatedAt ? fmtDate(e.updatedAt) : ''
       ];
     });
