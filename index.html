@@ -1546,7 +1546,9 @@
           </select>
         </div>
         <div class="form-group"><label class="form-label">Remarks / Notes</label><textarea class="form-input" id="entry-remarks" rows="3" placeholder="Any additional notes about this site visit..."></textarea></div>
-        <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;margin-top:8px" id="order-confirm-section" style="display:none">
+        <!-- Site Converted details (document type/number, invoices, value) are no longer asked for. The block stays
+             in the page, always hidden, so editing an older entry keeps the values it was saved with. -->
+        <div style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;margin-top:8px" id="order-confirm-section">
           <div style="font-size:11px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✅ Site Converted — Additional Details</div>
           <div class="form-group">
             <label class="form-label">Document Type</label>
@@ -6284,12 +6286,6 @@ function renderWizardStep() {
   nextBtn.textContent=_wizardStep===WIZARD_STEPS-1?'✅ Submit':'Next →';
   // Build review on last step
   if(_wizardStep===WIZARD_STEPS-1) buildReview();
-  // Show/hide order confirm section
-  if(_wizardStep===4){
-    const syncConvertedSection=()=>{ document.getElementById('order-confirm-section').style.display=gv('entry-status')==='Confirmed'?'block':'none'; };
-    syncConvertedSection();
-    document.getElementById('entry-status').onchange=syncConvertedSection;
-  }
 }
 
 // "Next →" / "✅ Submit" button: validates the current step first, then either advances to the next step or (on the last step) submits via saveEntry().
@@ -6341,23 +6337,7 @@ function validateWizardStep() {
     if (!gv('entry-dealercode')) { showToast('⚠️ Please select a dealer code'); return false; }
     if (!gv('entry-dealername').trim()) { showToast('⚠️ Dealer name is required'); return false; }
   }
-  if (_wizardStep===4) {
-    // The document type and its number only mean anything together — both blank is fine (the whole
-    // block is optional), but one without the other would save an unusable reference.
-    const docType = gv('entry-doctype'), docNum = gv('entry-sapref').trim();
-    if (docType && !docNum) { showToast(`⚠️ Please enter the ${docType.toLowerCase()}`); return false; }
-    if (docNum && !docType) { showToast('⚠️ Please select whether that is a billing or invoice number'); return false; }
-    if (gv('entry-docvalue') && !docNum) { showToast('⚠️ Please enter the document number that value belongs to'); return false; }
-    // Invoices are optional on a conversion, but any that are attached must be readable and recent
-    // (a conversion with none is worth ₹0 in Conv. value)
-    if (gv('entry-status')==='Confirmed') {
-      if (_invoiceBusy) { showToast('⏳ Please wait — the invoice is still being read'); return false; }
-      if (_invoices.some(i=>!(Number(i.extract&&i.extract.total_amount)>0))) { showToast('⚠️ The amount on one invoice could not be read — remove it and retake a clearer photo'); return false; }
-      // Also catches invoices attached before v4.67's date rule, when an entry is edited
-      const badInv = _invoices.map(i=>invoiceProblem(i.extract, i.ts)).find(Boolean);
-      if (badInv) { showToast('⚠️ '+badInv+' — remove that invoice'); return false; }
-    }
-  }
+  // Step 4 (Site Outcome) has no checks: the converted-site document/invoice fields are no longer shown.
   return true;
 }
 
