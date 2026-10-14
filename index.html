@@ -1559,7 +1559,7 @@
           <div class="form-group"><label class="form-label" id="entry-docnum-label">Billing / Invoice Number</label><input type="text" class="form-input" id="entry-sapref" placeholder="Select a document type first"></div>
           <!-- v4.67: invoice images — the value below is what AI reads off these, not a typed figure -->
           <div class="form-group">
-            <label class="form-label">Invoices * <span style="color:var(--gray);font-size:11px">(photo or PDF, one per invoice)</span></label>
+            <label class="form-label">Invoices <span style="color:var(--gray);font-size:11px">(optional · photo or PDF, one per invoice)</span></label>
             <!-- no capture attribute: it forces the camera on phones and hides the option to pick a PDF -->
             <input type="file" id="entry-invoice" accept="image/*,application/pdf,.pdf" multiple class="file-offscreen" onchange="invoicePicked(this)">
             <label for="entry-invoice" id="entry-invoice-btn" onclick="watchPickerOpened('entry-invoice-list')" class="photo-pick-btn" style="display:block;background:#fff;border-color:#86efac">🧾 Take photo / attach invoice PDF</label>
@@ -5821,21 +5821,7 @@ function invoiceThumb(key, big) {
   return `<a href="${url}" target="_blank"><img src="${url}" ${big?'loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid var(--border)"':'style="width:44px;height:44px;object-fit:cover;border-radius:6px"'}></a>`;
 }
 function invoiceTotal() { return _invoices.reduce((s,i)=>s+(Number(i.extract&&i.extract.total_amount)||0),0); }
-// v4.67: an ISC may only claim a conversion on invoices raised by a dealer assigned to them (the dealer
-// codes on their ISC record). The dealer code is read off the invoice by the photos worker. Codes are
-// compared ignoring spaces, punctuation, case and leading zeros ("012345" = "12345").
-const normDealerCode = c => String(c||'').toUpperCase().replace(/[^0-9A-Z]/g,'').replace(/^0+(?=\d)/,'');
-function myDealerCodes() { return String(currentUser.dealerCodes||'').split(',').map(normDealerCode).filter(Boolean); }
-// '' when the invoice is acceptable, otherwise the reason it is not. Only ISCs are restricted.
-function invoiceDealerProblem(extract) {
-  if (!currentUser || currentUser.role!=='isc') return '';
-  const mine = myDealerCodes();
-  if (!mine.length) return 'No dealer codes are assigned to you — ask your ASM to add them before uploading invoices';
-  const code = normDealerCode(extract && extract.dealer_code);
-  if (!code) return 'The dealer code could not be read on this invoice — retake a clearer photo showing the dealer code';
-  if (!mine.includes(code)) return `This invoice is from dealer code ${extract.dealer_code}, which is not assigned to you (yours: ${String(currentUser.dealerCodes).split(',').map(c=>c.trim()).filter(Boolean).join(', ')})`;
-  return '';
-}
+// Invoices may come from any dealer — the earlier rule limiting an ISC to their own dealer codes was dropped.
 // v4.67: an invoice must be dated within the 30 days before it was uploaded, so old invoices cannot be
 // recycled to inflate a conversion. Measured from the UPLOAD time (the worker's ts), not today, so an
 // entry edited weeks later is not rejected for invoices that were fresh when attached. A date in the
@@ -5855,7 +5841,7 @@ function invoiceDateProblem(extract, uploadedTs) {
 }
 // Every reason an attached invoice cannot count ('' when it is fine).
 function invoiceProblem(extract, uploadedTs) {
-  return invoiceDealerProblem(extract) || invoiceDateProblem(extract, uploadedTs);
+  return invoiceDateProblem(extract, uploadedTs);
 }
 function renderInvoiceList() {
   const el = document.getElementById('entry-invoice-list'); if (!el) return;
@@ -5892,7 +5878,7 @@ async function invoicePicked(input) {
       if (!r.ok) throw new Error('upload failed ('+r.status+')');
       const d = await r.json(); if (d.error) throw new Error(d.error);
       if (!d.key) throw new Error('the photos worker has not been updated for invoices yet');
-      // Another dealer's invoice, or one older than 30 days, is taken straight back out so it never counts
+      // An invoice older than 30 days is taken straight back out so it never counts
       const bad = invoiceProblem(d.extract, d.ts);
       if (bad) {
         fetch(PHOTOS_WORKER_URL+'/invoice/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refId:_invoiceRefId, ts:d.ts})}).catch(()=>{});
@@ -6362,12 +6348,12 @@ function validateWizardStep() {
     if (docType && !docNum) { showToast(`⚠️ Please enter the ${docType.toLowerCase()}`); return false; }
     if (docNum && !docType) { showToast('⚠️ Please select whether that is a billing or invoice number'); return false; }
     if (gv('entry-docvalue') && !docNum) { showToast('⚠️ Please enter the document number that value belongs to'); return false; }
-    // v4.67: a conversion is only counted on the strength of its invoices
+    // Invoices are optional on a conversion, but any that are attached must be readable and recent
+    // (a conversion with none is worth ₹0 in Conv. value)
     if (gv('entry-status')==='Confirmed') {
       if (_invoiceBusy) { showToast('⏳ Please wait — the invoice is still being read'); return false; }
-      if (!_invoices.length) { showToast('⚠️ Site Converted — please attach the invoice (photo or PDF)'); return false; }
       if (_invoices.some(i=>!(Number(i.extract&&i.extract.total_amount)>0))) { showToast('⚠️ The amount on one invoice could not be read — remove it and retake a clearer photo'); return false; }
-      // Also catches invoices attached before an ISC's dealer list changed (or before v4.67's date rule), when an entry is edited
+      // Also catches invoices attached before v4.67's date rule, when an entry is edited
       const badInv = _invoices.map(i=>invoiceProblem(i.extract, i.ts)).find(Boolean);
       if (badInv) { showToast('⚠️ '+badInv+' — remove that invoice'); return false; }
     }
