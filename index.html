@@ -1517,6 +1517,8 @@
             </tbody>
           </table>
         </div>
+        <datalist id="dpl-materials"></datalist>
+        <div id="dpl-note" style="font-size:11px;color:var(--gray);margin-top:6px"></div>
       </div>
 
       <!-- STEP 4: DEALER -->
@@ -6254,6 +6256,7 @@ function getOrderDetails() {
 function clearOrderTable() {
   for(let i=0;i<6;i++){
     ['odlr','omat','ovol','oval'].forEach(p=>{ const el=document.getElementById(`${p}-${i}`); if(el) el.value=''; });
+    priceOrderRow(i, false);   // unlocks Val (₹)
   }
 }
 // Fills the (max 6) order-table rows from a saved orders array — used when editing an existing entry.
@@ -6265,7 +6268,69 @@ function populateOrderTable(orders) {
     const set=(p,v)=>{ const el=document.getElementById(`${p}-${i}`); if(el) el.value=v||''; };
     set('odlr',o.dealer); set('omat',o.material); set('ovol',o.vol); set('oval',o.val);
   });
+  for(let i=0;i<6;i++) priceOrderRow(i, false);   // lock DPL-priced rows, but keep the value saved with the entry
 }
+
+// ── ORDER VALUE FROM DPL (v4.67) ── dpl.json is built from the price-list Excel by tools/build_dpl.py:
+// {asOf, items:{"Material Description":[[packLitres, DPL],...]}}. Picking a listed material and typing litres
+// fills Val (₹) from DPL; a material that is not in the list keeps Val typed by hand.
+let _dpl = LDB.get('dplCache') || null;
+let _dplIdx = null;   // lower-cased description → packs, largest first
+function _dplIndex() {
+  if (_dplIdx || !_dpl) return _dplIdx;
+  _dplIdx = {};
+  Object.entries(_dpl.items||{}).forEach(([n,p])=>{ _dplIdx[n.toLowerCase()] = p.slice().sort((a,b)=>b[0]-a[0]); });
+  return _dplIdx;
+}
+function _dplFill() {
+  const dl = document.getElementById('dpl-materials');
+  if (dl && _dpl) dl.innerHTML = Object.keys(_dpl.items).map(n=>`<option value="${n.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">`).join('');
+  const note = document.getElementById('dpl-note');
+  if (note && _dpl) note.textContent = `Pick the material from the list and enter litres — Val (₹) is worked out from the DPL of ${new Date(_dpl.asOf).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}.`;
+}
+async function loadDPL() {
+  try {
+    const r = await fetch('dpl.json', {cache:'no-cache'});
+    if (!r.ok) throw new Error(r.status);
+    _dpl = await r.json(); _dplIdx = null;
+    LDB.set('dplCache', _dpl);   // kept for offline use
+  } catch (e) { console.warn('DPL not loaded', e); }
+  _dplFill();
+  for(let i=0;i<6;i++) priceOrderRow(i, false);
+}
+// DPL value of `litres` of a material: whole packs largest first (25 L = 20 + 4 + 1), and any part-pack
+// left over at the smallest pack's per-litre rate. null when the material is not in the price list.
+function dplValue(material, litres) {
+  const packs = (_dplIndex()||{})[String(material||'').trim().replace(/\s+/g,' ').toLowerCase()];
+  if (!packs) return null;
+  let left = litres, val = 0;
+  packs.forEach(([size,dpl])=>{ const n = Math.floor(left/size + 1e-9); val += n*dpl; left -= n*size; });
+  const [sSize,sDpl] = packs[packs.length-1];
+  if (left > 1e-9) val += left * sDpl / sSize;
+  return Math.round(val);
+}
+// Re-prices one order row. A listed material locks Val (₹) to its DPL value; `recalc` false only locks
+// it (opening a saved entry keeps the value it was saved with until material or litres change).
+function priceOrderRow(i, recalc=true) {
+  const mat = document.getElementById(`omat-${i}`), vol = document.getElementById(`ovol-${i}`), val = document.getElementById(`oval-${i}`);
+  if (!mat || !val) return;
+  const litres = parseFloat(vol?.value) || 0;
+  const priced = dplValue(mat.value, litres);
+  val.readOnly = priced !== null;
+  val.style.background = priced !== null ? '#f3f4f6' : '';
+  val.title = priced !== null ? 'Worked out from DPL' : '';
+  if (priced !== null && recalc) { val.value = litres > 0 ? priced : ''; val.dataset.auto = '1'; }
+  else if (priced === null && recalc && val.dataset.auto) { val.value = ''; delete val.dataset.auto; }   // a DPL figure must not stay on an unlisted material
+}
+(function wireOrderPricing(){
+  for(let i=0;i<6;i++){
+    const mat = document.getElementById(`omat-${i}`), vol = document.getElementById(`ovol-${i}`);
+    if (mat) { mat.setAttribute('list','dpl-materials'); mat.addEventListener('input', ()=>priceOrderRow(i)); }
+    if (vol) vol.addEventListener('input', ()=>priceOrderRow(i));
+  }
+  _dplFill();
+  loadDPL();
+})();
 
 // Shows only the current wizard step and updates the step-bar dots/labels/connector-lines to reflect done/active/upcoming state.
 function renderWizardStep() {
