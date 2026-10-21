@@ -1547,6 +1547,8 @@
             <option value="NotConverted">❌ Site Not Converted</option>
           </select>
         </div>
+        <!-- v4.67: the conversion value is the total of the Order Details rows (Val worked out from DPL) -->
+        <div class="form-group" id="entry-convvalue-group" style="display:none"><label class="form-label">Conversion Value (₹)</label><div id="entry-convvalue" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:10px 12px"></div></div>
         <div class="form-group" id="entry-ptcode-group" style="display:none"><label class="form-label">PT Code</label><input type="text" class="form-input" id="entry-ptcode" placeholder="Enter PT Code"></div>
         <div class="form-group"><label class="form-label">Remarks / Notes</label><textarea class="form-input" id="entry-remarks" rows="3" placeholder="Any additional notes about this site visit..."></textarea></div>
         <!-- Site Converted details (document type/number, invoices, value) are no longer asked for. The block stays
@@ -3257,7 +3259,7 @@ const ENTRIES_HEADERS = ['id','iscId','iscName','asmId','asmName','stName','bdoN
   'buildType','siteStage','area','paintDate','competitor','leadDate','sampleDate','conversionDate',
   'paintSystem','products','sampleMaterials','orderDetails',
   'siteValue','dealerCode','dealerName','contractor','contractorPhone','painter','painterPhone','status','remarks','sapRef',
-  'createdAt','updatedAt','siteStatus','refDocType','refDocValue','invoiceValue','invoiceCount','ptCode'];   // v4.67: invoice-backed conversion value
+  'createdAt','updatedAt','siteStatus','refDocType','refDocValue','invoiceValue','invoiceCount','ptCode','convValue'];   // v4.67: invoice-backed conversion value; convValue = Order Details total
 
 // Overwrites row 1 of a sheet with the given header list — used to fix a sheet whose columns have drifted from what the app expects.
 async function repairSheetHeaders(sheetName, headers) {
@@ -4306,10 +4308,10 @@ async function _repLoadData(dates) {
         const convD = String(e.conversionDate||'').slice(0,10) || ud || cd;
         if (dateSet.has(convD)) {
           map[pid].converted++;
-          // v4.67: invoice-backed value only — the sum of the amounts read off the entry's invoice images.
-          // No fallback to the estimated site value or a typed figure; a conversion without invoice
-          // images adds nothing here and is counted in convNoInvoice instead, so the gap stays visible.
-          const inv = Number(e.invoiceValue)||0;
+          // v4.67: the Order Details total saved on the entry (convValue, values worked out from DPL); an
+          // entry converted before that has only its invoice-image total. No fallback to the estimated site
+          // value; a conversion with neither adds nothing and is counted in convNoInvoice, so the gap stays visible.
+          const inv = Number(e.convValue)||Number(e.invoiceValue)||0;
           map[pid].convValue += inv;
           if (!inv) map[pid].convNoInvoice++;
         }
@@ -4607,7 +4609,7 @@ async function runReport() {
       // with no working days in the range are dropped, leavers inside the range are kept and flagged.
       // Activity counts are NOT trimmed to the working days: logged work is real work.
       const rows = [];
-      let noInvoice = 0;   // v4.67: conversions in range with no invoice images behind them (worth ₹0 in Conv. value)
+      let noInvoice = 0;   // v4.67: conversions in range with no order value behind them (worth ₹0 in Conv. value)
       persons.forEach(x=>{
         const pd = _repPersonDays(x.p, dates); if (!pd) return;
         noInvoice += x.convNoInvoice||0;
@@ -4641,9 +4643,9 @@ async function runReport() {
         + card('Office', tot('Office'))
         + card('PCM meets', tot('PCM meets'))
         + card('Converted', tot('Converted'), 'green')
-        + `<div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value (from invoices)</div></div>`
+        + `<div class="stat-card green"><div class="stat-value" style="font-size:18px">${inr(totConvValue)}</div><div class="stat-label">Conversion value (from orders)</div></div>`
         + `</div>`
-        + (noInvoice ? `<div class="alert alert-info" style="margin-bottom:12px">🧾 Conv. value is the total read from invoice images. ${noInvoice} conversion${noInvoice>1?'s':''} in this range ${noInvoice>1?'have':'has'} no invoice image and ${noInvoice>1?'are':'is'} counted at ₹0 — open the entry and attach the invoice to include it.</div>` : '')
+        + (noInvoice ? `<div class="alert alert-info" style="margin-bottom:12px">📦 Conv. value is the Order Details total of each converted site (DPL value). ${noInvoice} conversion${noInvoice>1?'s':''} in this range ${noInvoice>1?'have':'has'} no order value and ${noInvoice>1?'are':'is'} counted at ₹0 — open the entry and fill Material and Vol (L) in Order Details to include it.</div>` : '')
         + _repTable(H, dispRows);
     }
 
@@ -6252,6 +6254,10 @@ function getOrderDetails() {
   }
   return orders;
 }
+// v4.67: total ₹ of the Order Details rows — shown as the Conversion Value on a converted site.
+function orderTotal() {
+  return Math.round(getOrderDetails().reduce((s,o)=>s+(Number(o.val)||0),0));
+}
 // Blanks out all 6 order-table input rows.
 function clearOrderTable() {
   for(let i=0;i<6;i++){
@@ -6354,7 +6360,17 @@ function renderWizardStep() {
   if(_wizardStep===WIZARD_STEPS-1) buildReview();
   // PT Code is only asked for when the site is converted
   if(_wizardStep===4){
-    const syncPtCode=()=>{ document.getElementById('entry-ptcode-group').style.display=gv('entry-status')==='Confirmed'?'block':'none'; };
+    const syncPtCode=()=>{
+      const conv = gv('entry-status')==='Confirmed';
+      document.getElementById('entry-ptcode-group').style.display=conv?'block':'none';
+      document.getElementById('entry-convvalue-group').style.display=conv?'block':'none';
+      if (conv) {
+        const t=orderTotal(), n=getOrderDetails().filter(o=>Number(o.val)>0).length;
+        document.getElementById('entry-convvalue').innerHTML = t
+          ? `<div style="font-size:18px;font-weight:700;color:#065f46">₹${t.toLocaleString('en-IN')}</div><div style="font-size:11px;color:var(--gray)">Total of ${n} Order Details line${n===1?'':'s'}</div>`
+          : `<div style="font-size:12px;color:#92400e">No order value yet — go Back to Products and fill Material and Vol (L) in Order Details.</div>`;
+      }
+    };
     syncPtCode();
     document.getElementById('entry-status').onchange=syncPtCode;
   }
@@ -6453,6 +6469,7 @@ function buildReview() {
     </div>
     <div class="review-section"><div class="review-section-title">📦 Status</div>
       <div class="review-row"><div class="review-label">Status</div><div class="review-value">${siteStatusBadge(gv('entry-status'))}</div></div>
+      ${gv('entry-status')==='Confirmed'&&orderTotal()?`<div class="review-row"><div class="review-label">Conversion Value</div><div class="review-value">₹${orderTotal().toLocaleString('en-IN')}</div></div>`:''}
       ${gv('entry-status')==='Confirmed'&&gv('entry-ptcode').trim()?`<div class="review-row"><div class="review-label">PT Code</div><div class="review-value">${escapeHtml(gv('entry-ptcode').trim())}</div></div>`:''}
       ${gv('entry-sapref').trim()?`<div class="review-row"><div class="review-label">${gv('entry-doctype')||'Reference'}</div><div class="review-value">${escapeHtml(gv('entry-sapref').trim())}</div></div>`:''}
       ${gv('entry-docvalue')?`<div class="review-row"><div class="review-label">${(gv('entry-doctype')||'').replace(/ Number$/,'')||'Document'} Value</div><div class="review-value">₹${Number(gv('entry-docvalue')).toLocaleString('en-IN')}</div></div>`:''}
@@ -6499,8 +6516,9 @@ async function saveEntry() {
     // only figure the Field activity summary counts as Conv. value. Blank when the site is not converted.
     const invoiced = entryData.status==='Confirmed' && _invoices.length;
     const invoiceFields = {invoiceValue: invoiced ? String(invoiceTotal()) : '', invoiceCount: invoiced ? String(_invoices.length) : '',
-      ptCode: entryData.status==='Confirmed' ? gv('entry-ptcode').trim() : ''};   // PT Code, only for a converted site
-    const needCols = invoiced || invoiceFields.ptCode;
+      ptCode: entryData.status==='Confirmed' ? gv('entry-ptcode').trim() : '',   // PT Code, only for a converted site
+      convValue: entryData.status==='Confirmed' && orderTotal() ? String(orderTotal()) : ''};   // Conv. value counted by the reports
+    const needCols = invoiced || invoiceFields.ptCode || invoiceFields.convValue;
     const photoClaim = {siteName:entryData.siteName, buildType:entryData.buildType, siteStage:entryData.siteStage, address:entryData.address};
     if (editId) {
       if (!(await uploadPhotoBeforeSave(entryId, photoClaim))) return;
@@ -6576,6 +6594,7 @@ function showDetail(id) {
     <div class="detail-row"><div class="detail-label">ASM · Region</div><div class="detail-value">${e.asmName||'—'} · ${e.region||'—'}</div></div>
     <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${fmtDate(e.createdAt)}</div></div>
     ${e.remarks?`<div class="detail-row"><div class="detail-label">Remarks</div><div class="detail-value">${e.remarks}</div></div>`:''}
+    ${Number(e.convValue)?`<div class="detail-row"><div class="detail-label">Conversion Value</div><div class="detail-value">₹${Number(e.convValue).toLocaleString('en-IN')}</div></div>`:''}
     ${e.ptCode?`<div class="detail-row"><div class="detail-label">PT Code</div><div class="detail-value">${escapeHtml(String(e.ptCode))}</div></div>`:''}
     ${e.sapRef?`<div class="detail-row"><div class="detail-label">${e.refDocType||'SAP Ref #'}</div><div class="detail-value">${e.sapRef}</div></div>`:''}
     ${e.refDocValue?`<div class="detail-row"><div class="detail-label">${(e.refDocType||'').replace(/ Number$/,'')||'Document'} Value</div><div class="detail-value">₹${Number(e.refDocValue).toLocaleString('en-IN')}</div></div>`:''}`;
