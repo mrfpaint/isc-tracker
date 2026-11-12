@@ -4233,12 +4233,15 @@ async function runReport() {
   try {
     const map = await _repLoadData(dates);
     const persons = Object.values(map);
+    // v4.68: every per-person report carries the reporting line (ST / BDO, ASM, RSM — see _repOrgChain)
+    // between Role and Region, on screen and in the CSV. Dealer coverage is one row per dealer, so it has none.
+    const chain = await _repOrgChain();
     let html='';
 
     if (type==='ghost') {
       // v4.60: same leaver handling as the Attendance report (see _repPersonDays). Present/Active day
       // counts are taken over the person's own working days, so a leaver's post-relief dates never inflate them.
-      const H = ['Name','Role','Region','Status','Present days','Active days','Ghost days','Ghost dates'];
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','Present days','Active days','Ghost days','Ghost dates'];
       const GH = H.indexOf('Ghost days'), ghostN = r => parseInt(String(r[GH]).replace(/\D/g,''));
       const rows=[]; let counted=0, leavers=0;
       persons.forEach(x=>{
@@ -4248,7 +4251,7 @@ async function runReport() {
         if (!ghostDates.length) return;
         const presentDays = pd.myDates.filter(d=>x.att[d]==='Present').length;
         const activeDays  = pd.myDates.filter(d=>x.actDates.has(d)).length;
-        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, presentDays, activeDays, `<strong style="color:#ef4444">${ghostDates.length}</strong>`, ghostDates.map(d=>d.slice(8)+'/'+d.slice(5,7)).join(', ')]);
+        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, presentDays, activeDays, `<strong style="color:#ef4444">${ghostDates.length}</strong>`, ghostDates.map(d=>d.slice(8)+'/'+d.slice(5,7)).join(', ')]);
       });
       rows.sort((a,b)=>ghostN(b)-ghostN(a));
       html = `<div class="stats-row"><div class="stat-card red"><div class="stat-value">${rows.length}</div><div class="stat-label">People with ghost days</div></div><div class="stat-card"><div class="stat-value">${rows.reduce((s,r)=>s+ghostN(r),0)}</div><div class="stat-label">Total ghost days</div></div><div class="stat-card green"><div class="stat-value">${counted-rows.length}</div><div class="stat-label">Clean records</div></div>${leavers?`<div class="stat-card"><div class="stat-value">${leavers}</div><div class="stat-label">Left during range</div></div>`:''}</div>`
@@ -4262,9 +4265,6 @@ async function runReport() {
       // WORKING days left blank, so nobody is penalised for a blank Sunday, and a Present marked on a holiday
       // still counts as Present. Holiday = explicit Holiday marks + blank holidays, so Present + Leave +
       // Holiday + Unmarked = calendar days as before. % marked is over working days.
-      // v4.68: the reporting line (ST / BDO, ASM, RSM — see _repOrgChain) sits between Role and Region, on
-      // screen and in the CSV, so the report can be filtered or pivoted by any manager without a second sheet.
-      const chain = await _repOrgChain();
       const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','Present','Leave','Holiday','Unmarked','% marked','Working days'];
       const PCT = H.indexOf('% marked');
       const rows = []; let inactiveN = 0;
@@ -4321,8 +4321,6 @@ async function runReport() {
       });
       view.sort((a,b)=>String(a.x.p.name||'').localeCompare(String(b.x.p.name||'')));
       // CSV: the same codes under ISO date headers (exportReportCSV strips the HTML from the Status cell).
-      // v4.68: the CSV also carries the reporting line (see _repOrgChain); the on-screen register stays as it was.
-      const chain = await _repOrgChain();
       const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status', ...dates, 'Present','Leave','Holiday','Unmarked','% marked','Working days'];
       const rows = view.map(v=>[v.x.p.name, v.x.p._role, ...chain(v.x.p), v.x.p.region||'', v.pd.status,...v.cells.map(c=>c.k==='off'?'-':c.k), v.P, v.L, v.Hd, v.U, v.pct+'%', v.W]);
       _repCols = H; _repRows = rows;
@@ -4338,7 +4336,7 @@ async function runReport() {
         const months = []; dates.forEach(d=>{ const m=d.slice(0,7); if (months.length && months[months.length-1].m===m) months[months.length-1].n++; else months.push({m, n:1}); });
         const TH = 'padding:6px 8px;background:#f9fafb;border-bottom:1.5px solid var(--border);white-space:nowrap;font-size:11px;text-align:left';
         const stick = 'position:sticky;left:0;z-index:2;border-right:1px solid var(--border)';
-        const head1 = `<tr><th rowspan="2" style="${TH};${stick}">Name</th><th rowspan="2" style="${TH}">Role</th>`
+        const head1 = `<tr><th rowspan="2" style="${TH};${stick}">Name</th><th rowspan="2" style="${TH}">Role</th>` + ['ST / BDO','ASM','RSM'].map(t=>`<th rowspan="2" style="${TH}">${t}</th>`).join('')
           + months.map(m=>`<th colspan="${m.n}" style="${TH};text-align:center;border-left:1px solid var(--border)">${MON[parseInt(m.m.slice(5,7),10)-1]} ${m.m.slice(0,4)}</th>`).join('')
           + ['P','L','H','U','%','Days'].map(t=>`<th rowspan="2" style="${TH};text-align:center${t==='P'?';border-left:1px solid var(--border)':''}">${t}</th>`).join('') + '</tr>';
         const head2 = '<tr>' + dates.map(d=>{ const hol = holidayName(d); const wd = WD[new Date(d+'T12:00:00').getDay()];
@@ -4354,7 +4352,8 @@ async function runReport() {
             const tip = d + (hol?' · '+hol:'') + ' · ' + LABEL[c.k] + (c.raw?' (sheet says: '+c.raw+')':'') + (t && c.k!=='off' ? ' · in '+t : '');
             return `<td title="${escapeHtml(tip)}" style="text-align:center;padding:0;height:26px;min-width:26px;border-bottom:1px solid #fff;border-left:1px solid #fff;font-size:11px;font-weight:700;${STYLE[c.k]}">${c.k==='off'?'-':c.k}</td>`;
           }).join('');
-          return `<tr>${name}${role}${days}${num(v.P,'#16a34a')}${num(v.L,'#d97706')}${num(v.Hd,'#4f46e5')}${num(v.U, v.U?'#ef4444':'')}${num(v.pct+'%', v.pct<50?'#ef4444':'')}${num(v.W)}</tr>`;
+          const line = chain(p).map(n=>`<td style="${TD}">${escapeHtml(n)}</td>`).join('');
+          return `<tr>${name}${role}${line}${days}${num(v.P,'#16a34a')}${num(v.L,'#d97706')}${num(v.Hd,'#4f46e5')}${num(v.U, v.U?'#ef4444':'')}${num(v.pct+'%', v.pct<50?'#ef4444':'')}${num(v.W)}</tr>`;
         }).join('');
         html += legend + `<div style="overflow-x:auto;background:white;border:1.5px solid var(--border);border-radius:12px"><table style="border-collapse:separate;border-spacing:0;font-size:12px">${head1}${head2}${body}</table></div>`;
       }
@@ -4404,10 +4403,10 @@ async function runReport() {
         // v4.66: Unique dealers / Repeat visits re-describe the Dealer visits already inside Total
         // (unique + repeat = visits), so like Converted they stay out of it.
         x.dealerKeySet.forEach(k=>teamDealers.add(k));
-        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, ...cells.slice(0,4), x.uniqueDealers, x.repeatVisits, ...cells.slice(4), x.converted, x.convValue, total]);
+        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, ...cells.slice(0,4), x.uniqueDealers, x.repeatVisits, ...cells.slice(4), x.converted, x.convValue, total]);
       });
       rows.sort((a,b)=>b[b.length-1]-a[a.length-1]);
-      const H = ['Name','Role','Region','Status','New sites','Existing sites','Site updates',
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','New sites','Existing sites','Site updates',
                  'Dealer visits','Unique dealers','Repeat visits','Contractor','Influencer','Work along','Office','Other',
                  'Converted','Conv. value','Total'];
       const at = name => H.indexOf(name);
