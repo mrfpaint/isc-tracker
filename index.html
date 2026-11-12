@@ -4186,6 +4186,41 @@ function _repPersonDays(p, dates) {
     : 'Active';
   return {myDates, status, inactive, moved};
 }
+// Reports-tab helper: resolves a person's reporting line for the mapping columns — returns a function
+// p => [ST / BDO, ASM, RSM] (names; '' where the level does not apply or nothing is mapped).
+// Looked up against the FULL ST/BDO/ASM/RSM lists, not the viewer's slice, so an ASM running the report
+// still sees their RSM. Ids win over the names stamped on the row (those go stale after a rename or a
+// re-mapping); the stamped name is only the fallback when an id matches nobody.
+//   ISC      → the ST and/or BDO they are mapped to, their ASM (own asmId, else their ST's/BDO's), that ASM's RSM
+//   ST / BDO → their ASM and that ASM's RSM
+//   ASM      → their RSM          RSM / heads → blank
+async function _repOrgChain() {
+  const [sts, bdos, asms, rsms] = await Promise.all([
+    DATA_getST().catch(()=>[]), DATA_getBDO().catch(()=>[]), DATA_getASMs().catch(()=>[]), DATA_getRSMs().catch(()=>[])
+  ]);
+  const idx = list => { const m = {}; list.forEach(x=>{ m[String(x.id)] = x; }); return m; };
+  const stById = idx(sts), bdoById = idx(bdos), asmById = idx(asms), rsmById = idx(rsms);
+  const nm = (rec, fallback) => String((rec && rec.name) || fallback || '').trim();
+  return p => {
+    const role = p._role;
+    if (role!=='ISC' && role!=='ST' && role!=='BDO' && role!=='ASM') return ['', '', ''];
+    let stBdo = '', asm = null, asmName = '';
+    if (role==='ASM') asm = p;
+    else {
+      let via = null;                                   // the ST/BDO an ISC sits under, used if the ISC has no asmId of its own
+      if (role==='ISC') {
+        const st = p.stId ? stById[String(p.stId)] : null, bdo = p.bdoId ? bdoById[String(p.bdoId)] : null;
+        stBdo = [nm(st, p.stName), nm(bdo, p.bdoName)].filter(Boolean).join(' / ');
+        via = st || bdo;
+      }
+      const asmId = String(p.asmId || (via && via.asmId) || '');
+      asm = asmId ? asmById[asmId] : null;
+      asmName = nm(asm, p.asmName || (via && via.asmName));
+    }
+    const rsm = asm && asm.rsmId ? rsmById[String(asm.rsmId)] : null;
+    return [stBdo, asmName, nm(rsm, asm && asm.rsmName)];
+  };
+}
 
 // Builds whichever report type is selected (ghost/attendance/activity) over the chosen date range, using the data _repLoadData() assembled, and renders it as a table with summary stat cards.
 async function runReport() {
@@ -4227,7 +4262,10 @@ async function runReport() {
       // WORKING days left blank, so nobody is penalised for a blank Sunday, and a Present marked on a holiday
       // still counts as Present. Holiday = explicit Holiday marks + blank holidays, so Present + Leave +
       // Holiday + Unmarked = calendar days as before. % marked is over working days.
-      const H = ['Name','Role','Region','Status','Present','Leave','Holiday','Unmarked','% marked','Working days'];
+      // v4.68: the reporting line (ST / BDO, ASM, RSM — see _repOrgChain) sits between Role and Region, on
+      // screen and in the CSV, so the report can be filtered or pivoted by any manager without a second sheet.
+      const chain = await _repOrgChain();
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','Present','Leave','Holiday','Unmarked','% marked','Working days'];
       const PCT = H.indexOf('% marked');
       const rows = []; let inactiveN = 0;
       persons.forEach(x=>{
@@ -4239,7 +4277,7 @@ async function runReport() {
         const Hd=myDates.filter(d=>x.att[d]==='Holiday' || (isHoliday(d) && !marked(d))).length;
         const U=workDates.filter(d=>!marked(d)).length;
         const pct = workDates.length ? Math.round((workDates.length-U)*100/workDates.length) : 100;
-        rows.push([x.p.name, x.p._role, x.p.region||'', pd.status, P, L, Hd, U, pct+'%', workDates.length]);
+        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, P, L, Hd, U, pct+'%', workDates.length]);
       });
       rows.sort((a,b)=>parseInt(a[PCT])-parseInt(b[PCT]));
       const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[PCT]),0)/rows.length):0;
@@ -4283,8 +4321,10 @@ async function runReport() {
       });
       view.sort((a,b)=>String(a.x.p.name||'').localeCompare(String(b.x.p.name||'')));
       // CSV: the same codes under ISO date headers (exportReportCSV strips the HTML from the Status cell).
-      const H = ['Name','Role','Region','Status', ...dates, 'Present','Leave','Holiday','Unmarked','% marked','Working days'];
-      const rows = view.map(v=>[v.x.p.name, v.x.p._role, v.x.p.region||'', v.pd.status, ...v.cells.map(c=>c.k==='off'?'-':c.k), v.P, v.L, v.Hd, v.U, v.pct+'%', v.W]);
+      // v4.68: the CSV also carries the reporting line (see _repOrgChain); the on-screen register stays as it was.
+      const chain = await _repOrgChain();
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status', ...dates, 'Present','Leave','Holiday','Unmarked','% marked','Working days'];
+      const rows = view.map(v=>[v.x.p.name, v.x.p._role, ...chain(v.x.p), v.x.p.region||'', v.pd.status,...v.cells.map(c=>c.k==='off'?'-':c.k), v.P, v.L, v.Hd, v.U, v.pct+'%', v.W]);
       _repCols = H; _repRows = rows;
       document.getElementById('rep-export-btn').style.display = rows.length ? '' : 'none';
       const avg = view.length ? Math.round(view.reduce((s,v)=>s+v.pct,0)/view.length) : 0;
