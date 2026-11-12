@@ -4388,7 +4388,10 @@ async function runReport() {
       // and each activity type is counted separately. Converted / Conv. value are OUTCOMES of entries
       // already counted under New/Existing, so they stay out of Total — everything else in the row adds
       // up to it exactly. (v4.58: the "Tagged on site" ST/BDO column was removed — see _repLoadData.)
-      const COL = ['newSites','existingSites','updates','dealer','contractor','influencer','workAlong','office','other'];
+      // v4.68: the Site updates and Other columns were dropped (both read 0 for almost everyone), and with
+      // them their counts leave Total, so the row still adds up. _repLoadData still tallies both, and an
+      // update day still counts as an active day in the Ghost report.
+      const COL = ['newSites','existingSites','dealer','contractor','influencer','workAlong','office'];
       const teamDealers = new Set();   // v4.66: distinct dealers across everyone kept in the table — a union, never a sum
       // v4.61: same leaver handling as the other two reports (_repPersonDays) — Vacant slots and people
       // with no working days in the range are dropped, leavers inside the range are kept and flagged.
@@ -4403,11 +4406,11 @@ async function runReport() {
         // v4.66: Unique dealers / Repeat visits re-describe the Dealer visits already inside Total
         // (unique + repeat = visits), so like Converted they stay out of it.
         x.dealerKeySet.forEach(k=>teamDealers.add(k));
-        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, ...cells.slice(0,4), x.uniqueDealers, x.repeatVisits, ...cells.slice(4), x.converted, x.convValue, total]);
+        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, ...cells.slice(0,3), x.uniqueDealers, x.repeatVisits, ...cells.slice(3), x.converted, x.convValue, total]);
       });
       rows.sort((a,b)=>b[b.length-1]-a[a.length-1]);
-      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','New sites','Existing sites','Site updates',
-                 'Dealer visits','Unique dealers','Repeat visits','Contractor','Influencer','Work along','Office','Other',
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','New sites','Existing sites',
+                 'Dealer visits','Unique dealers','Repeat visits','Contractor','Influencer','Work along','Office',
                  'Converted','Conv. value','Total'];
       const at = name => H.indexOf(name);
       const tot=(name)=>rows.reduce((s,r)=>s+r[at(name)],0);
