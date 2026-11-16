@@ -294,7 +294,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.67</div>
+        <div class="auth-tagline">FIELD ONE · v4.70</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -1148,6 +1148,7 @@
       <div class="section-header" onclick="toggleSection('vacant')" style="cursor:pointer">
         <div class="section-title">⚠️ Vacant Positions <span id="vacant-count" style="font-size:11px;color:var(--gray);font-weight:400"></span></div>
         <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm btn-blue" onclick="event.stopPropagation();openVacantSeatModal()">➕ Add Vacant ASM Seat</button>
           <button class="collapse-btn open" id="toggle-vacant">▼</button>
         </div>
       </div>
@@ -1717,6 +1718,25 @@
   </div>
 </div>
 
+<!-- VACANT ASM SEAT (v4.70) — an ASM position that exists before (or between) the people who hold it.
+     Create one for a territory nobody has been hired into yet, or name / re-parent a seat left by a leaver.
+     ISCs, STs and BDOs are mapped to the seat; Fill Position later moves the whole team to the new ASM. -->
+<div class="modal-overlay" id="modal-vacant-seat">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="vseat-title">Add Vacant ASM Seat</div>
+    <div class="modal-subtitle" id="vseat-subtitle">An ASM position with nobody in it yet — the team can be mapped to it now</div>
+    <input type="hidden" id="vseat-edit-id">
+    <div class="form-group"><label class="form-label">Territory / seat name *</label><input type="text" class="form-input" id="vseat-territory" placeholder="e.g. Coimbatore" maxlength="60"></div>
+    <div class="form-group"><label class="form-label">Reports to (RSM) *</label><select class="form-select" id="vseat-rsm-select"><option value="">— Select RSM —</option></select></div>
+    <div class="entry-sub" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.5">The seat shows as <strong>Vacant – territory</strong> in every "Reports to (ASM)" list and in the ASM column of reports. Until it is filled, its team is covered by the RSM chosen here.</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" style="flex:1" onclick="closeModal('modal-vacant-seat')">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="saveVacantSeat()">Save Seat</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add ST Modal -->
 <div class="modal-overlay" id="modal-st">
   <div class="modal">
@@ -2259,7 +2279,7 @@ async function generateWeeklyBrief() {
     // Team employees (ST/SE/BDO/BDE) in this manager's scope
     let team=[];
     if (currentUser.role==='asm') team=[...sts,...bdos].filter(p=>String(p.asmId||'')===String(currentUser.id));
-    else if (currentUser.role==='rsm') { const my=new Set((await scopeASMsForRSM(asms)).map(a=>String(a.id))); team=[...sts,...bdos].filter(p=>my.has(String(p.asmId||''))); }
+    else if (currentUser.role==='rsm') { const sc=await rsmFieldScope(asms); team=[...sts,...bdos].filter(sc.has); }
     team=team.filter(p=>String(p.status||'Active')!=='Inactive');
     const teamIds=new Set(team.map(p=>String(p.id)));
     const visits=[...stVisits,...bdoVisits].filter(v=>teamIds.has(String(v.empId)) && String(v.visitDate||'')>=since);
@@ -2951,12 +2971,58 @@ async function scopeASMsForRSM(asms) {
   return asms.filter(a=>_headRsmIds.has(String(a.rsmId||'')));
 }
 
+// ── v4.69: RSM SEES THE FIELD TEAM THAT HAS NO ASM ──
+// Scope used to run strictly RSM → ASM → ST/BDO/ISC, so the moment an ASM seat fell vacant (asmId
+// blank, or pointing at a "Vacant (was …)" row, which carries no rsmId) that ASM's whole team
+// vanished from the RSM's and the heads' screens. Anyone whose ASM link does not lead to an RSM is
+// now treated as reporting straight to the RSM of their own REGION until an ASM is mapped again.
+// Regions are typed inconsistently ('West III' on the RSM, 'West-3' on the team), so compare keys.
+function regionKey(r) {
+  return String(r||'').trim().toLowerCase()
+    .replace(/\b(iii|ii|iv|v|i)$/, m=>({i:1,ii:2,iii:3,iv:4,v:5})[m])
+    .replace(/[^a-z0-9]/g,'');
+}
+// Does person `p` sit in the area of RSMs-sheet row `r`? NSH → everyone · SH/NH → their zone ·
+// a plain RSM → the same region.
+function inRsmArea(r, p) {
+  const z = headZoneOf(r);
+  if (z==='ALL') return true;
+  if (z) return rsmZoneBucket(p)===z;
+  const k = regionKey(r && r.region);
+  return !!k && regionKey(p && p.region)===k;
+}
+// Who covers a person with no working ASM above them. Returns null when their ASM is a real person
+// with an RSM; otherwise {rsmId} — the RSM written on their Vacant seat (v4.70: a vacant seat keeps its
+// place in the hierarchy), or '' when there is none (no ASM at all, an old "Vacant (was …)" seat with
+// no RSM, or an ASM with no RSM), in which case the RSM of the person's own region covers them.
+// ALWAYS build this from the FULL ASMs list — a pre-filtered list would make a mapped team look orphaned.
+function emptySeatCover(asms) {
+  const byId = {}; asms.forEach(a=>{ byId[String(a.id)] = a; });
+  return p => {
+    const a = byId[String((p&&p.asmId)||'')];
+    const vacant = !!a && String(a.status||'')==='Vacant';
+    if (a && !vacant && String(a.rsmId||'')) return null;
+    return {rsmId: vacant ? String(a.rsmId||'') : ''};
+  };
+}
+// The current rsm-role user's whole scope. `asms` must be the FULL ASMs list.
+//   myAsms / myAsmIds → as scopeASMsForRSM (v4.70: includes Vacant seats that report to me)
+//   direct(p) → p has no working ASM and I cover them: their vacant seat is mine, or (no seat RSM) they are in my area
+//   has(p) → p (an ISC / ST / BDO row) is under me, through an ASM or directly
+async function rsmFieldScope(asms) {
+  const myAsms = await scopeASMsForRSM(asms);
+  const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
+  const cover = emptySeatCover(asms);
+  const direct = p => { const c = cover(p); return !!c && (c.rsmId ? myAsmIds.has(String(p.asmId||'')) : inRsmArea(currentUser, p)); };
+  return { myAsms, myAsmIds, direct, has: p => myAsmIds.has(String(p.asmId||'')) || direct(p) };
+}
+
 // ── ROLE SCOPING ──
 // The set of ISC ids the current user may see, resolved LIVE from the Users sheet — never from
 // ids stamped on old records, which go stale when an ISC is reassigned. Returns null for admin
 // (no restriction). All ids are String()-coerced because Sheets returns them inconsistently typed.
 //   ISC → themselves · ST/SE → ISCs with stId=them · BDO/BDE → ISCs with bdoId=them
-//   ASM → their mapped ISCs · RSM → every ISC under their ASMs
+//   ASM → their mapped ISCs · RSM → every ISC under their ASMs, plus ISCs in their region with no ASM
 async function scopedISCIdSet() {
   const me = String(currentUser.id||'');
   if (currentUser.role==='admin') return null;
@@ -2966,8 +3032,7 @@ async function scopedISCIdSet() {
   if (currentUser.role==='asm') mine = iscs.filter(i=>String(i.asmId||'')===me);
   else if (currentUser.role==='rsm') {
     const asms = await DATA_getASMs();
-    const myAsmIds = new Set((await scopeASMsForRSM(asms)).map(a=>String(a.id)));
-    mine = iscs.filter(i=>myAsmIds.has(String(i.asmId||'')));
+    mine = iscs.filter((await rsmFieldScope(asms)).has);   // v4.69: incl. ISCs with no ASM, by region
   }
   else mine = currentUser.isST ? iscs.filter(i=>String(i.stId||'')===me)
                                : iscs.filter(i=>String(i.bdoId||'')===me);
@@ -3736,7 +3801,8 @@ function asmTagger(field, rsms) {
 // are included alongside their team — an ASM or RSM logs field activity of their own, so leaving
 // them out made that work invisible here and in the Reports tab.
 //   ASM   → own ISCs/STs/BDOs, plus themselves
-//   RSM   → everyone under their ASMs, those ASMs, and themselves
+//   RSM   → everyone under their ASMs, those ASMs, themselves, and (v4.69) the ISCs/STs/BDOs of
+//           their region whose ASM seat is empty
 //   Heads → same, widened to their whole zone, plus every RSM in it
 //   Admin → everyone
 async function loadActivityPeople() {
@@ -3761,14 +3827,13 @@ async function loadActivityPeople() {
   }
 
   if (currentUser.role==='rsm') {
-    const myAsms = await scopeASMsForRSM(asms);
-    const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
+    const sc = await rsmFieldScope(asms), myAsms = sc.myAsms;
     const zone = headZoneOf(currentUser);
     // A head also oversees the RSMs in their zone; a plain RSM covers only themselves.
     const myRsms = rsms.filter(r=>String(r.id)===me
       || (zone && !headZoneOf(r) && (zone==='ALL' || rsmZoneBucket(r)===zone)));
     return [
-      ...field.filter(p=>myAsmIds.has(String(p.asmId||''))),
+      ...field.filter(sc.has),
       ...myAsms.map(tagASM),
       ...myRsms.map(r=>({...r, _role:actHeadLabel(r)}))
     ];
@@ -4201,6 +4266,8 @@ async function _repOrgChain() {
   const idx = list => { const m = {}; list.forEach(x=>{ m[String(x.id)] = x; }); return m; };
   const stById = idx(sts), bdoById = idx(bdos), asmById = idx(asms), rsmById = idx(rsms);
   const nm = (rec, fallback) => String((rec && rec.name) || fallback || '').trim();
+  const liveRsms = rsms.filter(r=>!headZoneOf(r) && String(r.status||'')!=='Vacant' && String(r.status||'Active')!=='Inactive' && regionKey(r.region));
+  const regionRsm = p => liveRsms.find(r=>regionKey(r.region)===regionKey(p.region)) || null;
   return p => {
     const role = p._role;
     if (role!=='ISC' && role!=='ST' && role!=='BDO' && role!=='ASM') return ['', '', ''];
@@ -4217,7 +4284,9 @@ async function _repOrgChain() {
       asm = asmId ? asmById[asmId] : null;
       asmName = nm(asm, p.asmName || (via && via.asmName));
     }
-    const rsm = asm && asm.rsmId ? rsmById[String(asm.rsmId)] : null;
+    let rsm = asm && asm.rsmId ? rsmById[String(asm.rsmId)] : null;
+    // v4.69: no ASM chain to an RSM → the RSM of the person's own region (same rule as rsmFieldScope)
+    if (!rsm && !(asm && asm.rsmId) && role!=='ASM') rsm = regionRsm(p);
     return [stBdo, asmName, nm(rsm, asm && asm.rsmName)];
   };
 }
@@ -4609,11 +4678,12 @@ async function loadJointPeople() {
   if (currentUser.role === 'rsm') {
     let [asms, sts, bdos] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
     sts = sts.filter(activeOnly); bdos = bdos.filter(activeOnly);
-    const myAsms = await scopeASMsForRSM(asms.filter(activeOnly));
-    const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
+    const sc = await rsmFieldScope(asms);   // full ASMs list — see emptySeatCover()
+    const myAsms = sc.myAsms.filter(activeOnly);
+    const liveAsmIds = new Set(myAsms.map(a=>String(a.id)));
     return [
       ...myAsms.map(a=>({id:a.id, name:a.name, role:'ASM'})),
-      ...[...sts, ...bdos].filter(p=>myAsmIds.has(String(p.asmId||'')))
+      ...[...sts, ...bdos].filter(p=>liveAsmIds.has(String(p.asmId||'')) || sc.direct(p))
         .map(p=>({id:p.id, name:p.name, role:(p.role||'ST').toUpperCase()})),
     ];
   }
@@ -6641,15 +6711,21 @@ function iscOwnerASMFields() {
   return {asmId:currentUser.id, asmName:currentUser.name, asmEmail:currentUser.email||'', asmPhone:currentUser.phone||''};
 }
 
-// Fills a "Reports to (ASM)" dropdown with all active ASMs (alphabetical) and pre-selects
-// the sensible default: an ASM picks themselves, an ST/SE/BDO/BDE gets their own ASM.
+// v4.70: every "Reports to (ASM)" list offers the same choices — active ASMs first (alphabetical), then
+// the Vacant seats, marked 🕳️ — so a person can be aligned to a territory whose ASM has not joined yet.
+function isVacantSeat(a) { return String((a&&a.status)||'')==='Vacant'; }
+function asmSeatLabel(a) { return (isVacantSeat(a) ? '🕳️ ' : '') + String((a&&a.name)||''); }
+function asmSeatChoices(asms) {
+  return asms.filter(a=>String(a.status||'Active')!=='Inactive')
+    .sort((a,b)=>(isVacantSeat(a)-isVacantSeat(b)) || String(a.name||'').localeCompare(String(b.name||'')));
+}
+// Fills a "Reports to (ASM)" dropdown and pre-selects the sensible default: an ASM picks themselves,
+// an ST/SE/BDO/BDE gets their own ASM.
 async function populateASMDropdown(elId) {
   const el = document.getElementById(elId); if (!el) return;
-  const asms = (await DATA_getASMs())
-    .filter(a=>String(a.status||'Active')!=='Inactive' && String(a.status||'')!=='Vacant')
-    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  const asms = asmSeatChoices(await DATA_getASMs());
   el.innerHTML = '<option value="">— Select ASM —</option>' +
-    asms.map(a=>`<option value="${escapeHtml(String(a.id))}">${escapeHtml(a.name||'')}</option>`).join('');
+    asms.map(a=>`<option value="${escapeHtml(String(a.id))}">${escapeHtml(asmSeatLabel(a))}</option>`).join('');
   if (currentUser.role==='asm') el.value = String(currentUser.id);
   else if (currentUser.role==='bdo' && currentUser.asmId) el.value = String(currentUser.asmId);
 }
@@ -7016,11 +7092,13 @@ async function renderReportingLine() {
       const rstep = rsmStepFor(asmById[String(u.id)] || u); if (rstep) steps.push(rstep);
     } else if (u.role==='rsm') {
       const zone = headZoneOf(u);
-      const myAsms = await scopeASMsForRSM(asms.filter(a=>String(a.status||'')!=='Vacant'));
-      const asmIdSet = new Set(myAsms.map(a=>String(a.id)));
-      const nIsc = iscs.filter(i=>asmIdSet.has(String(i.asmId||''))).length;
+      const sc = await rsmFieldScope(asms);
+      const myAsms = sc.myAsms.filter(a=>String(a.status||'')!=='Vacant');
+      const liveP = r => String(r.status||'Active')!=='Inactive' && String(r.status||'')!=='Vacant';
+      const nIsc = iscs.filter(sc.has).length;
+      const nDirect = [...sts, ...bdos].filter(p=>liveP(p) && sc.direct(p)).length;   // v4.69: ASM seat empty
       steps.push({icon:'🌐', role:`You (${u.empRole|| (zone==='ALL'?'NSH':zone?'Zone Head':'RSM')})`, name:u.name,
-        sub:`${myAsms.length} ASM${myAsms.length!==1?'s':''} · ${nIsc} ISCs under you`});
+        sub:`${myAsms.length} ASM${myAsms.length!==1?'s':''} · ${nIsc} ISCs under you${nDirect?` · ${nDirect} ST/BDO with no ASM, reporting to you directly`:''}`});
       if (!zone) steps.push({icon:'🏢', role:'Reports to', name:'Sales Head (SH/NH/NSH)', sub:u.region||''});
     }
 
@@ -7307,11 +7385,11 @@ async function renderRSMSites(filter='all') {
   try {
     // Get all ASMs under this RSM
     const allAsms = await DATA_getASMs();
-    const myAsms = await scopeASMsForRSM(allAsms);
-    const myAsmIds = myAsms.map(a=>String(a.id));
-    // Get ISC IDs under those ASMs — relies only on current Users sheet mapping
+    const sc = await rsmFieldScope(allAsms), myAsms = sc.myAsms;
+    // Get ISC IDs under those ASMs — relies only on current Users sheet mapping (v4.69: plus the
+    // ISCs of this region whose ASM seat is empty)
     let myISCIds=new Set();
-    try{const iscs=await DATA_getISCs();iscs.filter(i=>myAsmIds.includes(String(i.asmId||''))).forEach(i=>myISCIds.add(String(i.id)));}catch(e){}
+    try{const iscs=await DATA_getISCs();iscs.filter(sc.has).forEach(i=>myISCIds.add(String(i.id)));}catch(e){}
     // Get all entries for those ASMs — match ONLY by current ISC mapping, never by
     // the asmId field stamped on the entry (can be stale after ISC reassignment)
     let all = await DATA_getEntries();
@@ -7454,8 +7532,8 @@ async function openAddSTModal() {
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
     const asms = await DATA_getASMs();
-    asms.filter(a=>String(a.status||'Active')!=='Inactive').sort(byName).forEach(a=>{
-      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=a.name; sel.appendChild(opt);
+    asmSeatChoices(asms).forEach(a=>{
+      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=asmSeatLabel(a); sel.appendChild(opt);
     });
   } catch(e){}
   await populateRegionDropdown('st-region');
@@ -7472,8 +7550,8 @@ async function openAddBDOModal() {
   sel.innerHTML = `<option value="">— Not assigned yet —</option>`;
   try {
     const asms = await DATA_getASMs();
-    asms.filter(a=>String(a.status||'Active')!=='Inactive').sort(byName).forEach(a=>{
-      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=a.name; sel.appendChild(opt);
+    asmSeatChoices(asms).forEach(a=>{
+      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=asmSeatLabel(a); sel.appendChild(opt);
     });
   } catch(e){}
   await populateRegionDropdown('bdo-region');
@@ -7561,8 +7639,8 @@ async function openAssignASMModal(role, personId, personName, currentAsmId) {
   sel.innerHTML = `<option value="">— Select ASM —</option>`;
   try {
     const asms = await DATA_getASMs();
-    asms.filter(a=>String(a.status||'Active')!=='Inactive').sort(byName).forEach(a=>{
-      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=a.name;
+    asmSeatChoices(asms).forEach(a=>{
+      const opt=document.createElement('option'); opt.value=a.id; opt.textContent=asmSeatLabel(a);
       if(a.id===currentAsmId) opt.selected=true;
       sel.appendChild(opt);
     });
@@ -7678,6 +7756,73 @@ async function toggleRoleStatus(role, id, newStatus) {
     showToast('✅ Activated!');
     auditLog('Reactivated', id, ROLE_LABEL[role]);
     ROLE_RENDER[role]();
+  } catch(e){ showToast('⚠️ '+e.message); }
+  finally { setLoading(false); }
+}
+
+// The placeholder row for a seat someone has just left. v4.70: an ASM seat inherits the leaver's RSM,
+// so it stays in the same place in the hierarchy and its team keeps rolling up to that RSM.
+async function makeVacantSeat(role, outgoingId, outgoingName) {
+  const seat = {id:`vacant_${role}_${Date.now()}`, name:`Vacant (was ${outgoingName})`, status:'Vacant', email:'', phone:'', username:'', password:''};
+  if (role==='asm') {
+    try {
+      const out = (await DATA_getASMs()).find(a=>String(a.id)===String(outgoingId));
+      if (out) { seat.rsmId = out.rsmId||''; seat.rsmName = out.rsmName||''; }
+    } catch(e) { console.warn('Could not copy the RSM onto the vacant seat:', e.message); }
+  }
+  return seat;
+}
+
+// ── VACANT ASM SEAT (v4.70) — create a seat for a territory with no ASM yet, or name / re-parent an existing one ──
+async function openVacantSeatModal(editId) {
+  let seat = null;
+  try {
+    const [asms, rsms] = await Promise.all([DATA_getASMs(), DATA_getRSMs()]);
+    if (editId) seat = asms.find(a=>String(a.id)===String(editId)) || null;
+    if (editId && !seat) return showToast('⚠️ Seat not found');
+    const live = r => String(r.status||'Active')!=='Inactive' && String(r.status||'')!=='Vacant';
+    document.getElementById('vseat-rsm-select').innerHTML = '<option value="">— Select RSM —</option>' +
+      rsms.filter(live).sort(byName).map(r=>`<option value="${escapeHtml(String(r.id))}">${escapeHtml(r.name+(r.region?' ('+r.region+')':''))}</option>`).join('');
+  } catch(e) { return showToast('⚠️ Could not load RSMs'); }
+  sv('vseat-edit-id', seat ? seat.id : '');
+  sv('vseat-territory', seat ? String(seat.territory||'') : '');
+  sv('vseat-rsm-select', seat ? String(seat.rsmId||'') : '');
+  document.getElementById('vseat-title').textContent = seat ? 'Edit Vacant ASM Seat' : 'Add Vacant ASM Seat';
+  document.getElementById('vseat-subtitle').textContent = seat ? seat.name : 'An ASM position with nobody in it yet — the team can be mapped to it now';
+  openModal('modal-vacant-seat');
+}
+async function saveVacantSeat() {
+  const editId = gv('vseat-edit-id'), territory = gv('vseat-territory').trim().replace(/\s+/g,' '), rsmId = gv('vseat-rsm-select');
+  if (!territory) return showToast('⚠️ Please enter the territory / seat name');
+  if (!rsmId) return showToast('⚠️ Please select the RSM this seat reports to');
+  const name = `Vacant – ${territory}`;
+  setLoading(true, 'Saving seat...');
+  try {
+    const [asms, rsms] = await Promise.all([DATA_getASMs(), DATA_getRSMs()]);
+    if (asms.find(a=>isVacantSeat(a) && String(a.id)!==String(editId) && String(a.name||'').trim().toLowerCase()===name.toLowerCase()))
+      return showToast('⚠️ A vacant seat with this territory name already exists');
+    const rsm = rsms.find(r=>String(r.id)===String(rsmId));
+    const fields = {name, territory, rsmId, rsmName:(rsm&&rsm.name)||''};
+    if (editId) {
+      const orig = asms.find(a=>String(a.id)===String(editId));
+      if (!orig || !isVacantSeat(orig)) return showToast('⚠️ This seat is no longer vacant — refresh and try again');
+      await sheetsUpdate('ASMs','id',editId,fields);
+      if (String(orig.name||'')!==name) {   // keep the name stamped on the team's rows in step
+        try {
+          await bulkReassign('Users','asmId',editId,{asmName:name});
+          await bulkReassign('STs','asmId',editId,{asmName:name});
+          await bulkReassign('BDOs','asmId',editId,{asmName:name});
+        } catch(e){ console.warn('asmName propagation failed:', e.message); }
+      }
+      auditLog('Vacant ASM seat edited', name, `RSM ${fields.rsmName||rsmId}`);
+      showToast('✅ Seat updated');
+    } else {
+      await DATA_addASM({id:`vacant_asm_${Date.now()}`, ...fields, status:'Vacant', email:'', phone:'', username:'', password:''});
+      auditLog('Vacant ASM seat created', name, `RSM ${fields.rsmName||rsmId}`);
+      showToast('✅ Vacant seat created — you can now map ISCs, STs and BDOs to it');
+    }
+    closeModal('modal-vacant-seat');
+    renderVacantPositions();
   } catch(e){ showToast('⚠️ '+e.message); }
   finally { setLoading(false); }
 }
@@ -7924,7 +8069,11 @@ async function startFillWithNewHire() {
   closeModal('modal-replace');
   const subtitleText = `Adding a new ${ROLE_LABEL[role]} to fill: ${vacantName}`;
   if (role==='rsm') { openModal('modal-rsm'); document.getElementById('modal-rsm-subtitle').textContent = subtitleText; }
-  else if (role==='asm') { await openAddAsmModal(); document.getElementById('modal-asm-subtitle').textContent = subtitleText; }
+  else if (role==='asm') {
+    await openAddAsmModal(); document.getElementById('modal-asm-subtitle').textContent = subtitleText;
+    // v4.70: the new hire starts under the RSM the seat already reports to
+    try { const seat = (await DATA_getASMs()).find(a=>String(a.id)===String(vacantId)); if (seat && seat.rsmId) sv('asm-rsm-select', seat.rsmId); } catch(_) {}
+  }
   else if (role==='st') { await openAddSTModal(); document.getElementById('modal-st-subtitle').textContent = subtitleText; }
   else if (role==='bdo') { await openAddBDOModal(); document.getElementById('modal-bdo-subtitle').textContent = subtitleText; }
 }
@@ -8089,7 +8238,7 @@ async function finishRoleChange(newRec) {
     // 3) Old seat: hand the team to the successor, or park it on a fresh vacant placeholder (exactly like Deactivate)
     let target = null;
     if (!pc.successorId || pc.successorId===VACANT_SENTINEL) {
-      target = {id:`vacant_${pc.fromRole}_${Date.now()}`, name:`Vacant (was ${pc.fromName})`, status:'Vacant', email:'', phone:'', username:'', password:''};
+      target = await makeVacantSeat(pc.fromRole, pc.fromId, pc.fromName);
       await ROLE_ADDER[pc.fromRole](target);
     } else {
       target = (await ROLE_GETTER[pc.fromRole]()).find(x=>String(x.id)===String(pc.successorId)) || null;
@@ -8140,7 +8289,7 @@ async function confirmDeactivateOrFill() {
     let counts;
     if (!replacementId || replacementId === VACANT_SENTINEL) {
       // No successor yet — spin up a placeholder scoped to just this seat and move this person's reports onto it
-      const placeholder = {id:`vacant_${role}_${Date.now()}`, name:`Vacant (was ${outgoingName})`, status:'Vacant', email:'', phone:'', username:'', password:''};
+      const placeholder = await makeVacantSeat(role, outgoingId, outgoingName);
       await ROLE_ADDER[role](placeholder);
       await sheetsUpdate(ROLE_SHEET[role], 'id', outgoingId, {status:'Inactive', relievedDate});
       counts = await reassignReports(role, outgoingId, placeholder);
@@ -8166,7 +8315,14 @@ async function renderVacantPositions() {
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray);font-size:13px">⏳ Loading...</div>`;
   try {
-    const [rsms, asms, sts, bdos] = await Promise.all([DATA_getRSMs(), DATA_getASMs(), DATA_getSTs(), DATA_getBDOs()]);
+    const [rsms, asms, sts, bdos, iscs] = await Promise.all([DATA_getRSMs(), DATA_getASMs(), DATA_getSTs(), DATA_getBDOs(), DATA_getISCs().catch(()=>[])]);
+    // v4.70: an ASM seat shows who covers it and how many people are parked on it
+    const onRolls = p => String(p.status||'Active')!=='Inactive' && String(p.status||'')!=='Vacant';
+    const teamOn = id => { const n = l => l.filter(p=>onRolls(p) && String(p.asmId||'')===String(id)).length;
+      return `${n(sts)} ST · ${n(bdos)} BDO · ${n(iscs)} ISC`; };
+    const asmSeatInfo = v => { const r = v.rsmId ? rsms.find(x=>String(x.id)===String(v.rsmId)) : null;
+      return `<div class="entry-sub" style="margin-top:4px">🌐 RSM: <strong>${escapeHtml((r&&r.name)||v.rsmName||'')||'<span style="color:#b45309">Not set — team falls back to the RSM of each person’s region</span>'}</strong></div>
+      <div class="entry-sub" style="margin-top:4px">👥 Mapped to this seat: ${teamOn(v.id)}</div>`; };
     const vacancies = [
       ...rsms.filter(r=>r.status==='Vacant').map(r=>({...r, role:'rsm'})),
       ...asms.filter(a=>a.status==='Vacant').map(a=>({...a, role:'asm'})),
@@ -8177,8 +8333,10 @@ async function renderVacantPositions() {
     if (countEl) countEl.textContent = `(${vacancies.length})`;
     if (!vacancies.length) { el.innerHTML = emptyState('✅','No vacant positions right now'); return; }
     el.innerHTML = vacancies.map(v=>`<div class="entry-card" style="cursor:default">
-      <div class="entry-name">${v.name} <span class="status-badge" style="background:#fef3c7;color:#92400e">🕳️ Vacant · ${ROLE_LABEL[v.role]}</span></div>
+      <div class="entry-name">${escapeHtml(v.name||'')} <span class="status-badge" style="background:#fef3c7;color:#92400e">🕳️ Vacant · ${ROLE_LABEL[v.role]}</span></div>
+      ${v.role==='asm' ? asmSeatInfo(v) : ''}
       <div class="isc-actions" style="margin-top:8px">
+        ${v.role==='asm' ? `<button class="btn-sm btn-blue" onclick="openVacantSeatModal('${v.id}')">✏️ Edit Seat</button>` : ''}
         <button class="btn-sm btn-green" onclick="openFillModal('${v.role}','${v.id}','${(v.name||'').replace(/'/g,"\\'")}')">✅ Fill Position</button>
       </div>
     </div>`).join('');
@@ -8303,9 +8461,11 @@ async function renderDashboard() {
         if (role==='admin') { try { allRSMs = await DATA_getRSMs(); } catch(e) { allRSMs = []; } }
         if (role==='rsm') {
           // RSM sees only their own branch of the tree
-          allASMs = await scopeASMsForRSM(allASMs);
-          const _myAsmIds = new Set(allASMs.map(a=>String(a.id)));
-          allISCs = allISCs.filter(i=>_myAsmIds.has(String(i.asmId||'')));
+          const _sc = await rsmFieldScope(allASMs);
+          allASMs = _sc.myAsms;
+          // v4.69: an ISC whose ASM seat is empty counts (and lists) as unmapped, not under a ghost ASM
+          // v4.70: …unless the seat is a Vacant one that reports to this RSM — then it is a real row in the tree
+          allISCs = allISCs.filter(_sc.has).map(i=>(_sc.direct(i) && !_sc.myAsmIds.has(String(i.asmId||''))) ? {...i, asmId:''} : i);
         }
         const mappedISCs   = allISCs.filter(i=>i.asmId).length;
         const unmappedISCs = allISCs.filter(i=>!i.asmId).length;
@@ -8552,13 +8712,15 @@ async function renderDashboard() {
       if (role==='admin' || role==='rsm') try {
         // v4.61: same rule as the ISC widgets above — on the rolls at some point this month, never a Vacant slot.
         const onRollsThisMonth = p => String(p.status||'')!=='Vacant' && onRollsBetween(p, _monthStart, todayStr());
-        let asmsAll = (await DATA_getASMs()).filter(onRollsThisMonth);
+        const asmsFull = await DATA_getASMs();
+        let asmsAll = asmsFull.filter(onRollsThisMonth);
         let bdosAll = (await DATA_getBDOs()).filter(onRollsThisMonth);
         let rsmsAll = [];
         if (role==='rsm') {
-          asmsAll = await scopeASMsForRSM(asmsAll);
+          const _sc = await rsmFieldScope(asmsFull);   // v4.69: BDOs with no ASM count under their region's RSM
+          asmsAll = _sc.myAsms.filter(onRollsThisMonth);
           const _myAsmIds = new Set(asmsAll.map(a=>String(a.id)));
-          bdosAll = bdosAll.filter(b=>_myAsmIds.has(String(b.asmId||'')));
+          bdosAll = bdosAll.filter(b=>_myAsmIds.has(String(b.asmId||'')) || _sc.direct(b));
         } else {
           // Admin also tracks RSM / NSH / SH / NH self-attendance
           try { rsmsAll = (await DATA_getRSMs()).filter(onRollsThisMonth); } catch(e) {}
@@ -9040,10 +9202,12 @@ async function teamAttendancePeople(activeOnDate) {
   } else if (currentUser.role==='rsm') {
     const [asms,sts,bdos,rsms] = await Promise.all([DATA_getASMs(), DATA_getST(), DATA_getBDO(), DATA_getRSMs()]);
     const tagASM = asmTagger([...allIscs,...sts,...bdos], rsms);   // ASMs have no region column of their own
-    const myAsms = (await scopeASMsForRSM(asms)).filter(activeOnly);
+    const sc = await rsmFieldScope(asms);
+    const myAsms = sc.myAsms.filter(activeOnly);
     const myAsmIds = new Set(myAsms.map(a=>String(a.id)));
     people.push(...myAsms.map(tagASM));
-    people.push(...tagRole([...sts,...bdos].filter(activeOnly).filter(p=>myAsmIds.has(String(p.asmId||''))),'ST'));
+    // v4.69: STs/BDOs whose ASM seat is empty report straight to their region's RSM
+    people.push(...tagRole([...sts,...bdos].filter(activeOnly).filter(p=>myAsmIds.has(String(p.asmId||'')) || sc.direct(p)),'ST'));
   } else if (currentUser.role==='admin') {
     const [rsms,asms,sts,bdos] = await Promise.all([DATA_getRSMs(), DATA_getASMs(), DATA_getST(), DATA_getBDO()]);
     const tagASM = asmTagger([...allIscs,...sts,...bdos], rsms);   // ASMs have no region column of their own
@@ -9209,6 +9373,7 @@ async function loadOrgDashData(force=false) {
     heads:  rsms.filter(r=>live(r) && headZoneOf(r)),    // NSH / SH / NH — the top of the tree
     rsms:   rsms.filter(r=>live(r) && !headZoneOf(r)),   // real RSMs
     asms:   asms.filter(live),
+    asmsAll: asms,                                       // incl. Vacant seats — only for emptySeatCover() in ogdChildren
     stbdos: [...sts.filter(live).map(s=>({...s,_role:(s.role||'ST').toUpperCase()})),
              ...bdos.filter(live).map(b=>({...b,_role:(b.role||'BDO').toUpperCase()}))],
     iscs:   iscs.filter(live),
@@ -9248,7 +9413,18 @@ function ogdChildren(D, node) {
     }
     return D.rsms.filter(r=>rsmZoneBucket(r)===z).sort(byName).map(r=>({p:r, role:'rsm'}));
   }
-  if (node.role==='rsm') return D.asms.filter(a=>String(a.rsmId||'')===String(node.p.id)).sort(byName).map(a=>({p:a, role:'asm'}));
+  if (node.role==='rsm') {
+    const viaAsm = D.asms.filter(a=>String(a.rsmId||'')===String(node.p.id)).sort(byName).map(a=>({p:a, role:'asm'}));
+    // v4.69: STs/BDOs (and ISCs with no ST/BDO either) whose ASM seat is empty hang directly off
+    // their region's RSM, so a vacant ASM no longer drops a whole team out of the tree.
+    // v4.70: a vacant seat that names an RSM (still in this tree) sends its team to THAT RSM; region is the fallback.
+    const cover = emptySeatCover(D.asmsAll || D.asms);
+    const here = p => { const c = cover(p); if (!c) return false;
+      return (c.rsmId && D.rsms.some(r=>String(r.id)===c.rsmId)) ? c.rsmId===String(node.p.id) : inRsmArea(node.p, p); };
+    const kids = D.stbdos.filter(here).sort(byName).map(s=>({p:s, role:'stbdo'}));
+    const direct = D.iscs.filter(i=>here(i) && !String(i.stId||'') && !String(i.bdoId||'')).sort(byName).map(i=>({p:i, role:'isc'}));
+    return [...viaAsm, ...kids, ...direct];
+  }
   if (node.role==='asm') {
     const kids = D.stbdos.filter(s=>String(s.asmId||'')===String(node.p.id)).sort(byName).map(s=>({p:s, role:'stbdo'}));
     const direct = D.iscs.filter(i=>String(i.asmId||'')===String(node.p.id) && !String(i.stId||'') && !String(i.bdoId||'')).sort(byName).map(i=>({p:i, role:'isc'}));
@@ -9449,9 +9625,9 @@ async function exportHierarchy() {
     if (currentUser.role==='admin') { try { allRSMs = await DATA_getRSMs(); } catch(e) { allRSMs = []; } }
     if (currentUser.role==='rsm') {
       // RSM exports only their own branch
-      allASMs = await scopeASMsForRSM(allASMs);
-      const _myAsmIds = new Set(allASMs.map(a=>String(a.id)));
-      allISCs = allISCs.filter(i=>_myAsmIds.has(String(i.asmId||'')));
+      const _sc = await rsmFieldScope(allASMs);
+      allASMs = _sc.myAsms;
+      allISCs = allISCs.filter(_sc.has);   // v4.69: incl. ISCs with no ASM — they export as "⚠️ Unassigned ASM"
     }
 
     const asmById = {}; allASMs.forEach(a=>asmById[a.id]=a);
