@@ -294,7 +294,7 @@
       <div class="auth-logo-wrap">
         <div class="auth-logo">MRF</div>
         <div class="auth-brand">MRF<span>VAPOCURE</span> PAINTS</div>
-        <div class="auth-tagline">FIELD ONE · v4.70</div>
+        <div class="auth-tagline">FIELD ONE · v4.71</div>
       </div>
       <div class="auth-title">Who are you?</div>
       <div class="auth-desc">Select your role to continue.</div>
@@ -611,8 +611,9 @@
       <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px" id="att-today-date">Today</div>
       <div style="font-size:22px;font-weight:700;font-family:'Rajdhani',sans-serif;margin-bottom:16px" id="att-today-status">Not marked yet</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap" id="att-mark-buttons">
-        <button onclick="markAttendance('Present')" style="flex:1;padding:10px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">✅ Present</button>
-        <button onclick="markAttendance('Leave')" style="flex:1;padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">🏖️ Leave</button>
+        <button onclick="markAttendance('Present')" style="flex:1;padding:10px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;white-space:nowrap">✅ Present</button>
+        <button onclick="markAttendance('Half Day')" style="flex:1;padding:10px;background:#0ea5e9;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;white-space:nowrap">🌗 Half Day</button>
+        <button onclick="markAttendance('Leave')" style="flex:1;padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;white-space:nowrap">🏖️ Leave</button>
       </div>
       <div id="att-marked-info" style="display:none;font-size:12px;color:rgba(255,255,255,.7);margin-top:8px"></div>
     </div>
@@ -620,6 +621,7 @@
     <!-- Monthly summary -->
     <div class="stats-row">
       <div class="stat-card green"><div class="stat-value" id="att-present">0</div><div class="stat-label">Present</div></div>
+      <div class="stat-card"><div class="stat-value" id="att-half" style="color:#0284c7">0</div><div class="stat-label">Half Day</div></div>
       <div class="stat-card gold"><div class="stat-value" id="att-leave">0</div><div class="stat-label">Leave</div></div>
     </div>
 
@@ -639,8 +641,9 @@
       <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">My Attendance · <span id="satt-today-date">Today</span></div>
       <div style="font-size:22px;font-weight:700;font-family:'Rajdhani',sans-serif;margin-bottom:16px" id="satt-today-status">Not marked yet</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap" id="satt-mark-buttons">
-        <button onclick="markSelfAttendance('Present')" style="flex:1;padding:10px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">✅ Present</button>
-        <button onclick="markSelfAttendance('Leave')" style="flex:1;padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px">🏖️ Leave</button>
+        <button onclick="markSelfAttendance('Present')" style="flex:1;padding:10px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;white-space:nowrap">✅ Present</button>
+        <button onclick="markSelfAttendance('Half Day')" style="flex:1;padding:10px;background:#0ea5e9;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;white-space:nowrap">🌗 Half Day</button>
+        <button onclick="markSelfAttendance('Leave')"style="flex:1;padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;white-space:nowrap">🏖️ Leave</button>
       </div>
       <div id="satt-marked-info" style="display:none;font-size:12px;color:rgba(255,255,255,.7);margin-top:8px"></div>
       <!-- Monthly stats + history — same module ISCs get, adapted into the manager card -->
@@ -661,8 +664,9 @@
     <div class="page-subtitle" id="team-att-subtitle">All ISC attendance</div>
 
     <!-- Stats -->
-    <div class="stats-row">
+    <div class="stats-row s4">
       <div class="stat-card green"><div class="stat-value" id="tatt-present">0</div><div class="stat-label">Present</div></div>
+      <div class="stat-card"><div class="stat-value" id="tatt-half" style="color:#0284c7">0</div><div class="stat-label">Half Day</div></div>
       <div class="stat-card gold"><div class="stat-value" id="tatt-leave">0</div><div class="stat-label">Leave</div></div>
       <div class="stat-card red"><div class="stat-value" id="tatt-unmarked">0</div><div class="stat-label">Unmarked</div></div>
     </div>
@@ -673,6 +677,7 @@
       <select class="form-select" id="team-att-filter" style="flex:1;min-width:120px" onchange="renderTeamAttendance()">
         <option value="all">All Status</option>
         <option value="Present">Present</option>
+        <option value="Half Day">Half Day</option>
         <option value="Leave">Leave</option>
         <option value="Unmarked">Unmarked</option>
         <option value="Holiday">Holiday</option>
@@ -2292,6 +2297,7 @@ async function generateWeeklyBrief() {
     const stalePending=entries.filter(e=>siteStatusKey(e.status)==='Pending' && String(e.createdAt||'').slice(0,10)<cutoff).length;
     const weekAtt=att.filter(a=>String(a.date||'')>=since);
     const presentDays=weekAtt.filter(a=>a.status==='Present').length;
+    const halfDays=weekAtt.filter(a=>a.status==='Half Day').length;
     const markedToday=new Set(att.filter(a=>a.date===today).map(a=>String(a.iscId)));
     const holidayToday=holidayName(today);   // v4.63: nobody is "unmarked" on a Sunday / company holiday
     const unmarkedToday=(scope&&!holidayToday)?[...scope].filter(id=>!markedToday.has(id)).length:0;
@@ -2310,7 +2316,7 @@ async function generateWeeklyBrief() {
       window:{from:since, to:today},
       sites:{newThisWeek:weekEntries.length, converted:sc.Confirmed, pending:sc.Pending, notConverted:sc.NotConverted,
              estValueINR:weekValue, topISCs, iscsWithNoEntries:idleISCs, totalISCs:scope?scope.size:0, stalePendingOver14Days:stalePending},
-      attendance:{presentDaysThisWeek:presentDays, records:weekAtt.length, unmarkedToday, holidayToday:holidayToday||undefined},
+      attendance:{presentDaysThisWeek:presentDays, halfDaysThisWeek:halfDays, records:weekAtt.length, unmarkedToday, holidayToday:holidayToday||undefined},
       teamFieldActivity:{teamSize:team.length, visitsByType, membersWithZeroVisits:idleTeam},
       competitorMentions:comp,
       sampleRemarks:remarks,
@@ -3983,6 +3989,8 @@ async function renderActivityReport() {
       const attHtml = a
         ? (a.status==='Present'
             ? `<span style="color:#10b981;font-weight:600">✅ Present</span> <span style="color:#999;font-size:11px">${a.checkInTime||''}${a.gps?' · 📍 '+a.gps:''}</span>`
+            : a.status==='Half Day'
+            ? `<span style="color:#0284c7;font-weight:600">🌗 Half Day</span> <span style="color:#999;font-size:11px">${a.checkInTime||''}${a.gps?' · 📍 '+a.gps:''}</span>`
             : `<span style="color:#f59e0b;font-weight:600">🏖️ ${a.status}</span>`)
         : isHoliday(d) ? `<span style="color:#6366f1;font-weight:600">🎉 ${holidayName(d)}</span>`   // v4.63: a blank holiday is not a miss
         : `<span style="color:#ef4444;font-weight:600">✖ Not marked</span>`;
@@ -4334,19 +4342,22 @@ async function runReport() {
       // WORKING days left blank, so nobody is penalised for a blank Sunday, and a Present marked on a holiday
       // still counts as Present. Holiday = explicit Holiday marks + blank holidays, so Present + Leave +
       // Holiday + Unmarked = calendar days as before. % marked is over working days.
-      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','Present','Leave','Holiday','Unmarked','% marked','Working days'];
+      // v4.71: Half Day is its own column (a count of half days, not halves of a day), so Present +
+      // Half Day + Leave + Holiday + Unmarked = calendar days. A half day counts as marked.
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status','Present','Half Day','Leave','Holiday','Unmarked','% marked','Working days'];
       const PCT = H.indexOf('% marked');
       const rows = []; let inactiveN = 0;
       persons.forEach(x=>{
         const pd = _repPersonDays(x.p, dates); if (!pd) return;
         if (pd.inactive) inactiveN++;
         const myDates = pd.myDates, workDates = myDates.filter(d=>!isHoliday(d));
-        const marked = d => x.att[d]==='Present' || x.att[d]==='Leave' || x.att[d]==='Holiday';
+        const marked = d => x.att[d]==='Present' || x.att[d]==='Half Day' || x.att[d]==='Leave' || x.att[d]==='Holiday';
         const P=myDates.filter(d=>x.att[d]==='Present').length, L=myDates.filter(d=>x.att[d]==='Leave').length;
+        const HD=myDates.filter(d=>x.att[d]==='Half Day').length;
         const Hd=myDates.filter(d=>x.att[d]==='Holiday' || (isHoliday(d) && !marked(d))).length;
         const U=workDates.filter(d=>!marked(d)).length;
         const pct = workDates.length ? Math.round((workDates.length-U)*100/workDates.length) : 100;
-        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, P, L, Hd, U, pct+'%', workDates.length]);
+        rows.push([x.p.name, x.p._role, ...chain(x.p), x.p.region||'', pd.status, P, HD, L, Hd, U, pct+'%', workDates.length]);
       });
       rows.sort((a,b)=>parseInt(a[PCT])-parseInt(b[PCT]));
       const avg = rows.length? Math.round(rows.reduce((s,r)=>s+parseInt(r[PCT]),0)/rows.length):0;
@@ -4359,39 +4370,40 @@ async function runReport() {
       // month reads at a glance and any one person's record reads across their row. The tail-column
       // counts use exactly the Attendance-summary rules above (leavers via _repPersonDays, Sundays and
       // company holidays via isHoliday), so the two reports always reconcile person by person.
-      // Cell codes: P Present · L Leave · H Holiday (a Holiday mark, or a blank Sunday/company holiday) ·
-      // U Unmarked (a blank on a working day) · - not on the rolls that day. A status text the sheet
-      // may carry that is none of Present/Leave/Holiday counts as a blank, exactly as the summary does.
+      // Cell codes: P Present · HD Half Day (v4.71) · L Leave · H Holiday (a Holiday mark, or a blank
+      // Sunday/company holiday) · U Unmarked (a blank on a working day) · - not on the rolls that day. A status
+      // text the sheet may carry that is none of Present/Half Day/Leave/Holiday counts as a blank, exactly as the summary does.
       // On screen the day cells are coloured and the name column stays pinned while the days scroll;
       // the CSV export carries the same codes under ISO date headers so Excel can pivot or COUNTIF them.
       const WD = ['Su','Mo','Tu','We','Th','Fr','Sa'];
       const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const STYLE = {P:'background:#dcfce7;color:#166534', L:'background:#fef3c7;color:#92400e', H:'background:#e0e7ff;color:#3730a3',
+      const STYLE = {P:'background:#dcfce7;color:#166534', HD:'background:#e0f2fe;color:#075985', L:'background:#fef3c7;color:#92400e', H:'background:#e0e7ff;color:#3730a3',
                      U:'background:#fee2e2;color:#991b1b', off:'background:#f3f4f6;color:#9ca3af'};
-      const LABEL = {P:'Present', L:'Leave', H:'Holiday', U:'Unmarked', off:'Not on rolls'};
+      const LABEL = {P:'Present', HD:'Half Day', L:'Leave', H:'Holiday', U:'Unmarked', off:'Not on rolls'};
       const view = []; let inactiveN = 0;
       persons.forEach(x=>{
         const pd = _repPersonDays(x.p, dates); if (!pd) return;
         if (pd.inactive) inactiveN++;
         const mine = new Set(pd.myDates);
-        let P=0, L=0, Hd=0, U=0, W=0;
+        let P=0, HD=0, L=0, Hd=0, U=0, W=0;
         const cells = dates.map(d=>{
           if (!mine.has(d)) return {k:'off'};
           const raw = String(x.att[d]||''), hol = isHoliday(d);
-          const s = (raw==='Present'||raw==='Leave'||raw==='Holiday') ? raw : '';
+          const s = (raw==='Present'||raw==='Half Day'||raw==='Leave'||raw==='Holiday') ? raw : '';
           if (!hol) W++;
           if (s==='Present') { P++; return {k:'P'}; }
+          if (s==='Half Day') { HD++; return {k:'HD'}; }
           if (s==='Leave')   { L++; return {k:'L'}; }
           if (s==='Holiday' || hol) { Hd++; return {k:'H', raw:s?'':raw}; }
           U++; return {k:'U', raw};
         });
         const pct = W ? Math.round((W-U)*100/W) : 100;
-        view.push({x, pd, cells, P, L, Hd, U, pct, W});
+        view.push({x, pd, cells, P, HD, L, Hd, U, pct, W});
       });
       view.sort((a,b)=>String(a.x.p.name||'').localeCompare(String(b.x.p.name||'')));
       // CSV: the same codes under ISO date headers (exportReportCSV strips the HTML from the Status cell).
-      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status', ...dates, 'Present','Leave','Holiday','Unmarked','% marked','Working days'];
-      const rows = view.map(v=>[v.x.p.name, v.x.p._role, ...chain(v.x.p), v.x.p.region||'', v.pd.status,...v.cells.map(c=>c.k==='off'?'-':c.k), v.P, v.L, v.Hd, v.U, v.pct+'%', v.W]);
+      const H = ['Name','Role','ST / BDO','ASM','RSM','Region','Status', ...dates, 'Present','Half Day','Leave','Holiday','Unmarked','% marked','Working days'];
+      const rows = view.map(v=>[v.x.p.name, v.x.p._role, ...chain(v.x.p), v.x.p.region||'', v.pd.status,...v.cells.map(c=>c.k==='off'?'-':c.k), v.P, v.HD, v.L, v.Hd, v.U, v.pct+'%', v.W]);
       _repCols = H; _repRows = rows;
       document.getElementById('rep-export-btn').style.display = rows.length ? '' : 'none';
       const avg = view.length ? Math.round(view.reduce((s,v)=>s+v.pct,0)/view.length) : 0;
@@ -4399,7 +4411,7 @@ async function runReport() {
       if (!rows.length) html += '<div style="text-align:center;color:#999;padding:30px;font-size:13px">No records found for this range 🎉</div>';
       else {
         const legend = `<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--gray);margin:-8px 0 10px">`
-          + ['P','L','H','U','off'].map(k=>`<span><span style="display:inline-block;min-width:18px;text-align:center;border-radius:4px;font-weight:700;padding:1px 3px;margin-right:4px;${STYLE[k]}">${k==='off'?'-':k}</span>${LABEL[k]}</span>`).join('')
+          + ['P','HD','L','H','U','off'].map(k=>`<span><span style="display:inline-block;min-width:18px;text-align:center;border-radius:4px;font-weight:700;padding:1px 3px;margin-right:4px;${STYLE[k]}">${k==='off'?'-':k}</span>${LABEL[k]}</span>`).join('')
           + `<span style="margin-left:auto">Hover a day for the date and check-in time</span></div>`;
         // Two header rows: month spans over the day numbers, so a range that crosses a month boundary still reads.
         const months = []; dates.forEach(d=>{ const m=d.slice(0,7); if (months.length && months[months.length-1].m===m) months[months.length-1].n++; else months.push({m, n:1}); });
@@ -4407,7 +4419,7 @@ async function runReport() {
         const stick = 'position:sticky;left:0;z-index:2;border-right:1px solid var(--border)';
         const head1 = `<tr><th rowspan="2" style="${TH};${stick}">Name</th><th rowspan="2" style="${TH}">Role</th>` + ['ST / BDO','ASM','RSM'].map(t=>`<th rowspan="2" style="${TH}">${t}</th>`).join('')
           + months.map(m=>`<th colspan="${m.n}" style="${TH};text-align:center;border-left:1px solid var(--border)">${MON[parseInt(m.m.slice(5,7),10)-1]} ${m.m.slice(0,4)}</th>`).join('')
-          + ['P','L','H','U','%','Days'].map(t=>`<th rowspan="2" style="${TH};text-align:center${t==='P'?';border-left:1px solid var(--border)':''}">${t}</th>`).join('') + '</tr>';
+          + ['P','HD','L','H','U','%','Days'].map(t=>`<th rowspan="2" style="${TH};text-align:center${t==='P'?';border-left:1px solid var(--border)':''}">${t}</th>`).join('') + '</tr>';
         const head2 = '<tr>' + dates.map(d=>{ const hol = holidayName(d); const wd = WD[new Date(d+'T12:00:00').getDay()];
           return `<th title="${escapeHtml(d+(hol?' · '+hol:''))}" style="padding:4px 2px;min-width:26px;text-align:center;font-size:10px;line-height:1.25;border-bottom:1.5px solid var(--border);background:${hol?'#eef2ff':'#f9fafb'};color:${hol?'#4f46e5':'inherit'}">${d.slice(8)}<br><span style="font-weight:400">${wd}</span></th>`; }).join('') + '</tr>';
         const TD = 'padding:6px 8px;border-bottom:1px solid #f3f4f6;white-space:nowrap';
@@ -4422,7 +4434,7 @@ async function runReport() {
             return `<td title="${escapeHtml(tip)}" style="text-align:center;padding:0;height:26px;min-width:26px;border-bottom:1px solid #fff;border-left:1px solid #fff;font-size:11px;font-weight:700;${STYLE[c.k]}">${c.k==='off'?'-':c.k}</td>`;
           }).join('');
           const line = chain(p).map(n=>`<td style="${TD}">${escapeHtml(n)}</td>`).join('');
-          return `<tr>${name}${role}${line}${days}${num(v.P,'#16a34a')}${num(v.L,'#d97706')}${num(v.Hd,'#4f46e5')}${num(v.U, v.U?'#ef4444':'')}${num(v.pct+'%', v.pct<50?'#ef4444':'')}${num(v.W)}</tr>`;
+          return `<tr>${name}${role}${line}${days}${num(v.P,'#16a34a')}${num(v.HD,'#0284c7')}${num(v.L,'#d97706')}${num(v.Hd,'#4f46e5')}${num(v.U, v.U?'#ef4444':'')}${num(v.pct+'%', v.pct<50?'#ef4444':'')}${num(v.W)}</tr>`;
         }).join('');
         html += legend + `<div style="overflow-x:auto;background:white;border:1.5px solid var(--border);border-radius:12px"><table style="border-collapse:separate;border-spacing:0;font-size:12px">${head1}${head2}${body}</table></div>`;
       }
@@ -8354,8 +8366,8 @@ function renderAttendanceList(records) {
   const month = document.getElementById('att-month-filter')?.value || new Date().toISOString().slice(0,7);
   const monthRecs = records.filter(a=>a.date?.startsWith(month)).sort((a,b)=>b.date.localeCompare(a.date));
   if (!monthRecs.length) { listEl.innerHTML=emptyState('📅','No attendance records this month'); return; }
-  const statusStyle = { Present:'background:#d1fae5;color:#065f46', Leave:'background:#fef3c7;color:#92400e', Holiday:'background:#ede9fe;color:#4c1d95' };
-  const icons = { Present:'✅', Leave:'🏖️', Holiday:'🎉' };
+  const statusStyle = { Present:'background:#d1fae5;color:#065f46', 'Half Day':'background:#e0f2fe;color:#075985', Leave:'background:#fef3c7;color:#92400e', Holiday:'background:#ede9fe;color:#4c1d95' };
+  const icons = { Present:'✅', 'Half Day':'🌗', Leave:'🏖️', Holiday:'🎉' };
   listEl.innerHTML = monthRecs.map(a=>`
     <div class="entry-card" style="cursor:default">
       <div class="entry-card-top">
@@ -8552,8 +8564,8 @@ async function renderDashboard() {
     </div>`;
 
     if(role==='isc'){
-      const present=monthAtt.filter(a=>a.status==='Present').length,leave=monthAtt.filter(a=>a.status==='Leave').length;
-      html+=`<div style="display:flex;gap:10px;margin-bottom:12px">${dashCard('Present',present,'this month','#065f46','✅')}${dashCard('Leave',leave,'this month','#92400e','🏖️')}</div>`;
+      const present=monthAtt.filter(a=>a.status==='Present').length,leave=monthAtt.filter(a=>a.status==='Leave').length,half=monthAtt.filter(a=>a.status==='Half Day').length;
+      html+=`<div style="display:flex;gap:10px;margin-bottom:12px">${dashCard('Present',present,'this month','#065f46','✅')}${dashCard('Half Day',half,'this month','#075985','🌗')}${dashCard('Leave',leave,'this month','#92400e','🏖️')}</div>`;
     } else {
       const presentISCs=new Set(monthAtt.filter(a=>a.status==='Present').map(a=>a.iscId)).size,totalISCsAtt=new Set(monthAtt.map(a=>a.iscId)).size,attRate=totalISCsAtt>0?Math.round(presentISCs/totalISCsAtt*100):0;
       html+=`<div style="display:flex;gap:10px;margin-bottom:12px">${dashCard('Active ISCs',presentISCs,'marked present','#065f46','👥')}${dashCard('Att. Rate',attRate+'%','of team','#1565C0','📅')}${dashCard('Total Att.',monthAtt.length,'this month','#6A1B9A','📊')}</div>`;
@@ -8636,7 +8648,7 @@ async function renderDashboard() {
       try {
         const heatISCs = attISCs.slice(0,40); // cap for render performance
         if (heatISCs.length) {
-          const statusColor = {Present:'#10b981',Leave:'#f59e0b',Holiday:'#6366f1'};
+          const statusColor = {Present:'#10b981','Half Day':'#0ea5e9',Leave:'#f59e0b',Holiday:'#6366f1'};
           let heatHtml = '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:10px"><tr><th style="position:sticky;left:0;background:white;padding:3px 6px;text-align:left;font-weight:600;color:#555;min-width:90px">ISC</th>';
           for (let day=1; day<=daysInMonth; day++) heatHtml += `<th style="padding:2px;color:#999;font-weight:500;min-width:14px">${day}</th>`;
           heatHtml += '</tr>';
@@ -8655,6 +8667,7 @@ async function renderDashboard() {
           });
           heatHtml += '</table></div><div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:#666;flex-wrap:wrap">'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#10b981;margin-right:4px"></span>Present</span>'+
+            '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#0ea5e9;margin-right:4px"></span>Half Day</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f59e0b;margin-right:4px"></span>Leave</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#6366f1;margin-right:4px"></span>Holiday</span>'+
             '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ddd6fe;margin-right:4px"></span>Sunday / holiday</span>'+
@@ -8674,7 +8687,7 @@ async function renderDashboard() {
             if (dateStr > todayD) break;
             if (!iscActiveOn(isc, dateStr)) continue;
             const att = attByKey[isc.id+'|'+dateStr];
-            if (att) { marked++; if (att.status==='Present') present++; }
+            if (att) { marked++; if (att.status==='Present') present++; else if (att.status==='Half Day') present+=0.5; }   // v4.71: a half day is half a present day in the rate
           }
           return { name: isc.name, rate: marked>0?Math.round(present/marked*100):0, marked, p: isc };
         }).filter(r => r.marked > 0);
@@ -8734,7 +8747,7 @@ async function renderDashboard() {
               const dateStr = `${month}-${String(day).padStart(2,'0')}`;
               if (dateStr > todayD) break;
               const att = attByKey[m.id+'|'+dateStr];
-              if (att) { marked++; if (att.status==='Present') present++; }
+              if (att) { marked++; if (att.status==='Present') present++; else if (att.status==='Half Day') present+=0.5; }
             }
             return { name:m.name, type:m._type, rate: marked>0?Math.round(present/marked*100):0, marked, p:m };
           }).sort((a,b)=>b.marked-a.marked).slice(0,12);
@@ -8792,8 +8805,8 @@ async function renderMyAttendance() {
   if (todayRec) {
     if (markBtns) markBtns.style.display='none';
     if (markedInfo) { markedInfo.style.display='block'; markedInfo.textContent=`Marked at ${todayRec.checkInTime||'—'} · ${todayRec.gps||''}`; }
-    const colors = {Present:'#10b981',Leave:'#f59e0b',Holiday:'#6366f1'};
-    const icons = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
+    const colors = {Present:'#10b981','Half Day':'#0ea5e9',Leave:'#f59e0b',Holiday:'#6366f1'};
+    const icons = {Present:'✅','Half Day':'🌗',Leave:'🏖️',Holiday:'🎉'};
     if (statusEl) { statusEl.textContent=`${icons[todayRec.status]||''} ${todayRec.status}`; statusEl.style.color=colors[todayRec.status]||'white'; }
   } else if (holidayName(today)) {
     // v4.64: Sundays and company holidays — nothing to mark, so the buttons stay hidden
@@ -8811,6 +8824,7 @@ async function renderMyAttendance() {
   const monthRecs = allAtt.filter(a=>a.date?.startsWith(month));
   document.getElementById('att-present').textContent = monthRecs.filter(a=>a.status==='Present').length;
   document.getElementById('att-leave').textContent = monthRecs.filter(a=>a.status==='Leave').length;
+  document.getElementById('att-half').textContent = monthRecs.filter(a=>a.status==='Half Day').length;
 
   // History list
   const listEl = document.getElementById('att-list');
@@ -8819,6 +8833,7 @@ async function renderMyAttendance() {
 
   const statusStyle = {
     Present: 'background:#d1fae5;color:#065f46',
+    'Half Day': 'background:#e0f2fe;color:#075985',
     Leave: 'background:#fef3c7;color:#92400e',
     Holiday: 'background:#ede9fe;color:#4c1d95'
   };
@@ -8829,14 +8844,14 @@ async function renderMyAttendance() {
           <div class="entry-name">${new Date(r.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}</div>
           <div class="entry-sub">${r.checkInTime?'🕐 '+r.checkInTime:''} ${r.gps?'· 📍 '+r.gps:''}</div>
         </div>
-        <span class="status-badge" style="${statusStyle[r.status]||''}">${r.status==='Present'?'✅':r.status==='Leave'?'🏖️':'🎉'} ${r.status}</span>
+        <span class="status-badge" style="${statusStyle[r.status]||''}">${r.status==='Present'?'✅':r.status==='Half Day'?'🌗':r.status==='Leave'?'🏖️':'🎉'} ${r.status}</span>
       </div>
     </div>`).join('');
 }
 
 // Marks the ISC's attendance for today (Present/Leave/Holiday): blocks double-marking, captures GPS if Present, saves to local storage instantly for a snappy UI, then writes to Sheets in the background.
 async function markAttendance(status) {
-  if (!['Present','Leave'].includes(status)) return;   // Holiday retired — Present or Leave only
+  if (!['Present','Half Day','Leave'].includes(status)) return;   // Holiday retired; Half Day added v4.71
   const today = todayStr();
   if (isHoliday(today)) return showToast(`🎉 ${holidayName(today)} is a holiday — attendance is not marked on holidays`);   // v4.64
 
@@ -8869,7 +8884,7 @@ async function markAttendance(status) {
     };
 
     // Capture GPS if Present
-    if (status === 'Present' && navigator.geolocation) {
+    if ((status === 'Present' || status === 'Half Day') && navigator.geolocation) {   // v4.71: a half day is a worked day, so it is located too
       setLoading(true,'Getting your location...');
       try {
         const pos = await new Promise((resolve,reject)=>
@@ -8910,8 +8925,8 @@ function updateAttendanceUIImmediately(record) {
   const markBtns = document.getElementById('att-mark-buttons');
   const markedInfo = document.getElementById('att-marked-info');
   const statusEl = document.getElementById('att-today-status');
-  const colors = {Present:'#10b981',Leave:'#f59e0b',Holiday:'#6366f1'};
-  const icons = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
+  const colors = {Present:'#10b981','Half Day':'#0ea5e9',Leave:'#f59e0b',Holiday:'#6366f1'};
+  const icons = {Present:'✅','Half Day':'🌗',Leave:'🏖️',Holiday:'🎉'};
   if (markBtns) markBtns.style.display='none';
   if (markedInfo) { markedInfo.style.display='block'; markedInfo.textContent=`Marked at ${record.checkInTime} · ${record.gps||''}`; }
   if (statusEl) { statusEl.textContent=`${icons[record.status]||''} ${record.status}`; statusEl.style.color=colors[record.status]||'white'; }
@@ -8921,6 +8936,7 @@ function updateAttendanceUIImmediately(record) {
   const monthRecs = localAtt.filter(a=>a.date?.startsWith(month));
   const pEl=document.getElementById('att-present'); if(pEl) pEl.textContent=monthRecs.filter(a=>a.status==='Present').length;
   const lEl=document.getElementById('att-leave'); if(lEl) lEl.textContent=monthRecs.filter(a=>a.status==='Leave').length;
+  const hEl=document.getElementById('att-half'); if(hEl) hEl.textContent=monthRecs.filter(a=>a.status==='Half Day').length;
   // Refresh history list from local immediately
   renderAttendanceList(localAtt);
   // After 3 seconds, refresh from server to get accurate count
@@ -8996,8 +9012,8 @@ async function renderSelfAttendanceCard() {
   const markBtns = document.getElementById('satt-mark-buttons');
   const markedInfo = document.getElementById('satt-marked-info');
   const statusEl = document.getElementById('satt-today-status');
-  const colors = {Present:'#10b981',Leave:'#f59e0b',Holiday:'#6366f1'};
-  const icons = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
+  const colors = {Present:'#10b981','Half Day':'#0ea5e9',Leave:'#f59e0b',Holiday:'#6366f1'};
+  const icons = {Present:'✅','Half Day':'🌗',Leave:'🏖️',Holiday:'🎉'};
 
   if (todayRec) {
     if (markBtns) markBtns.style.display = 'none';
@@ -9019,13 +9035,14 @@ async function renderSelfAttendanceCard() {
   if (monthWrap) {
     const month = today.slice(0,7);
     const recs = allAtt.filter(a=>String(a.date||'').startsWith(month)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-    const c = {Present:0,Leave:0,Holiday:0}; recs.forEach(r=>{ if(c[r.status]!=null) c[r.status]++; });
+    const c = {Present:0,'Half Day':0,Leave:0,Holiday:0}; recs.forEach(r=>{ if(c[r.status]!=null) c[r.status]++; });
     const stEl = document.getElementById('satt-month-stats');
     if (stEl) stEl.innerHTML =
       `<span style="color:#34d399">✅ ${c.Present} Present</span>`+
+      `<span style="color:#7dd3fc">🌗 ${c['Half Day']} Half Day</span>`+
       `<span style="color:#fbbf24">🏖️ ${c.Leave} Leave</span>`;
     const hEl = document.getElementById('satt-history');
-    const ic = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
+    const ic = {Present:'✅','Half Day':'🌗',Leave:'🏖️',Holiday:'🎉'};
     if (hEl) hEl.innerHTML = recs.slice(0,15).map(r=>
       `<div style="display:flex;justify-content:space-between;gap:10px"><span>${escapeHtml(r.date||'')}</span><span>${ic[r.status]||''} ${escapeHtml(r.status||'')}${r.checkInTime?' · '+escapeHtml(r.checkInTime):''}</span></div>`).join('')
       || '<div style="color:rgba(255,255,255,.4)">No records yet this month</div>';
@@ -9048,7 +9065,7 @@ function exportSelfAttendance() {
 
 // Same as markAttendance() but for an ASM/BDO/RSM/head marking their own attendance from the Team Attendance tab's self-card; also refreshes the team list afterward since the marker may appear in it too.
 async function markSelfAttendance(status) {
-  if (!['Present','Leave'].includes(status)) return;   // Holiday retired — Present or Leave only
+  if (!['Present','Half Day','Leave'].includes(status)) return;   // Holiday retired; Half Day added v4.71
   const today = todayStr();
   if (isHoliday(today)) return showToast(`🎉 ${holidayName(today)} is a holiday — attendance is not marked on holidays`);   // v4.64
   document.querySelectorAll('#satt-mark-buttons button').forEach(b=>b.disabled=true);
@@ -9077,7 +9094,7 @@ async function markSelfAttendance(status) {
       createdAt: new Date().toISOString()
     };
 
-    if (status === 'Present' && navigator.geolocation) {
+    if ((status === 'Present' || status === 'Half Day') && navigator.geolocation) {   // v4.71: a half day is a worked day, so it is located too
       setLoading(true,'Getting your location...');
       try {
         const pos = await new Promise((resolve,reject)=>
@@ -9102,8 +9119,8 @@ async function markSelfAttendance(status) {
     showToast(`✅ Attendance marked — ${status}!`);
     const markedInfo = document.getElementById('satt-marked-info');
     const statusEl = document.getElementById('satt-today-status');
-    const colors = {Present:'#10b981',Leave:'#f59e0b',Holiday:'#6366f1'};
-    const icons = {Present:'✅',Leave:'🏖️',Holiday:'🎉'};
+    const colors = {Present:'#10b981','Half Day':'#0ea5e9',Leave:'#f59e0b',Holiday:'#6366f1'};
+    const icons = {Present:'✅','Half Day':'🌗',Leave:'🏖️',Holiday:'🎉'};
     if (markedInfo) { markedInfo.style.display = 'block'; markedInfo.textContent = `Marked at ${record.checkInTime} · ${record.gps||''}`; }
     if (statusEl) { statusEl.textContent = `${icons[record.status]||''} ${record.status}`; statusEl.style.color = colors[record.status]||'white'; }
 
@@ -9136,7 +9153,8 @@ function openAttCorrection(idx) {
       <div style="font-size:12px;color:#666;margin-bottom:14px">${r.isc.name} · ${dateNice} · currently <strong>${r.status}</strong>${holidayName(_tattDate)?` · 🎉 ${holidayName(_tattDate)} — holiday, correct only if they actually worked`:''}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button onclick="applyAttCorrection(${idx},'Present')" style="padding:11px;background:#10b981;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">✅ Present</button>
-        <button onclick="applyAttCorrection(${idx},'Leave')" style="padding:11px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🏖️ Leave</button>
+        <button onclick="applyAttCorrection(${idx},'Half Day')" style="padding:11px;background:#0ea5e9;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🌗 Half Day</button>
+        <button onclick="applyAttCorrection(${idx},'Leave')"style="padding:11px;background:#f59e0b;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🏖️ Leave</button>
         <button onclick="applyAttCorrection(${idx},'Absent')" style="padding:11px;background:#ef4444;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px">🚫 Absent (marked by mistake)</button>
         <button onclick="document.getElementById('att-correct-overlay').remove()" style="padding:10px;background:#f3f4f6;color:#333;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px">Cancel</button>
       </div>
@@ -9249,6 +9267,7 @@ async function renderTeamAttendance() {
     const unmarked = holToday ? 0 : allISCs.filter(i=>!attMap[i.id]).length;
     document.getElementById('tatt-present').textContent = present;
     document.getElementById('tatt-leave').textContent = leave;
+    document.getElementById('tatt-half').textContent = dateAtt.filter(a=>a.status==='Half Day').length;
     document.getElementById('tatt-unmarked').textContent = unmarked;
     document.getElementById('team-att-subtitle').textContent = `${new Date(selectedDate+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}${holToday?` · 🎉 ${holToday} (holiday)`:''}`;
 
@@ -9266,12 +9285,13 @@ async function renderTeamAttendance() {
 
     const statusStyle = {
       Present:'background:#d1fae5;color:#065f46',
+      'Half Day':'background:#e0f2fe;color:#075985',
       Leave:'background:#fef3c7;color:#92400e',
       Holiday:'background:#ede9fe;color:#4c1d95',
       Absent:'background:#fee2e2;color:#991b1b',
       Unmarked:'background:#fee2e2;color:#991b1b'
     };
-    const statusIcon = {Present:'✅',Leave:'🏖️',Holiday:'🎉',Absent:'🚫',Unmarked:'❌'};
+    const statusIcon = {Present:'✅','Half Day':'🌗',Leave:'🏖️',Holiday:'🎉',Absent:'🚫',Unmarked:'❌'};
     const canCorrect = (currentUser.role==='asm') || (currentUser.role==='admin' && !currentUser.viewOnly);
 
     el.innerHTML = displayList.map(({isc,att,status},i)=>`
@@ -9466,9 +9486,9 @@ async function renderOrgDash() {
 
     const inRange = d => d>=from && d<=to;
     const single = from===to;
-    const attFor = ids => { const set=new Set(ids); const c={P:0,L:0,H:0,marked:0};
+    const attFor = ids => { const set=new Set(ids); const c={P:0,HD:0,L:0,H:0,marked:0};
       D.att.forEach(a=>{ if (set.has(String(a.iscId)) && inRange(String(a.date||''))) { c.marked++;
-        if (a.status==='Present') c.P++; else if (a.status==='Leave') c.L++; else if (a.status==='Holiday') c.H++; } });
+        if (a.status==='Present') c.P++; else if (a.status==='Half Day') c.HD++; else if (a.status==='Leave') c.L++; else if (a.status==='Holiday') c.H++; } });
       return c; };
     const actFor = ids => { const set=new Set(ids); return D.visits.filter(v=>set.has(v.pid)&&inRange(v.date)).length; };
     const roleLabel = n => {
@@ -9484,22 +9504,22 @@ async function renderOrgDash() {
         const holSingle = single ? holidayName(from) : '';   // v4.63: on a Sunday / company holiday a blank is a holiday, not a miss
         metrics = single
           ? (holSingle
-              ? `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H+ppl-c.marked} holiday <span style="color:#999">(${holSingle})</span>`
-              : `✅ ${c.P} · 🏖️ ${c.L} · 🎉 ${c.H} · <span style="color:#ef4444">❌ ${ppl-c.marked} unmarked</span>`)
-          : `✅ ${c.P} present · 🏖️ ${c.L} leave · 🎉 ${c.H} holiday <span style="color:#999">(marks in range)</span>`;
+              ? `✅ ${c.P} · 🌗 ${c.HD} · 🏖️ ${c.L} · 🎉 ${c.H+ppl-c.marked} holiday <span style="color:#999">(${holSingle})</span>`
+              : `✅ ${c.P} · 🌗 ${c.HD} · 🏖️ ${c.L} · 🎉 ${c.H} · <span style="color:#ef4444">❌ ${ppl-c.marked} unmarked</span>`)
+          : `✅ ${c.P} present · 🌗 ${c.HD} half day · 🏖️ ${c.L} leave · 🎉 ${c.H} holiday <span style="color:#999">(marks in range)</span>`;
         // The person's OWN attendance, separate from the team rollup — so e.g. an RSM on
         // leave is visible at the top level without drilling in.
         const mine = D.att.filter(a=>String(a.iscId)===String(n.p.id) && inRange(String(a.date||'')));
         if (single) {
           const st = mine[0]?.status;
-          const map = {Present:['✅ Present','background:#d1fae5;color:#065f46'],Leave:['🏖️ Leave','background:#fef3c7;color:#92400e'],Holiday:['🎉 Holiday','background:#ede9fe;color:#4c1d95']};
+          const map = {Present:['✅ Present','background:#d1fae5;color:#065f46'],'Half Day':['🌗 Half Day','background:#e0f2fe;color:#075985'],Leave:['🏖️ Leave','background:#fef3c7;color:#92400e'],Holiday:['🎉 Holiday','background:#ede9fe;color:#4c1d95']};
           ownBadge = st && map[st]
             ? `<span class="status-badge" style="${map[st][1]}">${map[st][0]}</span>`
             : holSingle ? `<span class="status-badge" style="background:#ede9fe;color:#4c1d95">🎉 ${holSingle}</span>`
             : `<span class="status-badge" style="background:#fee2e2;color:#991b1b">❌ Not marked</span>`;
         } else {
-          const sp = mine.filter(a=>a.status==='Present').length, sl = mine.filter(a=>a.status==='Leave').length;
-          ownBadge = `<span class="status-badge" style="background:#f3f4f6;color:#374151">Self ✅${sp} 🏖️${sl}</span>`;
+          const sp = mine.filter(a=>a.status==='Present').length, sl = mine.filter(a=>a.status==='Leave').length, sh = mine.filter(a=>a.status==='Half Day').length;
+          ownBadge = `<span class="status-badge" style="background:#f3f4f6;color:#374151">Self ✅${sp} 🌗${sh} 🏖️${sl}</span>`;
         }
       } else {
         const cnt = actFor(ids);

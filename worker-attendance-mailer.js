@@ -1,7 +1,7 @@
 // MRF FIELD ONE — Daily 10:00 IST Attendance Email (Cloudflare Worker: mrf-attendance-mailer)
 //
 // "Agent Vikram" reports today's attendance down the full hierarchy: NSH → SH/NH → RSMs → ASMs,
-// each row showing the person's OWN status plus Present/Leave/Holiday/Unmarked rolled up over
+// each row showing the person's OWN status plus Present/Half Day/Leave/Holiday/Unmarked rolled up over
 // everyone below them. Sent FROM fieldone@mrfpaint.com via Microsoft Graph (Mail.Send app).
 //
 // Org rules (2026-08-12): heads live in the RSMs sheet with a coarse region — 'All India' = NSH,
@@ -105,7 +105,7 @@ async function sendAttendanceMail(env) {
   att.forEach(a => { if (String(a.date||'') === today) mark[String(a.iscId)] = a.status; });
   const holToday = holidayName(today);
   const OWN   = id => mark[String(id)] || (holToday ? 'Holiday' : 'Unmarked');   // a blank on a holiday is a holiday, not a miss
-  const badge = s => s==='Present' ? '✅ Present' : s==='Leave' ? '🏖️ Leave' : s==='Holiday' ? '🎉 Holiday' : '❌ Unmarked';
+  const badge = s => s==='Present' ? '✅ Present' : s==='Half Day' ? '🌗 Half Day' : s==='Leave' ? '🏖️ Leave' : s==='Holiday' ? '🎉 Holiday' : '❌ Unmarked';
 
   const heads    = rsmSheet.filter(r => live(r) && headZone(r));
   const realRsms = rsmSheet.filter(r => live(r) && !headZone(r));
@@ -117,8 +117,9 @@ async function sendAttendanceMail(env) {
   const asmsOfRSM = r => liveAsms.filter(a => String(a.rsmId||'') === String(r.id));
   const underRSM  = r => [r, ...asmsOfRSM(r).flatMap(underASM)];
 
-  const count = people => { const c = {ppl: people.length, P:0, L:0, H:0, U:0};
-    people.forEach(p => { const s = OWN(p.id); if (s==='Present') c.P++; else if (s==='Leave') c.L++; else if (s==='Holiday') c.H++; else c.U++; });
+  // HD = Half Day (index.html v4.71): its own column, and counted as marked — never as Unmarked.
+  const count = people => { const c = {ppl: people.length, P:0, HD:0, L:0, H:0, U:0};
+    people.forEach(p => { const s = OWN(p.id); if (s==='Present') c.P++; else if (s==='Half Day') c.HD++; else if (s==='Leave') c.L++; else if (s==='Holiday') c.H++; else c.U++; });
     return c; };
 
   // Build hierarchical rows: NSH → zone heads → their RSMs → each RSM's ASMs
@@ -152,7 +153,7 @@ async function sendAttendanceMail(env) {
     ...liveAsms.filter(a => OWN(a.id)==='Unmarked').map(a => `${a.name} (ASM · ${a.rsmName||''})`)
   ];
 
-  const pct = grand.ppl ? Math.round((grand.P + grand.L + grand.H) / grand.ppl * 100) : 0;
+  const pct = grand.ppl ? Math.round((grand.P + grand.HD + grand.L + grand.H) / grand.ppl * 100) : 0;
   const td = 'padding:6px 10px;border:1px solid #e2e8f0;font-size:13px';
   const th = td + ';background:#0c1220;color:#fff;text-align:left';
   const levelStyle = l => l===0 ? 'font-weight:700;background:#f8fafc' : l===1 ? 'font-weight:600' : 'color:#475569';
@@ -168,16 +169,16 @@ async function sendAttendanceMail(env) {
     <div style="color:#64748b;font-size:13px;margin-bottom:14px">${today} · ${holToday ? `${esc(holToday)} (holiday) · ${grand.P} of ${grand.ppl} people working` : `marked so far: ${pct}% of ${grand.ppl} people`}</div>
     <table style="border-collapse:collapse;width:100%">
       <tr><th style="${th}">Name</th><th style="${th}">Region</th><th style="${th}">Own</th>
-          <th style="${th}">👥</th><th style="${th}">✅</th><th style="${th}">🏖️</th><th style="${th}">🎉</th><th style="${th}">❌ Unmarked</th></tr>
+          <th style="${th}">👥</th><th style="${th}">✅</th><th style="${th}">🌗</th><th style="${th}">🏖️</th><th style="${th}">🎉</th><th style="${th}">❌ Unmarked</th></tr>
       ${rows.map(r => `<tr style="${levelStyle(r.level)}">
         <td style="${td};padding-left:${10 + r.level*18}px">${esc(r.name)} ${tagPill(r.tag)}</td>
         <td style="${td}">${esc(r.sub)}</td>
         <td style="${td}">${badge(r.own)}</td><td style="${td}">${r.c.ppl}</td>
-        <td style="${td};color:#059669"><b>${r.c.P}</b></td><td style="${td}">${r.c.L}</td><td style="${td}">${r.c.H}</td>
+        <td style="${td};color:#059669"><b>${r.c.P}</b></td><td style="${td}">${r.c.HD}</td><td style="${td}">${r.c.L}</td><td style="${td}">${r.c.H}</td>
         <td style="${td};color:${r.c.U?'#dc2626':'#059669'}"><b>${r.c.U}</b></td></tr>`).join('')}
       <tr><td style="${td};background:#f1f5f9"><b>Total (whole org)</b></td><td style="${td};background:#f1f5f9"></td><td style="${td};background:#f1f5f9"></td>
         <td style="${td};background:#f1f5f9"><b>${grand.ppl}</b></td><td style="${td};background:#f1f5f9;color:#059669"><b>${grand.P}</b></td>
-        <td style="${td};background:#f1f5f9">${grand.L}</td><td style="${td};background:#f1f5f9">${grand.H}</td>
+        <td style="${td};background:#f1f5f9">${grand.HD}</td><td style="${td};background:#f1f5f9">${grand.L}</td><td style="${td};background:#f1f5f9">${grand.H}</td>
         <td style="${td};background:#f1f5f9;color:#dc2626"><b>${grand.U}</b></td></tr>
     </table>
     ${unmarkedMgrs.length ? `<h3 style="margin:16px 0 6px;font-size:14px">Managers not marked by 10:00 (${unmarkedMgrs.length})</h3>
